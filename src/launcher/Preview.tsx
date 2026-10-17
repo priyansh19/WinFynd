@@ -1,36 +1,37 @@
 import { Icon } from "../components/Icon";
-import { openLabel, type SearchResult } from "../lib/search";
+import { describe, extension, folderOf, KIND_TINT, thumbnailUrl, type SearchResult } from "../lib/search";
 
-export function Preview({ result }: { result: SearchResult }) {
-  const playable = result.kind === "video" || result.kind === "audio";
+export function Preview({ result, onOpen, onReveal }: { result: SearchResult; onOpen: () => void; onReveal: () => void }) {
+  const thumb = thumbnailUrl(result);
   return (
     <section className="preview" aria-label="Preview">
-      <div className="preview-media" style={{ background: result.tint }}>
-        {playable && (
-          <button type="button" className="preview-play" aria-label={openLabel(result)}>
-            <Icon name="play" size={22} />
-          </button>
-        )}
-        {result.moment && <span className="preview-stamp">{result.moment.label}</span>}
-      </div>
-      <div className="preview-title">
-        <strong>{result.name}</strong>
-        <span>{result.path}</span>
-        <span>{result.meta}</span>
-      </div>
-      {result.snippet && <p className="preview-snippet">“{result.snippet}”</p>}
-      {result.moment && (
-        <div className="preview-reason">
-          <Icon name="search" size={16} />
-          {result.moment.reason}
+      {thumb ? (
+        <img className="preview-media preview-image" src={thumb} alt={result.name} />
+      ) : result.snippet ? (
+        <div className="preview-media preview-text">
+          {result.location && <span className="preview-stamp">{result.location}</span>}
+          <p>{result.snippet}</p>
+        </div>
+      ) : (
+        <div className="preview-media preview-icon" style={{ color: KIND_TINT[result.kind] }}>
+          {extension(result.name)}
         </div>
       )}
+      <div className="preview-title">
+        <strong>{result.name}</strong>
+        <span>{folderOf(result.path)}</span>
+        <span>{describe(result)}</span>
+      </div>
+      <div className="preview-reason">
+        <Icon name="search" size={16} />
+        {result.reason}
+      </div>
       <div className="preview-actions">
-        <button type="button" className="glass-btn glass-btn-primary">
-          {openLabel(result)}
+        <button type="button" className="glass-btn glass-btn-primary" onClick={onOpen}>
+          {result.location ? `Open (${result.location})` : "Open"}
         </button>
-        <button type="button" className="glass-btn">
-          Show in Explorer
+        <button type="button" className="glass-btn" onClick={onReveal}>
+          Show in folder
         </button>
       </div>
     </section>

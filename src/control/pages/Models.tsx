@@ -1,84 +1,218 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  formatBytes,
+  getConfig,
+  listModels,
+  pullModel,
+  setConfig,
+  type EngineConfig,
+  type InstalledModel,
+  type PullProgress,
+} from "../../lib/engine";
+import { listen } from "../../lib/tauri";
 
-type Status = "active" | "ready" | "missing" | "downloading";
-
-interface ModelSlot {
-  tag: string;
-  tint: string;
-  role: string;
-  name: string;
-  size: string;
-  status: Status;
-}
-
-// The model catalogue the app will ship with. Download and load are not
-// wired to the backend yet; the page holds state locally.
-const INITIAL: ModelSlot[] = [
-  { tag: "TXT", tint: "#8db8ff", role: "Text embeddings", name: "nomic-embed-text v1.5", size: "274 MB", status: "active" },
-  { tag: "IMG", tint: "#8fe0aa", role: "Images and video frames", name: "SigLIP base patch16", size: "813 MB", status: "active" },
-  { tag: "OCR", tint: "#f0a040", role: "Text in images and scans", name: "Windows OCR (built in)", size: "0 MB", status: "active" },
-  { tag: "STT", tint: "#c79bff", role: "Voice search", name: "Whisper small (English)", size: "466 MB", status: "ready" },
-  { tag: "LLM", tint: "#ff9e7a", role: "Answers and agent actions", name: "Qwen2.5 3B Instruct (Q4)", size: "1.9 GB", status: "active" },
-  { tag: "AUD", tint: "#c79bff", role: "Transcribe recordings and videos", name: "Whisper medium", size: "1.5 GB", status: "missing" },
+// EmbeddingGemma 2 sizes available in Ollama. Only the vision-capable ones
+// can embed photos; the others index images by file name.
+const EMBED_TAGS = [
+  { tag: "embeddinggemma-2", label: "EmbeddingGemma 2 · 740M", note: "Text and images · 1.3 GB", images: true },
+  { tag: "embeddinggemma-2:440m", label: "EmbeddingGemma 2 · 440M", note: "Text and images · 0.7 GB", images: true },
+  { tag: "embeddinggemma-2:270m", label: "EmbeddingGemma 2 · 270M", note: "Text only · 0.3 GB", images: false },
 ];
 
-const STATUS_LABEL: Record<Status, string> = {
-  active: "Active",
-  ready: "Ready",
-  missing: "Not installed",
-  downloading: "Downloading",
-};
+const DIMENSIONS = [
+  { value: 768, label: "768 · best quality" },
+  { value: 512, label: "512 · balanced" },
+  { value: 256, label: "256 · smallest for images" },
+] as const;
+
+const installedHas = (installed: InstalledModel[], name: string) =>
+  installed.some((m) => m.name === name || m.name === `${name}:latest`);
 
 export function ModelsPage() {
-  const [models, setModels] = useState(INITIAL);
-  const [device, setDevice] = useState("gpu");
+  const [config, setLocal] = useState<EngineConfig | null>(null);
+  const [installed, setInstalled] = useState<InstalledModel[] | null>(null);
+  const [ollamaError, setOllamaError] = useState<string | null>(null);
+  const [pull, setPull] = useState<PullProgress | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const download = (tag: string) =>
-    setModels((ms) => ms.map((m) => (m.tag === tag ? { ...m, status: "downloading" } : m)));
+  const refresh = useCallback(() => {
+    listModels().then((m) => {
+      setInstalled(m.installed);
+      setOllamaError(m.error);
+    });
+  }, []);
+
+  useEffect(() => {
+    getConfig().then(setLocal);
+    refresh();
+    const off = listen<PullProgress>("models://pull", (p) => {
+      setPull(p.done && !p.error ? null : p);
+      if (p.done) refresh();
+    });
+    return () => {
+      off.then((f) => f());
+    };
+  }, [refresh]);
+
+  if (!config) return null;
+
+  const save = async (next: EngineConfig, confirmRebuild = false) => {
+    if (confirmRebuild && !window.confirm("Changing this re-indexes all your files with the new setting. Continue?")) return;
+    try {
+      setLocal(await setConfig(next));
+      setError(null);
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const download = async (model: string) => {
+    setPull({ model, status: "starting", completed: 0, total: 0, done: false, error: null });
+    try {
+      await pullModel(model);
+    } catch (e) {
+      setPull(null);
+      setError(String(e));
+    }
+  };
+
+  const chatModels = (installed ?? []).filter((m) => !m.name.includes("embed"));
 
   return (
     <>
-      <header className="cc-header cc-header-row">
-        <div>
-          <h1>On-device models</h1>
-          <p>Every model runs locally. Nothing you search, say or index is sent anywhere.</p>
-        </div>
-        <label className="field">
-          Run models on
-          <select value={device} onChange={(e) => setDevice(e.target.value)}>
-            <option value="gpu">GPU</option>
-            <option value="npu">NPU</option>
-            <option value="cpu">CPU only</option>
-          </select>
-        </label>
+      <header className="cc-header">
+        <h1>On-device models</h1>
+        <p>Models run in Ollama on this PC. Nothing you search, say or index is sent anywhere.</p>
       </header>
 
-      <div className="card list">
-        {models.map((m) => (
-          <div key={m.tag} className="list-row">
-            <div className="model-tag" style={{ color: m.tint }}>
-              {m.tag}
-            </div>
-            <div className="list-text">
-              <span className="cc-muted">{m.role}</span>
-              <span className="list-title">{m.name}</span>
-            </div>
-            <span className="model-size">{m.size}</span>
-            <span className={`pill pill-${m.status}`}>{STATUS_LABEL[m.status]}</span>
-            {m.status === "missing" ? (
-              <button type="button" className="btn btn-primary model-action" onClick={() => download(m.tag)}>
-                Download
-              </button>
-            ) : (
-              <button type="button" className="btn model-action" disabled={m.status === "downloading"}>
-                Change
-              </button>
-            )}
+      {ollamaError && (
+        <div className="card notice" role="alert">
+          <div className="list-text">
+            <span className="list-title">Ollama isn't running</span>
+            <span className="cc-muted">
+              Install Ollama from ollama.com and start it, then come back here. Until then WinFynd searches exact words and
+              file names.
+            </span>
           </div>
-        ))}
+          <button type="button" className="btn" onClick={refresh}>
+            Check again
+          </button>
+        </div>
+      )}
+
+      <h2 className="cc-subhead">Embedding model</h2>
+      <p className="cc-muted section-lead">
+        EmbeddingGemma 2 places text and images in one space, so a typed description finds matching photos as well as documents.
+      </p>
+      <div className="card list">
+        {EMBED_TAGS.map((m) => {
+          const active = config.embedModel === m.tag;
+          const have = installed ? installedHas(installed, m.tag) : false;
+          const pulling = pull && pull.model === m.tag && !pull.done;
+          return (
+            <div key={m.tag} className="list-row">
+              <div className="model-tag" style={{ color: m.images ? "#8fe0aa" : "#8db8ff" }}>
+                {m.images ? "IMG" : "TXT"}
+              </div>
+              <div className="list-text">
+                <span className="list-title">{m.label}</span>
+                <span className="cc-muted">{m.note}</span>
+              </div>
+              {pulling ? (
+                <div className="pull-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100}
+                  aria-valuenow={pull.total ? Math.round((pull.completed / pull.total) * 100) : 0}>
+                  <div className="meter">
+                    <div className="meter-fill meter-accent" style={{ width: `${pull.total ? (pull.completed / pull.total) * 100 : 3}%` }} />
+                  </div>
+                  <span className="cc-muted">
+                    {pull.total ? `${formatBytes(pull.completed)} of ${formatBytes(pull.total)}` : pull.status}
+                  </span>
+                </div>
+              ) : (
+                <span className={`pill ${active && have ? "pill-active" : have ? "pill-ready" : "pill-missing"}`}>
+                  {active && have ? "In use" : have ? "Downloaded" : "Not downloaded"}
+                </span>
+              )}
+              {!have ? (
+                <button type="button" className="btn btn-primary model-action" disabled={!!ollamaError || !!pulling} onClick={() => download(m.tag)}>
+                  Download
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn model-action"
+                  disabled={active}
+                  onClick={() => save({ ...config, embedModel: m.tag, indexImages: m.images && config.indexImages }, true)}
+                >
+                  {active ? "In use" : "Use"}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {pull?.error && <span className="text-danger">Download failed: {pull.error}</span>}
+
+      <div className="card list">
+        <div className="list-row">
+          <div className="list-text">
+            <span className="list-title">Vector size</span>
+            <span className="cc-muted">Smaller vectors use less memory and disk, with a little less accuracy.</span>
+          </div>
+          <label className="field">
+            <span className="sr-only">Vector size</span>
+            <select
+              value={config.dimensions}
+              onChange={(e) => save({ ...config, dimensions: Number(e.target.value) as EngineConfig["dimensions"] }, true)}
+            >
+              {DIMENSIONS.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="list-row">
+          <div className="list-text">
+            <span className="list-title">Understand photos</span>
+            <span className="cc-muted">Embed what's in your images. Off means photos are found by name only.</span>
+          </div>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={config.indexImages}
+              disabled={!EMBED_TAGS.find((m) => m.tag === config.embedModel)?.images}
+              onChange={(e) => save({ ...config, indexImages: e.target.checked }, true)}
+            />
+            <span>Index image content</span>
+          </label>
+        </div>
       </div>
 
-      <p className="cc-muted">Models download once from their public source, then run fully offline.</p>
+      <h2 className="cc-subhead">Answer model</h2>
+      <div className="card list">
+        <div className="list-row">
+          <div className="list-text">
+            <span className="list-title">Model for Ask mode</span>
+            <span className="cc-muted">
+              Any chat model you've pulled in Ollama. It only sees the passages WinFynd finds for your question.
+            </span>
+          </div>
+          <label className="field">
+            <span className="sr-only">Model for Ask mode</span>
+            <select value={config.chatModel} onChange={(e) => save({ ...config, chatModel: e.target.value })}>
+              <option value="">Automatic (first installed)</option>
+              {chatModels.map((m) => (
+                <option key={m.name} value={m.name}>
+                  {m.name} · {formatBytes(m.size)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </div>
+      {error && <span className="text-danger">{error}</span>}
     </>
   );
 }

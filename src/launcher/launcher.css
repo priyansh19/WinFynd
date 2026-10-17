@@ -200,3 +200,29 @@ html:has(.launcher), body:has(.launcher) { background: transparent; }
   .voice-pulse { animation: none; }
   .voice-wave span { transition: none; }
 }
+
+.launcher-error {
+  padding: 8px 22px;
+  font-size: 13px;
+  color: #ffb4a8;
+  background: rgba(255, 138, 122, 0.1);
+  border-bottom: 1px solid var(--glass-line);
+}
+.launcher-empty { flex-direction: column; text-align: center; padding: 0 40px; }
+.empty-progress { font-size: 12px; color: var(--glass-label); }
+.link-button { border: 0; background: none; padding: 0; color: #8db8ff; text-decoration: underline; font-size: inherit; }
+.result-thumb { object-fit: cover; }
+.result-thumb-ext { display: grid; place-items: center; background: rgba(255, 255, 255, 0.08); font: 600 10px var(--font-mono); }
+.preview-image { width: 100%; object-fit: cover; background: rgba(0, 0, 0, 0.25); }
+.preview-text {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 34px 18px 18px;
+  overflow: hidden;
+}
+.preview-text p { margin: 0; font-size: 14px; line-height: 1.6; color: #e6dfdb; }
+.preview-text .preview-stamp { top: 10px; bottom: auto; left: 12px; }
+.preview-icon { display: grid; place-items: center; background: rgba(255, 255, 255, 0.05); font: 600 28px var(--font-mono); }
+.answer-source { width: 100%; text-align: left; border: 0; background: transparent; border-radius: 10px; cursor: pointer; }
+.answer-source:hover { background: rgba(255, 255, 255, 0.06); }
+.answer-text { white-space: pre-wrap; }
+.pulse { animation: pulse 1.2s infinite; }

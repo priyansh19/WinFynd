@@ -20,7 +20,7 @@ export async function invoke<T>(cmd: string, args: Record<string, unknown> = {})
   return stub(args) as T;
 }
 
-export async function listen(event: string, handler: () => void): Promise<UnlistenFn> {
+export async function listen<T = unknown>(event: string, handler: (payload: T) => void): Promise<UnlistenFn> {
   if (!inTauri) return () => {};
-  return tauriListen(event, handler);
+  return tauriListen<T>(event, (e) => handler(e.payload));
 }

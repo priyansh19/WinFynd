@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
+import { useEngineStatus } from "../lib/engine";
 import { getHotkeys, type VoiceMode } from "../lib/hotkeys";
-import { ask, openLabel, search, type Answer, type SearchResult } from "../lib/search";
+import { ask, openResult, revealResult, search, type Answer, type SearchResult } from "../lib/search";
 import { invoke, listen } from "../lib/tauri";
 import { AnswerPanel } from "./AnswerPanel";
+import { EmptyState } from "./EmptyState";
 import { Preview } from "./Preview";
 import { ResultList } from "./ResultList";
 import { VoiceBar, useVoice } from "./Voice";
@@ -14,35 +16,63 @@ export function Launcher() {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<Mode>("search");
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [semantic, setSemantic] = useState(true);
   const [selected, setSelected] = useState(0);
   const [answer, setAnswer] = useState<Answer | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [voiceMode, setVoiceMode] = useState<VoiceMode>("hold");
   const [autoSubmit, setAutoSubmit] = useState(true);
   const input = useRef<HTMLInputElement>(null);
+  const latest = useRef(0);
+  const status = useEngineStatus();
 
-  const runQuery = useCallback(
-    async (q: string, m: Mode = mode) => {
-      if (m === "ask") {
-        setAnswer(q.trim() ? await ask(q) : null);
-      } else {
-        setResults(await search(q));
-        setSelected(0);
-      }
-    },
-    [mode],
-  );
+  const runSearch = useCallback(async (q: string) => {
+    const id = ++latest.current;
+    if (!q.trim()) {
+      setResults([]);
+      return;
+    }
+    try {
+      const r = await search(q);
+      if (id !== latest.current) return; // a newer keystroke won
+      setResults(r.hits);
+      setSemantic(r.semantic);
+      setSelected(0);
+      setError(null);
+    } catch (e) {
+      if (id === latest.current) setError(String(e));
+    }
+  }, []);
+
+  const runAsk = useCallback(async (q: string) => {
+    if (!q.trim()) return;
+    setAsking(true);
+    setAnswer(null);
+    setError(null);
+    try {
+      setAnswer(await ask(q));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setAsking(false);
+    }
+  }, []);
 
   const voice = useVoice({
     onTranscript: (text, final) => {
+      if (!text) return;
       setQuery(text);
-      if (final && autoSubmit) runQuery(text);
+      if (final && autoSubmit && mode === "ask") runAsk(text);
     },
   });
 
-  // Live search while typing; ask mode waits for Enter.
+  // Search as you type, lightly debounced so each keystroke doesn't embed.
   useEffect(() => {
-    if (mode === "search") runQuery(query, "search");
-  }, [query, mode, runQuery]);
+    if (mode !== "search") return;
+    const t = setTimeout(() => runSearch(query), 120);
+    return () => clearTimeout(t);
+  }, [query, mode, runSearch]);
 
   const refreshSettings = useCallback(() => {
     getHotkeys()
@@ -71,6 +101,8 @@ export function Launcher() {
 
   const hide = () => invoke("hide_launcher_cmd").catch(() => {});
   const current = results[selected];
+  const open = (r?: SearchResult) => r && openResult(r.path).catch((e) => setError(String(e)));
+  const reveal = (r?: SearchResult) => r && revealResult(r.path).catch((e) => setError(String(e)));
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
@@ -86,14 +118,14 @@ export function Launcher() {
       setSelected((i) => Math.max(i - 1, 0));
     } else if (e.key === "Tab") {
       e.preventDefault();
-      const next = mode === "search" ? "ask" : "search";
-      setMode(next);
-      if (next === "ask") runQuery(query, "ask");
-    } else if (e.key === "Enter" && mode === "ask") {
-      runQuery(query, "ask");
+      setMode(mode === "search" ? "ask" : "search");
+      setError(null);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (mode === "ask") runAsk(query);
+      else if (e.ctrlKey) reveal(current);
+      else open(current);
     }
-    // Enter / Ctrl+Enter on a result will open or reveal it once the indexer
-    // can hand back real paths.
   };
 
   return (
@@ -113,7 +145,7 @@ export function Launcher() {
           autoFocus
           spellCheck={false}
           autoComplete="off"
-          placeholder={mode === "ask" ? "Ask anything about your files" : "Search files, photos, videos, recordings…"}
+          placeholder={mode === "ask" ? "Ask anything about your files, then press Enter" : "Search files, photos, documents…"}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -129,29 +161,31 @@ export function Launcher() {
       </div>
 
       {voice.listening && <VoiceBar level={voice.level} mode={voiceMode} />}
+      {error && <div className="launcher-error" role="alert">{error}</div>}
 
       <div className="launcher-body">
         {mode === "ask" ? (
-          <AnswerPanel answer={answer} />
+          <AnswerPanel answer={answer} loading={asking} onOpen={(p) => openResult(p).catch((e) => setError(String(e)))} />
         ) : results.length ? (
           <>
-            <ResultList results={results} selected={selected} onSelect={setSelected} />
-            {current && <Preview result={current} />}
+            <ResultList results={results} selected={selected} onSelect={setSelected} onOpen={(i) => open(results[i])} />
+            {current && <Preview result={current} onOpen={() => open(current)} onReveal={() => reveal(current)} />}
           </>
         ) : (
-          <div className="launcher-empty">
-            <Icon name="lock" size={18} />
-            Type or hold the voice key to search. Everything stays on this PC.
-          </div>
+          <EmptyState status={status} searched={query.trim().length > 0} />
         )}
       </div>
 
       <footer className="launcher-footer">
-        <span>{mode === "ask" ? "Answer built only from your files" : `${results.length} ${results.length === 1 ? "result" : "results"}`}</span>
+        <span>
+          {mode === "ask"
+            ? "Answers use only your files"
+            : `${results.length} ${results.length === 1 ? "result" : "results"}${semantic ? "" : " · exact words only"}`}
+        </span>
         <span className="launcher-footer-keys">
-          {current && mode === "search" && <span>Enter {openLabel(current)}</span>}
-          <span>Ctrl+Enter Reveal</span>
-          <span>Tab {mode === "ask" ? "Back to results" : "Ask"}</span>
+          <span>Enter {mode === "ask" ? "Ask" : "Open"}</span>
+          {mode === "search" && <span>Ctrl+Enter Show in folder</span>}
+          <span>Tab {mode === "ask" ? "Back to search" : "Ask"}</span>
           <span>Esc Close</span>
         </span>
       </footer>

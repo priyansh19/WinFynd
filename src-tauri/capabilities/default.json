@@ -2,6 +2,12 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Permissions for the launcher and Control Center windows",
-  "windows": ["launcher", "control"],
-  "permissions": ["core:default"]
+  "windows": [
+    "launcher",
+    "control"
+  ],
+  "permissions": [
+    "core:default",
+    "dialog:allow-open"
+  ]
 }

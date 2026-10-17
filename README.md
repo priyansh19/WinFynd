@@ -17,7 +17,27 @@ A Tauri 2 app with a Rust backend and a React + TypeScript UI:
 | Ask a question | Ctrl+Alt+Space |
 | Search selected text | Win+Shift+F |
 
-Search results and answers are sample data for now (`src/lib/search.ts`) until the indexer is built. Voice capture measures the microphone level, but speech-to-text isn't wired up yet.
+## How search works
+
+- **Embeddings: EmbeddingGemma 2**, open weights, run locally through [Ollama](https://ollama.com) on `127.0.0.1` only. Text and photos land in one vector space, so "zebra on a beach" finds the photo as well as the notes about it.
+- **Indexer** (`src-tauri/src/engine/`): watches your Documents, Desktop, Downloads and Pictures (change them on the Overview page), extracts text from PDF, Word, PowerPoint, Excel/CSV, OpenDocument, HTML, Markdown and code, chunks it with page and slide labels, and stores everything in SQLite next to the app config. Unchanged files are skipped on rescan; OneDrive files that aren't downloaded are indexed by name only.
+- **Hybrid search**: vector similarity and SQLite full-text search, fused by rank, one result per file with the reason it matched ("Exact words on page 3").
+- **Ask mode**: sends the top passages to an Ollama chat model you have installed (pick one on the Models page) and answers with numbered sources.
+- If Ollama isn't running, search falls back to exact words and files are re-embedded once it's back.
+
+### First run
+
+```sh
+ollama pull embeddinggemma-2   # or press Download on the Models page
+ollama pull gemma4             # optional, any chat model for Ask mode
+```
+
+The Models page also switches between the 740M, 440M and 270M variants and the vector size (768, 512 or 256). Changing either rebuilds the index.
+
+### Not done yet
+
+- Voice capture measures the microphone level, but speech-to-text isn't wired up.
+- Audio and video files are found by name, not by what's said in them.
 
 ## Develop
 
@@ -29,3 +49,5 @@ npm run tauri dev     # run the desktop app
 npm run dev           # UI only, in a browser at http://localhost:1420 (launcher at /launcher.html)
 npm run tauri build   # installer in src-tauri/target/release/bundle
 ```
+
+`cargo test` in `src-tauri` runs the engine end to end against a fake Ollama server.

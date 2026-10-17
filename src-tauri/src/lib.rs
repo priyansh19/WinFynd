@@ -1,3 +1,5 @@
+mod commands;
+mod engine;
 mod hotkeys;
 mod windows;
 
@@ -14,6 +16,8 @@ pub fn run() {
                 .with_handler(hotkeys::handle)
                 .build(),
         )
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(HotkeyState::default())
         .invoke_handler(tauri::generate_handler![
             hotkeys::get_hotkeys,
@@ -22,6 +26,16 @@ pub fn run() {
             hotkeys::suspend_hotkeys,
             windows::hide_launcher_cmd,
             windows::open_control_center,
+            commands::search,
+            commands::ask,
+            commands::engine_status,
+            commands::get_engine_config,
+            commands::set_engine_config,
+            commands::rescan,
+            commands::list_models,
+            commands::pull_model,
+            commands::open_path,
+            commands::reveal_path,
         ])
         .setup(|app| {
             let handle = app.handle();
@@ -29,6 +43,9 @@ pub fn run() {
             let config = hotkeys::load(handle);
             hotkeys::register_all(handle, &config);
             *app.state::<HotkeyState>().config.lock().unwrap() = config;
+
+            let engine = engine::Engine::start(handle)?;
+            app.manage(engine);
 
             let open = MenuItem::with_id(app, "open", "Open WinFynd", true, None::<&str>)?;
             let control = MenuItem::with_id(app, "control", "Control Center", true, None::<&str>)?;
