@@ -1,0 +1,46 @@
+/* Shared design tokens for both windows. System fonts only: the app makes no network requests. */
+
+:root {
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, monospace;
+
+  /* Control Center (warm glass, matches the launcher) */
+  --bg: #221d1d;
+  --panel: rgba(255, 255, 255, 0.05);
+  --raised: rgba(255, 255, 255, 0.12);
+  --raised-hover: rgba(255, 255, 255, 0.18);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: #f4efec;
+  --text-2: #d9d0cb;
+  --muted: #c9c0bb;
+  --accent: #f0a040;
+  --on-accent: #2b1a05;
+  --ok: #7fd49b;
+  --warn: #f0a040;
+  --danger: #ff8a7a;
+
+  /* Launcher glass */
+  --glass: rgba(46, 40, 40, 0.86);
+  --glass-line: rgba(255, 255, 255, 0.08);
+  --glass-edge: rgba(255, 255, 255, 0.12);
+  --glass-chip: rgba(255, 255, 255, 0.12);
+  --glass-text: #f4efec;
+  --glass-muted: #c9c0bb;
+  --glass-label: #bdb3ae;
+  --glass-select: rgba(60, 105, 175, 0.6);
+  --glass-accent: #f0a040;
+  --primary: #2569d8;
+
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 18px;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; }
+body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

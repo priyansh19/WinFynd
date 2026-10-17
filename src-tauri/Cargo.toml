@@ -1,0 +1,33 @@
+[package]
+name = "winfynd"
+version = "0.1.0"
+description = "Find anything on your PC by text or voice. Everything stays local."
+edition = "2021"
+
+[lib]
+name = "winfynd_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "protocol-asset"] }
+tauri-plugin-global-shortcut = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+notify = "8.2.0"
+notify-debouncer-full = "0.7.0"
+walkdir = "2.5.0"
+base64 = "0.23.1"
+pdf-extract = "0.12.1"
+zip = "9.0.5"
+quick-xml = "0.42.0"
+calamine = "0.36.1"
+tauri-plugin-opener = "2.7.2"
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp"] }
+reqwest = { version = "0.13.5", default-features = false, features = ["blocking", "json", "rustls"] }
+tauri-plugin-dialog = "2.8.3"
+whisper-rs = "0.16"
+symphonia = { version = "0.5", features = ["aac", "alac", "flac", "isomp4", "mkv", "mp3", "ogg", "vorbis", "wav", "pcm"] }
