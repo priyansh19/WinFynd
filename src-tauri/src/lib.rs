@@ -34,6 +34,8 @@ pub fn run() {
             commands::rescan,
             commands::list_models,
             commands::pull_model,
+            commands::media_support,
+            commands::download_speech_model,
             commands::open_path,
             commands::reveal_path,
         ])

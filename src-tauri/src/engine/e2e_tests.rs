@@ -110,7 +110,8 @@ fn engine_for(root: &std::path::Path, ollama_url: String) -> Arc<Engine> {
         ..EngineConfig::default()
     };
     let conn = db::open(&root.join(".index/index.sqlite3")).unwrap();
-    let (engine, _rx) = Engine::open(conn, config, root.join(".index/engine.json"), |_| {}).unwrap();
+    let (engine, _rx) =
+        Engine::open(conn, config, root.join(".index/engine.json"), root.join(".index/speech"), |_| {}).unwrap();
     engine
 }
 
@@ -179,5 +180,107 @@ fn falls_back_to_exact_words_when_ollama_is_down() {
     // Stored as not embedded, so it's picked up again once Ollama is back.
     let stamp = db::file_stamp(&engine.db.lock().unwrap(), &root.join("budget.txt").to_string_lossy()).unwrap();
     assert_eq!(stamp.unwrap().2, NOT_EMBEDDED);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// Stands in for Whisper: "hears" the same sentence in any audio.
+struct FakeWhisper;
+
+impl speech::Transcribe for FakeWhisper {
+    fn transcribe(&self, samples: &[f32]) -> Result<Vec<media::Segment>, String> {
+        assert!(samples.len() >= media::SAMPLE_RATE, "expected at least a second of 16 kHz audio");
+        Ok(vec![
+            media::Segment { start: 0.0, text: "Welcome back everyone.".into() },
+            media::Segment { start: 2.0, text: "We booked the zebra safari for March.".into() },
+        ])
+    }
+}
+
+/// A two-second 44.1 kHz stereo WAV tone, decodable without FFmpeg.
+fn write_wav(path: &std::path::Path) {
+    let rate = 44_100u32;
+    let frames = rate * 2;
+    let mut data = Vec::new();
+    for i in 0..frames {
+        let s = ((i as f32 * 440.0 * std::f32::consts::TAU / rate as f32).sin() * 8000.0) as i16;
+        data.extend_from_slice(&s.to_le_bytes());
+        data.extend_from_slice(&s.to_le_bytes());
+    }
+    let mut wav = Vec::new();
+    wav.extend_from_slice(b"RIFF");
+    wav.extend_from_slice(&(36 + data.len() as u32).to_le_bytes());
+    wav.extend_from_slice(b"WAVEfmt ");
+    wav.extend_from_slice(&16u32.to_le_bytes());
+    wav.extend_from_slice(&1u16.to_le_bytes());
+    wav.extend_from_slice(&2u16.to_le_bytes());
+    wav.extend_from_slice(&rate.to_le_bytes());
+    wav.extend_from_slice(&(rate * 4).to_le_bytes());
+    wav.extend_from_slice(&4u16.to_le_bytes());
+    wav.extend_from_slice(&16u16.to_le_bytes());
+    wav.extend_from_slice(b"data");
+    wav.extend_from_slice(&(data.len() as u32).to_le_bytes());
+    wav.extend_from_slice(&data);
+    std::fs::write(path, wav).unwrap();
+}
+
+#[test]
+fn indexes_what_is_said_in_audio() {
+    let root = temp_dir("audio");
+    write_wav(&root.join("voice memo 12.wav"));
+    let engine = engine_for(&root, fake_ollama());
+    // Decode with the built-in decoder, not FFmpeg.
+    *engine.ffmpeg.write().unwrap() = None;
+    let mut cfg = engine.config();
+    cfg.speech_model = "fake".into();
+    *engine.config.write().unwrap() = cfg;
+    *engine.speech.lock().unwrap() = Some(("fake".into(), Arc::new(FakeWhisper)));
+    engine.refresh_ollama_state();
+    engine.index_file(&root.join("voice memo 12.wav"));
+
+    let r = engine.search("zebra safari", 10);
+    assert_eq!(r.hits[0].name, "voice memo 12.wav");
+    assert_eq!(r.hits[0].location.as_deref(), Some("0:00"));
+    assert!(r.hits[0].reason.starts_with("Said at 0:00"), "{}", r.hits[0].reason);
+    assert!(r.hits[0].snippet.as_deref().unwrap().contains("zebra safari"));
+
+    let answer = engine.ask("When is the zebra safari?").unwrap();
+    assert_eq!(answer.sources[0].name, "voice memo 12.wav");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn indexes_what_is_shown_in_video() {
+    let Some(ffmpeg) = media::find_ffmpeg() else {
+        eprintln!("FFmpeg not installed; skipping");
+        return;
+    };
+    let root = temp_dir("video");
+    let video = root.join("trip.mp4");
+    // Twenty seconds of a moving test pattern with a tone.
+    let ok = std::process::Command::new(&ffmpeg)
+        .args(["-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=duration=20:size=320x240:rate=10"])
+        .args(["-f", "lavfi", "-i", "sine=frequency=300:duration=20", "-shortest"])
+        .args(["-pix_fmt", "yuv420p", "-c:v", "mpeg4", "-c:a", "aac"])
+        .arg(&video)
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+
+    let engine = engine_for(&root, fake_ollama());
+    engine.refresh_ollama_state();
+    engine.index_file(&video);
+
+    // Every frame "shows" a beach in the fake model.
+    let r = engine.search("beach", 10);
+    assert_eq!(r.hits[0].name, "trip.mp4");
+    assert!(r.hits[0].reason.starts_with("Shown at "), "{}", r.hits[0].reason);
+    let frames = db::counts(&engine.db.lock().unwrap()).1 - 1;
+    assert!(frames >= 2, "expected several distinct frames, got {frames}");
+
+    // FFmpeg's decoder feeds the speech model too.
+    let mut got = 0;
+    media::decode_audio(&video, Some(&ffmpeg), |piece, _| got += piece.len());
+    assert!((got as i64 - 20 * media::SAMPLE_RATE as i64).abs() < media::SAMPLE_RATE as i64);
     let _ = std::fs::remove_dir_all(&root);
 }

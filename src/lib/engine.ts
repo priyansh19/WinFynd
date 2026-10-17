@@ -19,6 +19,30 @@ export interface EngineConfig {
   dimensions: 768 | 512 | 256 | 128;
   chatModel: string;
   indexImages: boolean;
+  speechModel: string;
+  indexVideoFrames: boolean;
+}
+
+export interface SpeechModel {
+  id: string;
+  label: string;
+  sizeMb: number;
+  note: string;
+  installed: boolean;
+}
+
+export interface MediaSupport {
+  speechModels: SpeechModel[];
+  /** Where FFmpeg was found, or null. */
+  ffmpeg: string | null;
+}
+
+export interface SpeechProgress {
+  id: string;
+  completed: number;
+  total: number;
+  done: boolean;
+  error: string | null;
 }
 
 export interface InstalledModel {
@@ -41,6 +65,8 @@ export const setConfig = (config: EngineConfig) => invoke<EngineConfig>("set_eng
 export const rescan = () => invoke<void>("rescan");
 export const listModels = () => invoke<{ installed: InstalledModel[] | null; error: string | null }>("list_models");
 export const pullModel = (model: string) => invoke<void>("pull_model", { model });
+export const mediaSupport = (recheck = false) => invoke<MediaSupport>("media_support", { recheck });
+export const downloadSpeechModel = (id: string) => invoke<void>("download_speech_model", { id });
 
 /** Live index status, updated by `engine://status` events. */
 export function useEngineStatus(): EngineStatus | null {
@@ -69,6 +95,8 @@ let previewConfig: EngineConfig = {
   dimensions: 768,
   chatModel: "",
   indexImages: true,
+  speechModel: "small",
+  indexVideoFrames: true,
 };
 stubCommands({
   engine_status: () => ({ state: "idle", files: 12840, chunks: 96211, queued: 0, current: null, ollama: "ok", message: null }),
@@ -83,4 +111,13 @@ stubCommands({
     error: null,
   }),
   pull_model: () => undefined,
+  media_support: () => ({
+    speechModels: [
+      { id: "base", label: "Whisper Base", sizeMb: 148, note: "Fastest; fine for clear speech", installed: false },
+      { id: "small", label: "Whisper Small", sizeMb: 488, note: "Balanced speed and accuracy", installed: true },
+      { id: "large-v3-turbo-q5_0", label: "Whisper Large v3 Turbo", sizeMb: 574, note: "Most accurate; slower on CPU", installed: false },
+    ],
+    ffmpeg: null,
+  }),
+  download_speech_model: () => undefined,
 });

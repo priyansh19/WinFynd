@@ -62,6 +62,19 @@ export function thumbnailUrl(r: SearchResult): string | null {
   return r.kind === "image" && inTauri ? convertFileSrc(r.path) : null;
 }
 
+/** Seconds into a recording for labels like "1:23" or "1:02:03"; null otherwise. */
+export function secondsOf(label: string | null | undefined): number | null {
+  if (!label || !/^\d+(:\d{2}){1,2}$/.test(label)) return null;
+  return label.split(":").reduce((t, part) => t * 60 + Number(part), 0);
+}
+
+/** A playable URL for audio and video, starting at the matching moment. */
+export function mediaUrl(r: SearchResult): string | null {
+  if ((r.kind !== "video" && r.kind !== "audio") || !inTauri) return null;
+  const at = secondsOf(r.location);
+  return convertFileSrc(r.path) + (at ? `#t=${at}` : "");
+}
+
 export function extension(name: string): string {
   const dot = name.lastIndexOf(".");
   return dot > 0 ? name.slice(dot + 1).toUpperCase().slice(0, 4) : "FILE";

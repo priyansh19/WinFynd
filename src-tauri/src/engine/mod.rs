@@ -1,12 +1,16 @@
 //! The search engine: keeps an index of the user's files up to date and
 //! answers searches. Files are read, embedded with EmbeddingGemma 2 through
 //! the local Ollama server, and stored in SQLite under the app data folder.
+//! Audio and video are transcribed with Whisper and their frames embedded
+//! alongside photos.
 
 pub mod config;
 mod db;
 mod extract;
+mod media;
 pub mod ollama;
 pub mod search;
+pub mod speech;
 mod vectors;
 mod watch;
 
@@ -26,6 +30,7 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 use config::EngineConfig;
 use extract::{Extracted, Kind};
 use ollama::{EmbedInput, Ollama};
+use speech::Transcribe;
 use vectors::VectorIndex;
 
 /// Inputs per embedding request.
@@ -68,6 +73,12 @@ pub struct Engine {
     jobs: Sender<Job>,
     watcher: Mutex<Option<watch::Watcher>>,
     emit: Box<dyn Fn(&Status) + Send + Sync>,
+    /// Where Whisper models are downloaded.
+    pub(crate) speech_dir: PathBuf,
+    /// The loaded speech model and its id, kept between files.
+    speech: Mutex<Option<(String, Arc<dyn Transcribe>)>>,
+    /// FFmpeg, when installed; needed for video frames.
+    ffmpeg: RwLock<Option<PathBuf>>,
 }
 
 impl Engine {
@@ -82,7 +93,7 @@ impl Engine {
 
         let conn = db::open(&data.join("index.sqlite3")).map_err(|e| e.to_string())?;
         let handle = app.clone();
-        let (engine, rx) = Self::open(conn, config, config_path, move |s| {
+        let (engine, rx) = Self::open(conn, config, config_path, data.join("speech"), move |s| {
             let _ = handle.emit("engine://status", s);
         })?;
 
@@ -112,6 +123,7 @@ impl Engine {
         conn: Connection,
         config: EngineConfig,
         config_path: PathBuf,
+        speech_dir: PathBuf,
         emit: impl Fn(&Status) + Send + Sync + 'static,
     ) -> Result<(Arc<Self>, Receiver<Job>), String> {
         let mut vectors = VectorIndex::new(config.dimensions);
@@ -135,6 +147,9 @@ impl Engine {
             jobs: tx,
             watcher: Mutex::new(None),
             emit: Box::new(emit),
+            speech_dir,
+            speech: Mutex::new(None),
+            ffmpeg: RwLock::new(media::find_ffmpeg()),
         });
         Ok((engine, rx))
     }
@@ -176,7 +191,12 @@ impl Engine {
         }
         if old.embed_model != new.embed_model || old.dimensions != new.dimensions || old.index_images != new.index_images {
             self.enqueue(Job::Rebuild);
-        } else if old.roots != new.roots {
+        } else if old.roots != new.roots
+            || old.speech_model != new.speech_model
+            || old.index_video_frames != new.index_video_frames
+        {
+            // Media files carry these settings in their stamp, so a scan
+            // re-reads just those.
             self.enqueue(Job::Scan);
         }
         self.allow_thumbnails(app);
@@ -219,7 +239,11 @@ impl Engine {
                         s.state = "scanning".into();
                         s.message = None;
                     });
-                    for p in self.walk_roots() {
+                    self.refresh_ffmpeg();
+                    // Media is slow to transcribe, so it goes after everything else.
+                    let (media, other): (Vec<_>, Vec<_>) =
+                        self.walk_roots().into_iter().partition(|p| is_media(extract::kind_of(p)));
+                    for p in other.into_iter().chain(media) {
                         if !pending.contains(&p) {
                             pending.push_back(p);
                         }
@@ -345,7 +369,8 @@ impl Engine {
             .unwrap_or(0);
 
         let cfg = self.config();
-        let model_key = format!("{}@{}{}", cfg.embed_model, cfg.dimensions, if cfg.index_images { "+img" } else { "" });
+        let kind = extract::kind_of(path);
+        let model_key = self.model_key(&cfg, kind);
         let key = path.to_string_lossy().to_string();
         if let Ok(Some((s, m, model))) = db::file_stamp(&self.db.lock().unwrap(), &key) {
             if s == size && m == mtime && model == model_key {
@@ -354,11 +379,12 @@ impl Engine {
         }
 
         let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-        let kind = extract::kind_of(path);
         // Cloud-only OneDrive files would be downloaded just to read them:
         // index those by name until they're on disk.
         let extracted = if is_cloud_placeholder(&meta) {
             Extracted::NameOnly
+        } else if is_media(kind) {
+            self.extract_media(&cfg, path, &name, kind)
         } else {
             extract::extract(path, kind, cfg.index_images)
         };
@@ -388,6 +414,85 @@ impl Engine {
             removed.into_iter().for_each(|id| v.remove(id));
             added.iter().for_each(|(id, vec)| v.insert(*id, vec));
         }
+    }
+
+    /// What a file's stored vectors depend on. Media also depends on the
+    /// speech model and on whether frames could be read, so installing
+    /// either re-reads audio and video on the next scan.
+    fn model_key(&self, cfg: &EngineConfig, kind: Kind) -> String {
+        let mut key = format!("{}@{}{}", cfg.embed_model, cfg.dimensions, if cfg.index_images { "+img" } else { "" });
+        if is_media(kind) {
+            if speech::is_installed(&self.speech_dir, &cfg.speech_model) {
+                key.push_str(&format!("+asr:{}", cfg.speech_model));
+            }
+            if kind == Kind::Video && self.frames_enabled(cfg) {
+                key.push_str("+frames");
+            }
+        }
+        key
+    }
+
+    fn frames_enabled(&self, cfg: &EngineConfig) -> bool {
+        cfg.index_images && cfg.index_video_frames && self.ffmpeg.read().unwrap().is_some()
+    }
+
+    pub(crate) fn ffmpeg_path(&self) -> Option<PathBuf> {
+        self.ffmpeg.read().unwrap().clone()
+    }
+
+    /// Look for FFmpeg again (it may have been installed since startup).
+    pub(crate) fn refresh_ffmpeg(&self) -> Option<PathBuf> {
+        let found = media::find_ffmpeg();
+        *self.ffmpeg.write().unwrap() = found.clone();
+        found
+    }
+
+    /// The speech model named in the config, loaded once and reused.
+    fn transcriber(&self, cfg: &EngineConfig) -> Option<Arc<dyn Transcribe>> {
+        let mut slot = self.speech.lock().unwrap();
+        if let Some((id, t)) = slot.as_ref() {
+            if *id == cfg.speech_model {
+                return Some(t.clone());
+            }
+        }
+        if !speech::is_installed(&self.speech_dir, &cfg.speech_model) {
+            return None;
+        }
+        match speech::Whisper::load(&speech::model_path(&self.speech_dir, &cfg.speech_model)) {
+            Ok(w) => {
+                let t: Arc<dyn Transcribe> = Arc::new(w);
+                *slot = Some((cfg.speech_model.clone(), t.clone()));
+                Some(t)
+            }
+            Err(e) => {
+                self.update_status(|s| s.message = Some(e));
+                None
+            }
+        }
+    }
+
+    /// What's said in a recording and, for video, what's shown.
+    fn extract_media(&self, cfg: &EngineConfig, path: &Path, name: &str, kind: Kind) -> Extracted {
+        let ffmpeg = self.ffmpeg_path();
+        let mut transcript = Vec::new();
+        if let Some(t) = self.transcriber(cfg) {
+            self.update_status(|s| s.current = Some(format!("Transcribing {name}")));
+            let mut segments = Vec::new();
+            media::decode_audio(path, ffmpeg.as_deref(), |piece, offset| {
+                if let Ok(segs) = t.transcribe(piece) {
+                    segments.extend(segs.into_iter().map(|s| media::Segment { start: s.start + offset, ..s }));
+                }
+            });
+            transcript = media::transcript_chunks(&segments);
+        }
+        let mut frames = Vec::new();
+        if kind == Kind::Video && self.frames_enabled(cfg) {
+            if let Some(ff) = &ffmpeg {
+                self.update_status(|s| s.current = Some(format!("Looking through {name}")));
+                frames = media::video_frames(ff, path);
+            }
+        }
+        Extracted::Media { transcript, frames }
     }
 
     fn embed_all(&self, cfg: &EngineConfig, inputs: Vec<EmbedInput>) -> Result<Vec<Vec<f32>>, String> {
@@ -424,19 +529,42 @@ fn plan_chunks(path: &Path, name: &str, kind: Kind, extracted: Extracted) -> (Ve
             vec![db::NewChunk { label: None, text: None, vector: None }],
         ),
         Extracted::NameOnly => {
-            // Media and unknown files are found by what their name and folder say.
-            let folder = path
-                .parent()
-                .and_then(|p| p.file_name())
-                .map(|f| f.to_string_lossy().to_string())
-                .unwrap_or_default();
-            let text = format!("{} file in {}", kind.as_str(), folder);
-            (
-                vec![EmbedInput::Document { title, text: text.clone() }],
-                vec![db::NewChunk { label: None, text: None, vector: None }],
-            )
+            let (input, chunk) = name_chunk(path, title, kind);
+            (vec![input], vec![chunk])
+        }
+        Extracted::Media { transcript, frames } => {
+            // The name first, so the file is found by name even when nothing
+            // was said or shown that matches.
+            let (input, chunk) = name_chunk(path, title.clone(), kind);
+            let mut inputs = vec![input];
+            let mut chunks = vec![chunk];
+            for c in transcript {
+                inputs.push(EmbedInput::Document { title: title.clone(), text: c.text.clone() });
+                chunks.push(db::NewChunk { label: c.label, text: Some(c.text), vector: None });
+            }
+            for (at, b64) in frames {
+                inputs.push(EmbedInput::Image(b64));
+                chunks.push(db::NewChunk { label: Some(at), text: None, vector: None });
+            }
+            (inputs, chunks)
         }
     }
+}
+
+/// A chunk that stands for the file itself: found by what its name and
+/// folder say.
+fn name_chunk(path: &Path, title: String, kind: Kind) -> (EmbedInput, db::NewChunk) {
+    let folder = path
+        .parent()
+        .and_then(|p| p.file_name())
+        .map(|f| f.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let text = format!("{} file in {}", kind.as_str(), folder);
+    (EmbedInput::Document { title, text }, db::NewChunk { label: None, text: None, vector: None })
+}
+
+fn is_media(kind: Kind) -> bool {
+    matches!(kind, Kind::Audio | Kind::Video)
 }
 
 fn default_roots<R: Runtime>(app: &AppHandle<R>) -> Vec<PathBuf> {

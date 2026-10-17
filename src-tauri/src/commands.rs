@@ -10,6 +10,7 @@ use tauri_plugin_opener::OpenerExt;
 use crate::engine::config::EngineConfig;
 use crate::engine::ollama::InstalledModel;
 use crate::engine::search::{Answer, SearchResponse};
+use crate::engine::speech::{self, SpeechModel};
 use crate::engine::{Engine, Job, Status};
 
 type EngineState<'a> = State<'a, Arc<Engine>>;
@@ -51,6 +52,9 @@ pub fn set_engine_config<R: Runtime>(
     }
     if ![768, 512, 256, 128].contains(&config.dimensions) {
         return Err("Vector size must be 768, 512, 256 or 128".into());
+    }
+    if !config.speech_model.is_empty() && !speech::is_installed(&engine.speech_dir, &config.speech_model) {
+        return Err("Download that speech model first".into());
     }
     engine.set_config(&app, config)
 }
@@ -112,6 +116,83 @@ pub fn pull_model<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, model:
             error: result.err(),
         });
         engine.enqueue(Job::Scan);
+    });
+    Ok(())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpeechModelInfo {
+    #[serde(flatten)]
+    model: SpeechModel,
+    installed: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaSnapshot {
+    speech_models: Vec<SpeechModelInfo>,
+    /// Where FFmpeg was found; null when it isn't installed.
+    ffmpeg: Option<String>,
+}
+
+fn media_snapshot(engine: &Engine) -> MediaSnapshot {
+    MediaSnapshot {
+        speech_models: speech::CATALOG
+            .iter()
+            .map(|m| SpeechModelInfo { model: *m, installed: speech::is_installed(&engine.speech_dir, m.id) })
+            .collect(),
+        ffmpeg: engine.ffmpeg_path().map(|p| p.display().to_string()),
+    }
+}
+
+/// Speech models on disk and whether FFmpeg is available. `recheck` looks
+/// for FFmpeg again and rescans if it has just been installed.
+#[tauri::command]
+pub fn media_support(engine: EngineState<'_>, recheck: Option<bool>) -> MediaSnapshot {
+    if recheck.unwrap_or(false) {
+        let before = engine.ffmpeg_path();
+        if engine.refresh_ffmpeg() != before {
+            engine.enqueue(Job::Scan);
+        }
+    }
+    media_snapshot(&engine)
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SpeechProgress {
+    id: String,
+    completed: u64,
+    total: u64,
+    done: bool,
+    error: Option<String>,
+}
+
+/// Download a Whisper model in the background; progress arrives as
+/// `models://speech` events. The first model downloaded is switched on, and
+/// audio and video are then transcribed by the next scan.
+#[tauri::command]
+pub fn download_speech_model<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, id: String) -> Result<(), String> {
+    if !speech::CATALOG.iter().any(|m| m.id == id) {
+        return Err(format!("Unknown speech model {id}"));
+    }
+    let engine = engine.inner().clone();
+    std::thread::spawn(move || {
+        let emit = |p: SpeechProgress| {
+            let _ = app.emit("models://speech", p);
+        };
+        let result = speech::download(&engine.speech_dir, &id, |completed, total| {
+            emit(SpeechProgress { id: id.clone(), completed, total, done: false, error: None });
+        });
+        if result.is_ok() {
+            let mut cfg = engine.config();
+            if !speech::is_installed(&engine.speech_dir, &cfg.speech_model) {
+                cfg.speech_model = id.clone();
+                let _ = engine.set_config(&app, cfg);
+            }
+        }
+        emit(SpeechProgress { id: id.clone(), completed: 0, total: 0, done: true, error: result.err() });
     });
     Ok(())
 }

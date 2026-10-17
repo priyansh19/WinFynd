@@ -72,6 +72,9 @@ pub enum Extracted {
     Image(String),
     /// Nothing to read inside; the file is still findable by name.
     NameOnly,
+    /// Audio or video: what's said, as timed text, and sampled frames as
+    /// (timestamp, base64 JPEG). The file is findable by name as well.
+    Media { transcript: Vec<TextChunk>, frames: Vec<(String, String)> },
 }
 
 pub fn extract(path: &Path, kind: Kind, with_images: bool) -> Extracted {

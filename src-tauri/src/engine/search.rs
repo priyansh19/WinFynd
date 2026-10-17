@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use serde::Serialize;
 
 use super::ollama::{self, EmbedInput};
-use super::{db, Engine};
+use super::{db, media, Engine};
 
 /// Candidates pulled from each list before fusing.
 const CANDIDATES: usize = 80;
@@ -91,8 +91,12 @@ impl Engine {
             if seen.insert(file.id, ()).is_some() {
                 continue;
             }
+            let timed = chunk.label.as_deref().is_some_and(media::is_timestamp);
             let reason = match (&file.kind[..], &chunk.label, by_meaning, by_words) {
                 ("image", _, true, _) => "Image matches your search".to_string(),
+                (_, Some(at), true, _) if timed && chunk.text.is_none() => format!("Shown at {at}"),
+                (_, Some(at), _, true) if timed => format!("Said at {at}, exact words"),
+                (_, Some(at), true, _) if timed => format!("Talked about at {at}"),
                 (_, Some(label), _, true) => format!("Exact words on {}", label.to_lowercase()),
                 (_, Some(label), true, _) => format!("Matches the meaning on {}", label.to_lowercase()),
                 (_, None, _, true) if chunk.text.is_none() => "Name matches".to_string(),

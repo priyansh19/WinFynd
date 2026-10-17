@@ -34,14 +34,21 @@ ollama pull gemma4             # optional, any chat model for Ask mode
 
 The Models page also switches between the 740M, 440M and 270M variants and the vector size (768, 512 or 256). Changing either rebuilds the index.
 
+### Audio and video
+
+Recordings and videos are searched by what's in them, not just their names:
+
+- **What's said**: Whisper (whisper.cpp, built into the app) transcribes the sound track on your PC. Pick a model on the Models page (Base, Small or Large v3 Turbo); it downloads once from the whisper.cpp model repository on Hugging Face. Transcripts are chunked by time, so a result says "Said at 12:05" and the preview plays from there. MP3, M4A, WAV, FLAC, OGG and the audio in MP4/MKV decode without anything else installed.
+- **What's shown**: up to 48 evenly spaced frames per video (near-duplicates skipped) are embedded with EmbeddingGemma 2 like photos, so "dog on a beach" finds the moment in a video. This needs FFmpeg (`winget install Gyan.FFmpeg`), which also lets every other audio format be transcribed.
+- Media is indexed after everything else in a scan, because transcription is the slow part. Up to the first 4 hours of a file is transcribed.
+
 ### Not done yet
 
-- Voice capture measures the microphone level, but speech-to-text isn't wired up.
-- Audio and video files are found by name, not by what's said in them.
+- Voice search in the launcher measures the microphone level, but doesn't turn your speech into a query yet. The Whisper model above is what it will use.
 
 ## Develop
 
-Prerequisites: Node 20+, Rust stable, and the [Tauri prerequisites for Windows](https://tauri.app/start/prerequisites/) (WebView2 and the MSVC build tools).
+Prerequisites: Node 20+, Rust stable, the [Tauri prerequisites for Windows](https://tauri.app/start/prerequisites/) (WebView2 and the MSVC build tools), and CMake plus LLVM for building whisper.cpp (`winget install Kitware.CMake LLVM.LLVM`).
 
 ```sh
 npm install

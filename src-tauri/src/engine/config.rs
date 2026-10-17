@@ -21,6 +21,10 @@ pub struct EngineConfig {
     pub chat_model: String,
     /// Embed images (needs a vision-capable embedding tag, e.g. 740m).
     pub index_images: bool,
+    /// Whisper model id for transcribing audio and video; empty means off.
+    pub speech_model: String,
+    /// Embed sampled video frames (needs FFmpeg and `index_images`).
+    pub index_video_frames: bool,
 }
 
 impl Default for EngineConfig {
@@ -32,6 +36,8 @@ impl Default for EngineConfig {
             dimensions: 768,
             chat_model: String::new(),
             index_images: true,
+            speech_model: String::new(),
+            index_video_frames: true,
         }
     }
 }

@@ -1,11 +1,18 @@
 import { Icon } from "../components/Icon";
-import { describe, extension, folderOf, KIND_TINT, thumbnailUrl, type SearchResult } from "../lib/search";
+import { describe, extension, folderOf, KIND_TINT, mediaUrl, thumbnailUrl, type SearchResult } from "../lib/search";
 
 export function Preview({ result, onOpen, onReveal }: { result: SearchResult; onOpen: () => void; onReveal: () => void }) {
   const thumb = thumbnailUrl(result);
+  const media = mediaUrl(result);
   return (
     <section className="preview" aria-label="Preview">
-      {thumb ? (
+      {media && result.kind === "video" ? (
+        <div className="preview-media">
+          {/* key: reload when the result changes so playback starts at its moment. */}
+          <video key={media} className="preview-video" src={media} controls preload="metadata" />
+          {result.location && <span className="preview-stamp">{result.location}</span>}
+        </div>
+      ) : thumb ? (
         <img className="preview-media preview-image" src={thumb} alt={result.name} />
       ) : result.snippet ? (
         <div className="preview-media preview-text">
@@ -17,6 +24,7 @@ export function Preview({ result, onOpen, onReveal }: { result: SearchResult; on
           {extension(result.name)}
         </div>
       )}
+      {media && result.kind === "audio" && <audio key={media} className="preview-audio" src={media} controls preload="metadata" />}
       <div className="preview-title">
         <strong>{result.name}</strong>
         <span>{folderOf(result.path)}</span>

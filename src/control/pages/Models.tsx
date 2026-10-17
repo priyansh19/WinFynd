@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  downloadSpeechModel,
   formatBytes,
+  mediaSupport,
   getConfig,
   listModels,
   pullModel,
   setConfig,
   type EngineConfig,
   type InstalledModel,
+  type MediaSupport,
   type PullProgress,
+  type SpeechProgress,
 } from "../../lib/engine";
 import { listen } from "../../lib/tauri";
 
@@ -34,6 +38,8 @@ export function ModelsPage() {
   const [ollamaError, setOllamaError] = useState<string | null>(null);
   const [pull, setPull] = useState<PullProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [media, setMedia] = useState<MediaSupport | null>(null);
+  const [speechPull, setSpeechPull] = useState<SpeechProgress | null>(null);
 
   const refresh = useCallback(() => {
     listModels().then((m) => {
@@ -45,12 +51,21 @@ export function ModelsPage() {
   useEffect(() => {
     getConfig().then(setLocal);
     refresh();
+    mediaSupport().then(setMedia);
     const off = listen<PullProgress>("models://pull", (p) => {
       setPull(p.done && !p.error ? null : p);
       if (p.done) refresh();
     });
+    const offSpeech = listen<SpeechProgress>("models://speech", (p) => {
+      setSpeechPull(p.done && !p.error ? null : p);
+      if (p.done) {
+        mediaSupport().then(setMedia);
+        getConfig().then(setLocal);
+      }
+    });
     return () => {
       off.then((f) => f());
+      offSpeech.then((f) => f());
     };
   }, [refresh]);
 
@@ -76,13 +91,23 @@ export function ModelsPage() {
     }
   };
 
+  const downloadSpeech = async (id: string) => {
+    setSpeechPull({ id, completed: 0, total: 0, done: false, error: null });
+    try {
+      await downloadSpeechModel(id);
+    } catch (e) {
+      setSpeechPull(null);
+      setError(String(e));
+    }
+  };
+
   const chatModels = (installed ?? []).filter((m) => !m.name.includes("embed"));
 
   return (
     <>
       <header className="cc-header">
         <h1>On-device models</h1>
-        <p>Models run in Ollama on this PC. Nothing you search, say or index is sent anywhere.</p>
+        <p>Every model runs on this PC. Nothing you search, say or index is sent anywhere.</p>
       </header>
 
       {ollamaError && (
@@ -186,6 +211,89 @@ export function ModelsPage() {
               onChange={(e) => save({ ...config, indexImages: e.target.checked }, true)}
             />
             <span>Index image content</span>
+          </label>
+        </div>
+      </div>
+
+      <h2 className="cc-subhead">Audio and video</h2>
+      <p className="cc-muted section-lead">
+        Whisper turns what's said in recordings and videos into searchable text, and video frames are embedded like photos,
+        so results open at the moment that matches.
+      </p>
+      <div className="card list">
+        {media?.speechModels.map((m) => {
+          const active = config.speechModel === m.id && m.installed;
+          const pulling = speechPull && speechPull.id === m.id && !speechPull.done;
+          return (
+            <div key={m.id} className="list-row">
+              <div className="model-tag" style={{ color: "#f0c080" }}>
+                ASR
+              </div>
+              <div className="list-text">
+                <span className="list-title">{m.label}</span>
+                <span className="cc-muted">
+                  {m.note} · {m.sizeMb} MB
+                </span>
+              </div>
+              {pulling ? (
+                <div className="pull-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100}
+                  aria-valuenow={speechPull.total ? Math.round((speechPull.completed / speechPull.total) * 100) : 0}>
+                  <div className="meter">
+                    <div className="meter-fill meter-accent"
+                      style={{ width: `${speechPull.total ? (speechPull.completed / speechPull.total) * 100 : 3}%` }} />
+                  </div>
+                  <span className="cc-muted">
+                    {speechPull.total ? `${formatBytes(speechPull.completed)} of ${formatBytes(speechPull.total)}` : "Starting"}
+                  </span>
+                </div>
+              ) : (
+                <span className={`pill ${active ? "pill-active" : m.installed ? "pill-ready" : "pill-missing"}`}>
+                  {active ? "In use" : m.installed ? "Downloaded" : "Not downloaded"}
+                </span>
+              )}
+              {!m.installed ? (
+                <button type="button" className="btn btn-primary model-action" disabled={!!speechPull && !speechPull.done}
+                  onClick={() => downloadSpeech(m.id)}>
+                  Download
+                </button>
+              ) : (
+                <button type="button" className="btn model-action" onClick={() => save({ ...config, speechModel: active ? "" : m.id })}>
+                  {active ? "Turn off" : "Use"}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {speechPull?.error && <span className="text-danger">Download failed: {speechPull.error}</span>}
+
+      <div className="card list">
+        <div className="list-row">
+          <div className="list-text">
+            <span className="list-title">Search what's shown in videos</span>
+            <span className="cc-muted">
+              {media?.ffmpeg ? (
+                `Uses FFmpeg (${media.ffmpeg}) to sample frames.`
+              ) : (
+                <>
+                  Needs FFmpeg. Install it with <code>winget install Gyan.FFmpeg</code>, then press Check again.
+                </>
+              )}
+            </span>
+          </div>
+          {!media?.ffmpeg && (
+            <button type="button" className="btn" onClick={() => mediaSupport(true).then(setMedia)}>
+              Check again
+            </button>
+          )}
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={config.indexVideoFrames && !!media?.ffmpeg && config.indexImages}
+              disabled={!media?.ffmpeg || !config.indexImages}
+              onChange={(e) => save({ ...config, indexVideoFrames: e.target.checked })}
+            />
+            <span>Index video frames</span>
           </label>
         </div>
       </div>
