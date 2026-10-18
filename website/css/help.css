@@ -2,9 +2,6 @@
    Class names all start with help- so they never meet a wf.css class. */
 
 .help-hero, .help-body, .site-footer { overflow-x: clip; }
-/* The glows are placed in percentages of a tall box. They must never be the scroll anchor,
-   or opening an answer moves them and the page jumps (Chrome's scroll anchoring). */
-.help-hero .bloom, .help-body .bloom { overflow-anchor: none; }
 .help-main [hidden], .help-toc [hidden] { display: none !important; }
 html:not(.js) .help-copy { display: none !important; }
 
@@ -147,6 +144,8 @@ html:not(.js) .help-jump { margin-top: 36px; }
 }
 .help-toc__sub a:hover { color: var(--text); background: var(--fill); }
 .help-toc__sub a[aria-current] { color: var(--text); }
+/* The pane scrolls (overflow-y: auto), which would clip a ring drawn outside the link. */
+.help-toc a:focus-visible { outline-offset: -2px; }
 .help-toc__sub a[aria-current]::before {
   content: ""; position: absolute; left: -10px; top: 9px; width: 3px; height: 12px; border-radius: 2px; background: var(--k);
 }
@@ -229,8 +228,9 @@ html:not(.js) .help-jump { margin-top: 36px; }
 
 /* ---------- Keys in the search window ---------- */
 
-/* Copy that follows a shot paints above the shot's shadow, so the shadow never dims it. */
-.help-table, .help-head, .help-sub, .help-fix__after, .help-change { position: relative; z-index: 1; }
+/* The Questions head sits just under the last shot of Shortcuts without being its sibling,
+   so it gets its own stacking level here (site.css covers a shot's siblings). */
+.help-head { position: relative; z-index: 1; }
 .help-table {
   margin: 0; border-radius: 12px; overflow: hidden;
   background: var(--card); border: 1px solid var(--stroke); box-shadow: var(--shadow-card);
@@ -324,7 +324,7 @@ html:not(.js) .help-jump { margin-top: 36px; }
 .help-qa > summary:focus-visible { outline-offset: -2px; border-radius: 12px; }
 .help-qa .icon-badge { grid-row: 1 / span 2; }
 .help-qa__q { grid-column: 2; font: 600 18px/26px var(--font); margin: 0; letter-spacing: -0.003em; }
-.help-qa__a { grid-column: 2; font-size: 15px; line-height: 22px; color: var(--text3); }
+.help-qa__a { grid-column: 2; font-size: 15px; line-height: 22px; color: var(--text3); text-wrap: pretty; }
 .help-qa__chev { grid-column: 3; grid-row: 1 / span 2; color: var(--text3); transition: transform 220ms var(--ease), color 150ms var(--ease); }
 .help-qa > summary:hover .help-qa__chev { color: var(--text); }
 .help-qa[open] .help-qa__chev { transform: rotate(180deg); }
@@ -355,6 +355,7 @@ html:not(.js) .help-jump { margin-top: 36px; }
 .help-types dt { margin: 0; }
 .help-types dd { margin: 0; font-size: 15px; line-height: 1.5; color: var(--text); }
 .help-types .kind-chip { height: 26px; font-size: 13px; }
+@media (prefers-color-scheme: light) { .help-types .kind-chip { color: color-mix(in srgb, var(--k) 85%, #000); } }
 
 .help-paths { margin: 2px 0 0; display: flex; flex-direction: column; gap: 10px; }
 .help-paths > div { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 6px 16px; align-items: center; }

@@ -62,11 +62,17 @@
       <li class="release release--soon" id="v0-1-0">
         <article class="release-article" aria-labelledby="r010-title">
           <div class="release-rail">
-            <span class="release-node" aria-hidden="true"></span>
+            <!-- Release switch (css/site.css): the .until-release node and status show until 0.1.0 is
+                 published on GitHub; the .after-release ones show from then on. -->
+            <span class="release-node until-release" aria-hidden="true"></span>
+            <span class="release-node release-node--out after-release" aria-hidden="true"></span>
             <div class="reveal">
               <h2 id="r010-title" class="release-ver"><span class="visually-hidden">Version </span>0.1.0</h2>
               <p class="release-name">First release</p>
-              <p class="cl-status"><span class="pulse" aria-hidden="true"></span>Coming soon</p>
+              <!-- PLACEHOLDER: "Released" has no date yet. At release, add it under the name:
+                   <p class="release-date"><time datetime="YYYY-MM-DD">D Month YYYY</time></p> -->
+              <p class="cl-status until-release"><span class="pulse" aria-hidden="true"></span>Coming soon</p>
+              <p class="cl-status cl-status--out after-release"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 10.5l3.5 3.5 7.5-8"></path></svg>Released</p>
             </div>
             <nav class="toc reveal" aria-label="In version 0.1.0">
               <p class="toc-label">In this release</p>
@@ -102,12 +108,12 @@
                   <div><h3 class="heading" id="r010-search-t">Search</h3><p class="area-sum">By words and by meaning, with a preview of what matched.</p></div>
                 </div>
                 <ul class="area-list">
-                  <li>Press <span class="cl-keys"><kbd>Alt</kbd><span class="cl-plus">+</span><kbd>Space</kbd></span> from any app and describe the file: <q class="cl-q">receipt for the blue sofa</q>. WinFynd matches the words and the meaning at the same time.</li>
+                  <li>Press Alt&nbsp;+&nbsp;Space from any app and describe the file: <q class="cl-q">receipt for the blue sofa</q>. WinFynd matches the words and the meaning at the same time.</li>
                   <li>The preview shows the page, slide or sheet that matched, with the passage, and plays recordings and videos from the matched second.</li>
                   <li>Every result says why it matched, so you can tell exact words from meaning:<span class="cl-reasons"><span class="cl-why">Exact words on page 3</span><span class="cl-why">Matches the meaning on slide 7</span><span class="cl-why">Talked about at 12:05</span></span></li>
                   <li>Dates, folders and file types in what you type become filters you can remove. Try <q class="cl-q">pdf from last week in Downloads</q>.</li>
-                  <li><kbd class="cl-kbd">Enter</kbd> opens the file in its usual app. <span class="cl-keys"><kbd>Ctrl</kbd><span class="cl-plus">+</span><kbd>Shift</kbd><span class="cl-plus">+</span><kbd>E</kbd></span> shows it in its folder and <span class="cl-keys"><kbd>Ctrl</kbd><span class="cl-plus">+</span><kbd>Shift</kbd><span class="cl-plus">+</span><kbd>C</kbd></span> copies its path.</li>
-                  <li>Select text in any app and press <span class="cl-keys"><kbd>Win</kbd><span class="cl-plus">+</span><kbd>Shift</kbd><span class="cl-plus">+</span><kbd>F</kbd></span> to find the files about it.</li>
+                  <li>Enter opens the file in its usual app. Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;E shows it in its folder and Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;C copies its path.</li>
+                  <li>Select text in any app and press Win&nbsp;+&nbsp;Shift&nbsp;+&nbsp;F to find the files about it.</li>
                   <li>Reads PDF, Word (.docx), PowerPoint (.pptx), Excel and CSV, OpenDocument text and sheets, Markdown, HTML, plain text and 35 code and config formats. Every other file is found by its name.</li>
                 </ul>
               </section>
@@ -145,7 +151,7 @@
                   <div><h3 class="heading" id="r010-ask-t">Ask</h3><p class="area-sum">An answer from your files, with its sources.</p></div>
                 </div>
                 <ul class="area-list">
-                  <li>Press <span class="cl-keys"><kbd>Ctrl</kbd><span class="cl-plus">+</span><kbd>Alt</kbd><span class="cl-plus">+</span><kbd>Space</kbd></span>, or start a search with <kbd class="cl-kbd">?</kbd>, and ask in your own words: <q class="cl-q">When does my lease renew?</q></li>
+                  <li>Press Ctrl&nbsp;+&nbsp;Alt&nbsp;+&nbsp;Space, or start a search with a question mark, and ask in your own words: <q class="cl-q">When does my lease renew?</q></li>
                   <li>WinFynd finds the six passages that fit best and answers from them, citing each by number with its file and page, slide or time.</li>
                   <li>The answer is written on your PC by a chat model you run in Ollama, such as llama3.2&nbsp;3B (2.0&nbsp;GB). Pick one in Settings, or WinFynd uses a chat model you already have.</li>
                 </ul>
@@ -157,10 +163,10 @@
                   <div><h3 class="heading" id="r010-voice-t">Voice</h3><p class="area-sum">Say what you are looking for.</p></div>
                 </div>
                 <ul class="area-list">
-                  <li>Hold <span class="cl-keys"><kbd>Alt</kbd><span class="cl-plus">+</span><kbd>Shift</kbd><span class="cl-plus">+</span><kbd>Space</kbd></span>, say what you remember, and let go. WinFynd searches for what you said.</li>
+                  <li>Hold Alt&nbsp;+&nbsp;Shift&nbsp;+&nbsp;Space, say what you remember, and let go. WinFynd searches for what you said.</li>
                   <li>Whisper turns your words into text on your PC, with the same model that reads your recordings.</li>
                   <li>A level meter shows the microphone is hearing you.</li>
-                  <li>In Settings, choose <span class="cl-ui">Hold to talk</span> or <span class="cl-ui">Press to start and stop</span>, and turn <span class="cl-ui">Search when I stop talking</span> on or off.</li>
+                  <li>In Settings, choose <span class="ui">Hold to talk</span> or <span class="ui">Press to start and stop</span>, and turn <span class="ui">Search when I stop talking</span> on or off.</li>
                 </ul>
               </section>
 
@@ -170,11 +176,11 @@
                   <div><h3 class="heading" id="r010-live-t">Live index</h3><p class="area-sum">Picks up new and changed files on its own.</p></div>
                 </div>
                 <ul class="area-list">
-                  <li>Covers every drive on your PC by default. Switch off <span class="cl-ui">Allow full OS context</span> in setup or Settings to pick folders instead, starting with Documents, Pictures, Desktop and Downloads.</li>
+                  <li>Covers every drive on your PC by default. Switch off <span class="ui">Allow full OS context</span> in setup or Settings to pick folders instead, starting with Documents, Pictures, Desktop and Downloads.</li>
                   <li>New, changed, moved and deleted files are picked up within a couple of seconds.</li>
                   <li>A full rescan every 20&nbsp;minutes catches anything missed. Rescan in Settings runs one now.</li>
                   <li>OneDrive files that live only in the cloud are found by name, and read in full once they are on your PC. WinFynd never downloads them to read them.</li>
-                  <li>Skips system and build folders such as Windows, Program Files, AppData, node_modules and .git.</li>
+                  <li>Always skipped: Windows, Program Files, AppData, the Recycle Bin, folders that start with a dot (like .git), node_modules, build output and caches.</li>
                 </ul>
               </section>
 
@@ -187,7 +193,7 @@
                   <li>Setup asks three things: what to search, which search model and which shortcuts. It takes about two minutes.</li>
                   <li>Pick a search model to run in Ollama: Most accurate (1.3&nbsp;GB), Balanced (0.7&nbsp;GB) or Smallest (0.3&nbsp;GB, text only). Or skip it for now and search exact words and file names.</li>
                   <li>Warm-up then reads your files in the background. Search works straight away and fills in as it goes. Recordings and videos come last, because they take longest.</li>
-                  <li>Close the window whenever you like. Windows tells you when everything is searchable: <span class="cl-ui">WinFynd is ready</span>.</li>
+                  <li>Close the window whenever you like. Windows tells you when everything is searchable: <span class="ui">WinFynd is ready</span>.</li>
                 </ul>
               </section>
 
@@ -200,7 +206,7 @@
                   <li>Choose between the whole PC and the folders you pick, and start a rescan.</li>
                   <li>Pick the search model and its vector size, the Whisper speech model and the Ask model, and see whether FFmpeg was found. Changing the search model rebuilds the index.</li>
                   <li>Record a new combination for any of the four shortcuts. WinFynd tells you if another app already uses it.</li>
-                  <li>A Privacy page lists every connection WinFynd makes, and About shows your version.</li>
+                  <li>A Privacy page lists what the app connects to, and About shows your version.</li>
                   <li>Follows Windows light or dark mode and your accent colour, with Mica on Windows 11. Closing the window keeps WinFynd reading in the tray.</li>
                 </ul>
               </section>
@@ -212,10 +218,10 @@
                 </div>
                 <ul class="area-list">
                   <li>Installs to <code class="cl-path">%LOCALAPPDATA%\WinFynd</code> for your account only, so Windows does not ask for an administrator.</li>
-                  <li><span class="cl-ui">Start WinFynd when I sign in</span> is on by default, so <span class="cl-keys"><kbd>Alt</kbd><span class="cl-plus">+</span><kbd>Space</kbd></span> always works.</li>
+                  <li><span class="ui">Start WinFynd when I sign in</span> is on by default, so Alt&nbsp;+&nbsp;Space always works.</li>
                   <li>If your PC does not have Microsoft Edge WebView2, setup installs it first, which needs an internet connection.</li>
                   <li>To update, run the newer setup. Your index, folders, shortcuts and models are kept. Once a day WinFynd checks GitHub for a newer version, and you can turn that check off.</li>
-                  <li>Uninstall from Settings &gt; Apps. Your own files are never touched, and the index is only deleted if you tick the box.</li>
+                  <li>Uninstall from Windows Settings&nbsp;&gt; Apps. Your own files are never touched, and the index is only deleted if you tick the box.</li>
                 </ul>
               </section>
             </div>
@@ -236,11 +242,11 @@
                 </li>
                 <li class="limit reveal">
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l6 2.5v4.5c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8V5z"></path><path d="M10 7v3.8M10 13.4v.1"></path></svg>
-                  <div><h4>Not code-signed</h4><p>Windows SmartScreen warns the first time you run the installer. Click <span class="cl-ui">More info</span>, then <span class="cl-ui">Run anyway</span>.</p></div>
+                  <div><h4>Not code-signed</h4><p>Windows SmartScreen warns the first time you run the installer. Click <span class="ui">More info</span>, then <span class="ui">Run anyway</span>.</p></div>
                 </li>
                 <li class="limit reveal">
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx=".6"></rect><rect x="11" y="3" width="6" height="6" rx=".6"></rect><rect x="3" y="11" width="6" height="6" rx=".6"></rect><rect x="11" y="11" width="6" height="6" rx=".6"></rect></svg>
-                  <div><h4>Windows only</h4><p>64-bit Windows 10 and 11. There is no Mac, Linux or phone app, and no ARM64 build.</p></div>
+                  <div><h4>Windows only</h4><p>64-bit Windows 10 and 11. There is no Mac, Linux or phone app, and no build for <span class="cl-nowrap">Arm-based</span> PCs yet.</p></div>
                 </li>
               </ul>
             </section>
@@ -256,7 +262,7 @@
     <div class="follow-card reveal">
       <div class="follow-copy">
         <h2 id="follow-title" class="title-s">Every version is published on GitHub.</h2>
-        <p class="body">Watch the repository’s releases to hear when 0.1.0 is out. If something does not work, open an issue with what you searched for and what you expected to find.</p>
+        <p class="body">Watch the repository’s releases to hear about each new version. If something doesn’t work, open an issue with what you searched for and what you expected to find.</p>
       </div>
       <div class="follow-actions">
         <a class="button button--secondary" href="https://github.com/priyansh19/WinFynd/releases"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5l6.5-3.5 6.5 3.5v7L10 17l-6.5-3.5z"></path><path d="M3.5 6.5L10 10l6.5-3.5M10 10v7"></path></svg>Releases on GitHub</a>
@@ -300,7 +306,7 @@
     </div>
     <div class="footer-bottom">
       <span class="footer-version"><span class="tagver">Version 0.1.0</span>Free, with its source on GitHub</span>
-      <span class="loads-nothing"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l6 2.5v4.5c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8V5z"></path><path d="M7.5 10l1.8 1.8 3.4-3.6"></path></svg>This site loads nothing from anyone else.</span>
+      <span class="footer-end"><button class="motion-toggle" type="button" data-motion-toggle aria-pressed="false" hidden>Pause animations</button><span class="loads-nothing"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l6 2.5v4.5c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8V5z"></path><path d="M7.5 10l1.8 1.8 3.4-3.6"></path></svg>This site loads nothing from anyone else.</span></span>
     </div>
   </div>
 </footer>

@@ -250,6 +250,10 @@ mark, .mark { background: color-mix(in srgb, var(--accent) 30%, transparent); co
    1. .wf.auto follows the visitor's light/dark preference (CSS only).
    2. Kind hues turn deep site-wide in light mode, as .light does in the app.
    3. .launcher.static puts a launcher in normal flow for product shots.
+   In light mode three values here are a step deeper than the app's (.wf.light above):
+   --ok #0b600b (app #0f7b0f) and the spreadsheet hue #0b6631 (app #0f7a3c), so green
+   text keeps 4.5:1 on its own tint over the site's glows (site.css uses the same --ok),
+   and --text3 0.58 (app 0.54), so faint 12 px text keeps 4.5:1 on tinted rows and cards.
    ======================================================================= */
 
 /* 1 + 2. Light mode without JavaScript: copy of the .wf.light tokens. */
@@ -276,14 +280,14 @@ mark, .mark { background: color-mix(in srgb, var(--accent) 30%, transparent); co
     --track: rgba(0, 0, 0, 0.10);
     --text: rgba(0, 0, 0, 0.90);
     --text2: rgba(0, 0, 0, 0.66);
-    --text3: rgba(0, 0, 0, 0.54);
-    --ok: #0f7b0f;
+    --text3: rgba(0, 0, 0, 0.58);
+    --ok: #0b600b;
     --shadow: 0 32px 64px rgba(30, 30, 80, 0.22), 0 2px 21px rgba(30, 30, 80, 0.12);
     color-scheme: light;
   }
   .k-doc   { --k: #1f5fd6; }
   .k-slide { --k: #b4500a; }
-  .k-sheet { --k: #0f7a3c; }
+  .k-sheet { --k: #0b6631; }
   .k-img   { --k: #b8236f; }
   .k-video { --k: #c02b2b; }
   .k-audio { --k: #6d3fd8; }

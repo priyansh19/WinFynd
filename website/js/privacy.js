@@ -96,7 +96,7 @@
         navigator.clipboard.writeText(path).then(function () {
           button.classList.add("is-done");
           if (label) label.textContent = "Copied";
-          live.textContent = "Copied " + path + ". Paste it into File Explorer's address bar.";
+          live.textContent = "Copied " + path + ". Paste it into File Explorer’s address bar.";
           clearTimeout(reset);
           reset = setTimeout(function () {
             button.classList.remove("is-done");
