@@ -324,7 +324,7 @@ html:not(.js) .help-jump { margin-top: 36px; }
 .help-qa > summary:focus-visible { outline-offset: -2px; border-radius: 12px; }
 .help-qa .icon-badge { grid-row: 1 / span 2; }
 .help-qa__q { grid-column: 2; font: 600 18px/26px var(--font); margin: 0; letter-spacing: -0.003em; }
-.help-qa__a { grid-column: 2; font-size: 15px; line-height: 22px; color: var(--text3); }
+.help-qa__a { grid-column: 2; font-size: 15px; line-height: 22px; color: var(--text3); text-wrap: pretty; }
 .help-qa__chev { grid-column: 3; grid-row: 1 / span 2; color: var(--text3); transition: transform 220ms var(--ease), color 150ms var(--ease); }
 .help-qa > summary:hover .help-qa__chev { color: var(--text); }
 .help-qa[open] .help-qa__chev { transform: rotate(180deg); }
@@ -355,6 +355,7 @@ html:not(.js) .help-jump { margin-top: 36px; }
 .help-types dt { margin: 0; }
 .help-types dd { margin: 0; font-size: 15px; line-height: 1.5; color: var(--text); }
 .help-types .kind-chip { height: 26px; font-size: 13px; }
+@media (prefers-color-scheme: light) { .help-types .kind-chip { color: color-mix(in srgb, var(--k) 85%, #000); } }
 
 .help-paths { margin: 2px 0 0; display: flex; flex-direction: column; gap: 10px; }
 .help-paths > div { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 6px 16px; align-items: center; }

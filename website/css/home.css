@@ -130,6 +130,8 @@
   .demo-bloom .bv2 { stop-color: #dccdff; stop-opacity: 0.9; }
   .demo-bloom .bp1 { stop-color: #ff95c2; stop-opacity: 0.26; }
   .demo-bloom .bp2 { stop-color: #ffd2e6; stop-opacity: 0.9; }
+  /* The recording's Play button sits on the deep light-mode violet, so its text turns white. */
+  .lpreview .btn.accent, .read-visual .btn.accent { color: #fff !important; }
 }
 
 /* ---------- Query chips under the demo ---------- */
@@ -242,8 +244,9 @@ html:not(.js) .demo-controls { display: none; }
 .kinds-count { margin-left: auto; font-weight: 600; }
 .kinds-panel.is-focus .kinds-bar i:not(.is-hot) { opacity: 0.22; }
 .kinds-panel.is-focus .kinds-legend li:not(.is-hot) { opacity: 0.45; }
-@media (max-width: 900px) { .kinds-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 940px) { .kinds-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 420px) { .kinds-legend { gap: 0 20px; } .kinds-legend li { font-size: 14px; } }
+@media (max-width: 479px) { .kinds-legend { grid-template-columns: minmax(0, 1fr); } }
 
 /* ================================================================ It reads what's inside */
 .read-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
@@ -303,6 +306,9 @@ html:not(.js) .demo-controls { display: none; }
   .rv-frame { height: 136px; }
   .rv-paper-head span:last-child { display: none; }
 }
+/* On the narrowest phones the transcript and the receipt wrap to more lines, so those two crops grow to keep their last line in view. */
+@media (max-width: 400px) { .read-visual.k-audio { height: 300px; } }
+@media (max-width: 339px) { .read-tile.k-doc > .read-visual { height: 326px; } }
 
 /* ================================================================ Split sections */
 .split { display: grid; grid-template-columns: minmax(0, 4.6fr) minmax(0, 7.4fr); gap: clamp(40px, 5vw, 72px); align-items: center; }
@@ -354,7 +360,7 @@ html:not(.js) .demo-controls { display: none; }
 .live-ring__dial { position: relative; width: 88px; height: 88px; flex: none; }
 .live-ring__pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 600 20px/28px var(--font-display); }
 .live-ring__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.live-ring__title { font: 600 18px/26px var(--font-display); }
+.live-ring__title { font: 600 18px/26px var(--font-display); text-wrap: balance; }
 .live-cols { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); gap: 10px; }
 .live-feed { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
 .live-kinds { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
@@ -388,7 +394,7 @@ html:not(.js) .demo-controls { display: none; }
 .priv-card { gap: 14px; padding: 12px 16px; }
 .priv-when { width: 132px; text-align: right; flex: none; line-height: 16px; }
 
-.priv-banner__title { font: 600 20px/28px var(--font-display); }
+.priv-banner__title { font: 600 20px/28px var(--font-display); text-wrap: balance; }
 
 /* ---------- Phones: the three window shots stack and tighten ---------- */
 @media (max-width: 599px) {

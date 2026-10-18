@@ -182,7 +182,7 @@ code.mono { overflow-wrap: anywhere; }
 .inst-icon { flex: none; }
 .inst-titles { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .inst-title { font: 600 22px/28px var(--font-display); }
-.inst-sub { font-size: 13px; color: rgba(255, 255, 255, 0.86); }
+.inst-sub { font-size: 13px; color: rgba(255, 255, 255, 0.92); }
 .inst-body { flex: 1; min-height: 0; padding: 22px 28px 0; display: flex; flex-direction: column; gap: 12px; }
 .inst-loc { min-height: 60px; padding: 10px 16px; }
 .inst-opt { display: flex; align-items: center; gap: 10px; }
@@ -206,7 +206,7 @@ code.mono { overflow-wrap: anywhere; }
     linear-gradient(170deg, #2a4fd6 0%, #5a3fd1 58%, #3b2a8f 100%);
 }
 .setup-rail__brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; font: 600 16px/22px var(--font-display); }
-.setup-rail__step { display: flex; align-items: center; gap: 12px; height: 40px; color: rgba(255, 255, 255, 0.72); }
+.setup-rail__step { display: flex; align-items: center; gap: 12px; height: 40px; color: rgba(255, 255, 255, 0.8); }
 .setup-rail__step.is-on { color: #fff; font-weight: 600; }
 .setup-rail__n {
   width: 24px; height: 24px; flex: none; box-sizing: border-box; border-radius: 50%;

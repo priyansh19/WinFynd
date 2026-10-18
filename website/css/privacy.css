@@ -233,8 +233,9 @@
 .pv-size {
   display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px;
   font: 600 12px/1 var(--font); white-space: nowrap;
-  color: var(--k); background: color-mix(in srgb, var(--k) 15%, transparent);
+  color: color-mix(in srgb, var(--k) 72%, #fff); background: color-mix(in srgb, var(--k) 15%, transparent);
 }
+@media (prefers-color-scheme: light) { .pv-size { color: color-mix(in srgb, var(--k) 85%, #000); } }
 .pv-tree__label { font: 600 13px/18px var(--font); color: var(--text3); padding: 8px 0 2px; }
 .pv-tree__items--flat { margin: 0; }
 .pv-tree__items--flat .pv-tree__item { padding: 10px 0; }

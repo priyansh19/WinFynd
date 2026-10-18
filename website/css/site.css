@@ -111,7 +111,7 @@ body {
 img, svg { max-width: 100%; }
 a { color: inherit; }
 p { margin: 0; }
-h1, h2, h3, h4 { margin: 0; font-family: var(--font-display); font-weight: 600; }
+h1, h2, h3, h4 { margin: 0; font-family: var(--font-display); font-weight: 600; text-wrap: balance; }
 button { font: inherit; color: inherit; }
 ::selection { background: color-mix(in srgb, var(--accent) 38%, transparent); }
 
@@ -150,7 +150,7 @@ button { font: inherit; color: inherit; }
   letter-spacing: -0.016em;
   text-wrap: balance;
 }
-.heading { font: 600 20px/28px var(--font-display); letter-spacing: -0.008em; }
+.heading { font: 600 20px/28px var(--font-display); letter-spacing: -0.008em; text-wrap: balance; }
 .lead { font-size: clamp(17px, 1.5vw, 20px); line-height: 1.55; color: var(--text2); max-width: 60ch; text-wrap: pretty; }
 .body { font-size: 16px; line-height: 1.6; color: var(--text2); text-wrap: pretty; }
 .fine { font-size: 13px; line-height: 1.5; color: var(--text3); }

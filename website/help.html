@@ -277,7 +277,7 @@
                 <li>moments in videos, found by what is on screen (with FFmpeg)</li>
                 <li>Ask: answers from your files, with numbered sources</li>
               </ul>
-              <p>Install it later and WinFynd catches up by itself: its next full check adds the files it already read to search by meaning. That check runs right after you download a model, and every 20 minutes.</p>
+              <p>Install it later and WinFynd catches up by itself: its next full check adds the files it already read to search by meaning. That check runs right after you download a model, and every 20&nbsp;minutes.</p>
             </div>
           </details>
 
@@ -306,16 +306,16 @@
           </details>
 
           <details class="help-qa k-other reveal" id="q-disk" data-find>
-            <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 11.5l2-7h11l2 7v4a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"></path><path d="M2.5 11.5h4l1 2h5l1-2h4"></path></svg></span><h3 class="help-qa__q">How much disk space does it use?</h3><span class="help-qa__a">On the example PC: 4.1 GB of models and a 2.3 GB index.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
+            <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 11.5l2-7h11l2 7v4a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"></path><path d="M2.5 11.5h4l1 2h5l1-2h4"></path></svg></span><h3 class="help-qa__q">How much disk space does it use?</h3><span class="help-qa__a">On the example PC: 4.1&nbsp;GB of models and a 2.3&nbsp;GB index.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
             <div class="help-qa__body">
               <p>Most of it is models, and you choose which ones you download:</p>
               <ul class="help-list">
-                <li><b>Search model</b>, EmbeddingGemma 2: 1.3 GB for Most accurate, 0.7 GB for Balanced, or 0.3 GB for Smallest, which reads text only.</li>
-                <li><b>Speech</b>, Whisper: 466 MB for Small, the one setup offers. Base is 148 MB, Large v3 Turbo 574 MB.</li>
-                <li><b>Ask model</b>, any chat model in Ollama: llama3.2 3B, for example, is 2.0 GB.</li>
+                <li><b>Search model</b>, EmbeddingGemma 2: 1.3&nbsp;GB for Most accurate, 0.7&nbsp;GB for Balanced, or 0.3&nbsp;GB for Smallest, which reads text only.</li>
+                <li><b>Speech</b>, Whisper: 466&nbsp;MB for Small, the one setup offers. Base is 148&nbsp;MB, Large v3 Turbo 574&nbsp;MB.</li>
+                <li><b>Ask model</b>, any chat model in Ollama: llama3.2 3B, for example, is 2.0&nbsp;GB.</li>
                 <li><b>The index</b>, which grows with your files.</li>
               </ul>
-              <p>The example PC used across this site has 51,204 files on C: and D:. Its index is 2.3 GB and its models take 4.1 GB.</p>
+              <p>The example PC used across this site has 51,204 files on C: and D:. Its index is 2.3&nbsp;GB and its models take 4.1&nbsp;GB.</p>
             </div>
           </details>
 
@@ -326,7 +326,7 @@
               <p>Switch it off to choose folders instead. Documents, Pictures, Desktop and Downloads start ticked, and you can add any folder. Remove one and its files leave the index.</p>
               <p>Reading the whole PC means the index holds text from files anywhere on it. All of it stays on this PC.</p>
               <ul class="help-list">
-                <li>New, changed, moved and deleted files are picked up within a couple of seconds, and a full check every 20 minutes catches anything missed.</li>
+                <li>New, changed, moved and deleted files are picked up within a couple of seconds, and a full check every 20&nbsp;minutes catches anything missed.</li>
                 <li>Always skipped: Windows, Program Files, AppData, the Recycle Bin, folders that start with a dot (like .git), node_modules, build output and caches.</li>
                 <li>OneDrive files that live only in the cloud are found by name until you download them. WinFynd never downloads them itself.</li>
               </ul>
@@ -349,7 +349,7 @@
             <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="10" height="10" rx="1.5"></rect><path d="M8 8h4v4H8zM8 2.5V5M12 2.5V5M8 15v2.5M12 15v2.5M2.5 8H5M2.5 12H5M15 8h2.5M15 12h2.5"></path></svg></span><h3 class="help-qa__q">Does it use my GPU?</h3><span class="help-qa__a">It doesn’t need one.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
             <div class="help-qa__body">
               <p>Whisper turns speech into text on the processor, using all its cores but one, up to eight, so the PC stays responsive. Search by meaning and Ask run inside Ollama, which decides whether to use your graphics card.</p>
-              <p>The Most accurate search model works best on a PC with 16 GB of memory. Balanced and Smallest are smaller models, 0.7 GB and 0.3 GB.</p>
+              <p>The Most accurate search model works best on a PC with 16&nbsp;GB of memory. Balanced and Smallest are smaller models, 0.7&nbsp;GB and 0.3&nbsp;GB.</p>
             </div>
           </details>
 
@@ -409,7 +409,7 @@
                     <p class="lede">Every model runs on this PC. Nothing you search, say or index leaves it.</p>
                     <div class="infobar"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--ok); flex: none"><path d="M4.5 10.5l3.5 3.5 7.5-8"></path></svg><span><strong>Ollama is running</strong> <span class="muted">on this PC, version 0.12.3</span></span></div>
                     <div class="h2">Search</div>
-                    <div class="card"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="k-audio kc" style="flex: none"><path d="M10 2.5l7 3.8v7.4l-7 3.8-7-3.8V6.3z"></path><path d="M3 6.3l7 3.9 7-3.9M10 10.2v7.3"></path></svg><div class="grow"><span class="t">EmbeddingGemma 2</span><span class="s">Understands text and photos so you can search by meaning · 1.3 GB</span></div>
+                    <div class="card"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="k-audio kc" style="flex: none"><path d="M10 2.5l7 3.8v7.4l-7 3.8-7-3.8V6.3z"></path><path d="M3 6.3l7 3.9 7-3.9M10 10.2v7.3"></path></svg><div class="grow"><span class="t">EmbeddingGemma 2</span><span class="s">Understands text and photos so you can search by meaning · 1.3&nbsp;GB</span></div>
                       <span style="display: inline-flex; align-items: center; gap: 6px" class="small muted help-crop__state"><span class="dot" style="background: var(--ok)"></span>In use</span>
                       <span class="combo help-crop__combo" style="min-width: 220px">Most accurate (740M)<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></span></div>
                   </div>
@@ -417,7 +417,7 @@
               
               <figcaption>What you want to see in Settings&nbsp;&gt; Models.</figcaption>
             </figure>
-            <p class="help-fix__after">You don’t need to start over. The next full check, right after the download and then every 20 minutes, adds the files WinFynd already read to search by meaning. Finding photos by what’s in them also needs Most accurate or Balanced; Smallest reads text only.</p>
+            <p class="help-fix__after">You don’t need to start over. The next full check, right after the download and then every 20&nbsp;minutes, adds the files WinFynd already read to search by meaning. Finding photos by what’s in them also needs Most accurate or Balanced; Smallest reads text only.</p>
           </article>
 
           <article class="help-fix k-video reveal" id="fix-frames" aria-labelledby="fix-frames-t" data-find>
@@ -427,7 +427,7 @@
               <li>Install FFmpeg. Open Terminal and run:
                 <span class="help-cmd"><code>winget install Gyan.FFmpeg</code><button type="button" class="button button--secondary button--small help-copy" data-copy="winget install Gyan.FFmpeg"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"></rect><path d="M13 7V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3"></path></svg><span data-copy-label>Copy</span></button></span></li>
               <li>In <span class="ui">Settings&nbsp;&gt; Models</span>, click <span class="ui">Check again</span> next to “Search what’s shown in videos”. Once FFmpeg is found, its switch is on.</li>
-              <li>Leave it to read. It takes up to 48 frames from each video, after your other files.</li>
+              <li>Leave it to read. It takes up to 48&nbsp;frames from each video, after your other files.</li>
             </ol>
             <figure class="shot help-crop" role="img" aria-label="Settings, Models, Speech: FFmpeg, reads frames from videos and less common audio formats. Found, version 7.1.">
               <div class="wf auto win help-crop__win">
@@ -456,7 +456,7 @@
 
           <article class="help-fix k-doc reveal" id="fix-slow" aria-labelledby="fix-slow-t" data-find>
             <div class="help-fix__head"><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"></circle><path d="M10 5.5V10l3 2"></path></svg></span><h3 id="fix-slow-t" class="heading">The first read is taking a long time</h3></div>
-            <p class="help-fix__why">The first time, WinFynd reads every file it searches: every drive by default, or the folders you picked. On the example PC, 51,204 files on C: and D: took 47 minutes. Recordings and videos go last, because writing down what’s said is the slow part.</p>
+            <p class="help-fix__why">The first time, WinFynd reads every file it searches: every drive by default, or the folders you picked. On the example PC, 51,204 files on C: and D: took 47&nbsp;minutes. Recordings and videos go last, because writing down what’s said is the slow part.</p>
             <ol class="help-steps">
               <li>Keep going. Search works from the start and fills in as it reads.</li>
               <li>Close the window if you like. WinFynd carries on from the notification area; point at its icon to see “WinFynd · indexing 12,840 of 51,204 files”.</li>
@@ -475,14 +475,14 @@
                 </div>
               
             </figure>
-            <p class="help-fix__after">A file that takes longer than 90 seconds to read is found by its name only, so one huge file can’t hold up the rest.</p>
+            <p class="help-fix__after">A file that takes longer than 90&nbsp;seconds to read is found by its name only, so one huge file can’t hold up the rest.</p>
           </article>
 
           <article class="help-fix k-other reveal" id="fix-log" aria-labelledby="fix-log-t" data-find>
             <div class="help-fix__head"><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 2.5h6l4 4v10a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z"></path><path d="M11.5 2.5v4h4M7.5 10.5h5M7.5 13.5h5"></path></svg></span><h3 id="fix-log-t" class="heading">Where is the log file?</h3></div>
             <p class="help-fix__why">WinFynd writes what it does to a log file. It’s the first thing to attach when you report a problem.</p>
             <div class="help-cmd help-cmd--block"><code>%LOCALAPPDATA%\<wbr>app.winfynd.desktop\<wbr>logs\<wbr>winfynd.log</code><button type="button" class="button button--secondary button--small help-copy" data-copy="%LOCALAPPDATA%\app.winfynd.desktop\logs\winfynd.log"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"></rect><path d="M13 7V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3"></path></svg><span data-copy-label>Copy</span></button></div>
-            <p class="help-fix__after">Paste the path into the File Explorer address bar, or into Run (Win&nbsp;+&nbsp;R). Past 2 MB, older lines move to winfynd.old.log next to it. The log names files that were slow or failed to read, so look it over before you share it.</p>
+            <p class="help-fix__after">Paste the path into the File Explorer address bar, or into Run (Win&nbsp;+&nbsp;R). Past 2&nbsp;MB, older lines move to winfynd.old.log next to it. The log names files that were slow or failed to read, so look it over before you share it.</p>
           </article>
         </div>
       </section>
