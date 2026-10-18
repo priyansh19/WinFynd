@@ -4,13 +4,19 @@ name: Release
 # GitHub release tagged v<version> (the version in src-tauri/tauri.conf.json), with the notes in
 # docs/releases/<version>.md.
 #
-# Publish: Actions > Release > Run workflow on main, or push a tag like v0.1.0. Runs on other
-# branches build and check the installer without publishing it.
+# Publish: merge a new version (with its notes) to main, and the push publishes it if
+# v<version> isn't released yet. Actions > Release > Run workflow on main, or pushing a tag like
+# v0.1.0, does the same. Runs on other branches build and check the installer without publishing.
 # On a pull request that touches the installer it builds and checks it without publishing.
 on:
   workflow_dispatch:
   push:
     tags: ["v*"]
+    branches: [main]
+    paths:
+      - .github/workflows/release.yml
+      - docs/releases/**
+      - src-tauri/tauri.conf.json
   pull_request:
     paths:
       - .github/workflows/release.yml
@@ -28,24 +34,41 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      notes: ${{ steps.version.outputs.notes }}
+      released: ${{ steps.version.outputs.released }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version, notes and whether it's out already
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(jq -r .version src-tauri/tauri.conf.json)
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::The tag $GITHUB_REF_NAME doesn't match version $version in src-tauri/tauri.conf.json"; exit 1
+          fi
+          notes="docs/releases/$version.md"
+          [ -f "$notes" ] || { echo "::error::Write the release notes in $notes first"; exit 1; }
+          released=false
+          if gh release view "v$version" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then released=true; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "notes=$notes" >> "$GITHUB_OUTPUT"
+          echo "released=$released" >> "$GITHUB_OUTPUT"
+          echo "WinFynd $version, released already: $released"
+
   installer:
     name: WinFynd Setup
+    needs: version
+    # A push to main only publishes a version that isn't out yet.
+    if: github.event_name != 'push' || github.ref_type == 'tag' || needs.version.outputs.released != 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Version and notes
-        id: version
-        shell: pwsh
-        run: |
-          $version = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
-          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") {
-            throw "The tag $env:GITHUB_REF_NAME doesn't match version $version in src-tauri/tauri.conf.json"
-          }
-          $notes = "docs/releases/$version.md"
-          if (-not (Test-Path $notes)) { throw "Write the release notes in $notes first" }
-          "version=$version" >> $env:GITHUB_OUTPUT
-          "notes=$notes" >> $env:GITHUB_OUTPUT
 
       - uses: actions/setup-node@v4
         with:
@@ -66,7 +89,7 @@ jobs:
       - name: Install it and start WinFynd once
         shell: pwsh
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
           $setup = "dist-installer/WinFynd-Setup-$env:VERSION.exe"
           $nsis = "src-tauri/target/release/bundle/nsis/WinFynd_$($env:VERSION)_x64-setup.exe"
@@ -102,7 +125,7 @@ jobs:
       - name: Checksum
         shell: pwsh
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
           $name = "WinFynd-Setup-$env:VERSION.exe"
           $hash = (Get-FileHash "dist-installer/$name" -Algorithm SHA256).Hash.ToLower()
@@ -111,9 +134,9 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: WinFynd-Setup-${{ steps.version.outputs.version }}
+          name: WinFynd-Setup-${{ needs.version.outputs.version }}
           path: |
-            dist-installer/WinFynd-Setup-${{ steps.version.outputs.version }}.exe
+            dist-installer/WinFynd-Setup-${{ needs.version.outputs.version }}.exe
             dist-installer/SHA256SUMS.txt
           if-no-files-found: error
 
@@ -121,12 +144,12 @@ jobs:
         if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.version }}
+          tag_name: v${{ needs.version.outputs.version }}
           target_commitish: ${{ github.sha }}
-          name: WinFynd ${{ steps.version.outputs.version }}
-          body_path: ${{ steps.version.outputs.notes }}
+          name: WinFynd ${{ needs.version.outputs.version }}
+          body_path: ${{ needs.version.outputs.notes }}
           files: |
-            dist-installer/WinFynd-Setup-${{ steps.version.outputs.version }}.exe
+            dist-installer/WinFynd-Setup-${{ needs.version.outputs.version }}.exe
             dist-installer/SHA256SUMS.txt
           fail_on_unmatched_files: true
           make_latest: true

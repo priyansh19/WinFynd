@@ -78,7 +78,7 @@ The Release workflow (`.github/workflows/release.yml`) builds WinFynd Setup on W
 
 1. Set the new version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `setup/Cargo.toml`, `setup/tauri.conf.json` and `package.json`, then run `cargo check` in `src-tauri` and `setup` so the lockfiles follow.
 2. Write the release notes in `docs/releases/<version>.md`.
-3. Merge to main, then run Actions > Release > Run workflow on main (or push the tag `v<version>`).
+3. Merge to main. The push to main publishes the new version if `v<version>` isn't released yet (Actions > Release > Run workflow on main, or pushing the tag `v<version>`, also works).
 
 Pull requests that touch the installer run the same build and check without publishing.
 
