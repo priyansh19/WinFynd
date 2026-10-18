@@ -14,6 +14,8 @@ body, #root { height: auto; }
   color: var(--text);
   animation: wf-rise 167ms var(--ease-decel) both;
 }
+/* Focusable only so clicks on text keep the keyboard; it's never a focus stop. */
+.launcher:focus-visible { outline: none; }
 html[data-backdrop="acrylic"] .launcher { background: var(--acrylic); }
 /* In the browser preview there's no window frame, so draw the design's. */
 html:not([data-backdrop]) .launcher { border: 1px solid var(--stroke-strong); border-radius: 8px; overflow: hidden; }

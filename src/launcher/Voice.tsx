@@ -56,6 +56,9 @@ export function useVoice({ onDone, onError }: { onDone: (text: string) => void; 
   const [heard, setHeard] = useState("");
   const capture = useRef<{ stream: MediaStream; ctx: AudioContext; chunks: Float32Array[] } | null>(null);
   const live = useRef(false);
+  // Bumped by every start and cancel, so work still running for an older
+  // recording can tell it no longer counts.
+  const session = useRef(0);
   const stopWanted = useRef(false);
   const interim = useRef<{ timer: number; busy: boolean }>({ timer: 0, busy: false });
   const limit = useRef(0);
@@ -85,14 +88,18 @@ export function useVoice({ onDone, onError }: { onDone: (text: string) => void; 
     live.current = false;
     const c = close();
     if (!c) return;
+    const id = session.current;
     setState("transcribing");
     try {
       const samples = await to16k(join(c.chunks), c.ctx.sampleRate);
+      if (id !== session.current) return; // cancelled with Esc, or a new recording began
       const text = samples.length > RATE / 4 ? await transcribeVoice(samples) : "";
+      if (id !== session.current) return;
       setState("off");
       setHeard("");
       done.current(text.trim());
     } catch (e) {
+      if (id !== session.current) return;
       setState("off");
       setHeard("");
       failed.current(String(e));
@@ -101,6 +108,7 @@ export function useVoice({ onDone, onError }: { onDone: (text: string) => void; 
 
   const start = useCallback(async () => {
     if (live.current) return;
+    const id = ++session.current;
     live.current = true;
     stopWanted.current = false;
     setHeard("");
@@ -110,7 +118,7 @@ export function useVoice({ onDone, onError }: { onDone: (text: string) => void; 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { deviceId: mic ? { ideal: mic } : undefined, channelCount: 1, echoCancellation: true, noiseSuppression: true },
       });
-      if (!live.current) {
+      if (!live.current || id !== session.current) {
         stream.getTracks().forEach((t) => t.stop());
         return;
       }
@@ -136,7 +144,7 @@ export function useVoice({ onDone, onError }: { onDone: (text: string) => void; 
         interim.current.busy = true;
         try {
           const text = await transcribeVoice(await to16k(join(c.chunks), c.ctx.sampleRate));
-          if (live.current) setHeard(text.trim());
+          if (live.current && id === session.current) setHeard(text.trim());
         } catch {
           // The final pass reports any problem.
         } finally {
@@ -145,6 +153,7 @@ export function useVoice({ onDone, onError }: { onDone: (text: string) => void; 
       }, INTERIM_MS);
       if (stopWanted.current) stop();
     } catch {
+      if (id !== session.current) return;
       live.current = false;
       close();
       setState("off");
@@ -153,6 +162,7 @@ export function useVoice({ onDone, onError }: { onDone: (text: string) => void; 
   }, [close, stop]);
 
   const cancel = useCallback(() => {
+    session.current++;
     live.current = false;
     close();
     setHeard("");

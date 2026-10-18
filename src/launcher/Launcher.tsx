@@ -29,9 +29,11 @@ import { VoiceBar, useVoice } from "./Voice";
 
 type Mode = "search" | "ask";
 type MenuAt = { right: number; bottom: number } | { left: number; top: number };
-type Found = { query: string; hits: SearchResult[]; ms: number; semantic: boolean; filters: FilterChip[] };
+/** `open`: Enter was pressed before these results came in, so the top one opens when they do. */
+type Found = { query: string; hits: SearchResult[]; ms: number; semantic: boolean; filters: FilterChip[]; open: boolean };
 type Asked = { question: string; answer: Answer; seconds: number };
-type Action = { label: string; keys: string[]; run: () => void };
+/** `toggles`: the button opens and closes the actions menu. */
+type Action = { label: string; keys: string[]; run: () => void; toggles?: boolean };
 
 const DEFAULT_KEYS: HotkeyConfig = {
   launcher: "Alt+Space",
@@ -53,7 +55,17 @@ function Footer({ left, actions }: { left: React.ReactNode; actions: Action[] })
         {left}
       </span>
       {actions.map((a) => (
-        <button key={a.label} type="button" className="act" onMouseDown={(e) => e.preventDefault()} onClick={a.run}>
+        <button
+          key={a.label}
+          type="button"
+          className="act"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            // The menu closes on any press outside it, and the click would then open it again.
+            if (a.toggles) e.stopPropagation();
+          }}
+          onClick={a.run}
+        >
           {a.label} <Keys keys={a.keys} />
         </button>
       ))}
@@ -79,12 +91,14 @@ export function Launcher() {
   const root = useRef<HTMLDivElement>(null);
   const controls = useRef<PreviewControls>({});
   const latest = useRef(0);
+  const latestAsk = useRef(0);
+  const debounce = useRef(0);
   const recall = useRef(-1);
   const status = useEngineStatus();
   const [config] = useEngineConfig();
   useFitWindowHeight(root);
 
-  const runSearch = useCallback(async (q: string) => {
+  const runSearch = useCallback(async (q: string, open = false) => {
     const id = ++latest.current;
     if (!q.trim()) {
       setFound(null);
@@ -98,7 +112,7 @@ export function Launcher() {
       if (id !== latest.current) return; // a newer keystroke won
       // Keep the list in the order it's shown, so the arrow keys follow it.
       const hits = groupResults(r.hits).flatMap((g) => g.items);
-      setFound({ query: q, hits, ms: Math.round(performance.now() - started), semantic: r.semantic, filters: r.filters });
+      setFound({ query: q, hits, ms: Math.round(performance.now() - started), semantic: r.semantic, filters: r.filters, open });
       setSelected(0);
       setError(null);
     } catch (e) {
@@ -110,32 +124,40 @@ export function Launcher() {
 
   const runAsk = useCallback(async (q: string) => {
     if (!q.trim()) return;
+    const id = ++latestAsk.current;
     setAsking(true);
     setAsked(null);
     setError(null);
     const started = performance.now();
     try {
       const answer = await ask(q);
+      if (id !== latestAsk.current) return; // asked again while this one was thinking
       setAsked({ question: q, answer, seconds: (performance.now() - started) / 1000 });
       rememberSearch(q);
     } catch (e) {
-      setError(String(e));
+      if (id === latestAsk.current) setError(String(e));
     } finally {
-      setAsking(false);
+      if (id === latestAsk.current) setAsking(false);
     }
   }, []);
 
   // Search as you type, lightly debounced so each keystroke doesn't embed.
   useEffect(() => {
     if (mode !== "search") return;
-    const t = setTimeout(() => runSearch(query), 120);
-    return () => clearTimeout(t);
+    debounce.current = window.setTimeout(() => runSearch(query), 120);
+    return () => clearTimeout(debounce.current);
   }, [query, mode, runSearch]);
 
   const voice = useVoice({
     onDone: (text) => {
       if (!text) {
-        setVoiceNote("Didn't catch anything. Hold the voice keys, say what you're looking for, then let go.");
+        setVoiceNote(
+          voiceByClick
+            ? "Didn't catch anything. Click the mic, say what you're looking for, then press Enter."
+            : keys.voiceMode === "toggle"
+              ? "Didn't catch anything. Press the voice keys, say what you're looking for, then press them again."
+              : "Didn't catch anything. Hold the voice keys, say what you're looking for, then let go.",
+        );
         return;
       }
       setQuery(text);
@@ -153,7 +175,7 @@ export function Launcher() {
 
   // Global hotkeys arrive as events; read the newest state through a ref so
   // the listeners are set up once.
-  const onEvent = useRef({ press: () => {}, release: () => {} });
+  const onEvent = useRef({ press: () => {}, release: () => {}, away: () => {} });
   onEvent.current = {
     press: () => {
       setVoiceNote(null);
@@ -162,7 +184,26 @@ export function Launcher() {
       else if (keys.voiceMode === "toggle") voice.stop();
     },
     release: () => voice.stop(),
+    away: () => {
+      if (voice.state !== "off") voice.cancel();
+    },
   };
+
+  // The launcher hides when it loses focus or Alt+Space closes it. Stop
+  // listening then, rather than recording (and maybe asking) behind a hidden
+  // window: click and toggle modes have no key release that would end it.
+  useEffect(() => {
+    const away = () => onEvent.current.away();
+    const hidden = () => {
+      if (document.hidden) away();
+    };
+    window.addEventListener("blur", away);
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      window.removeEventListener("blur", away);
+      document.removeEventListener("visibilitychange", hidden);
+    };
+  }, []);
 
   useEffect(() => {
     const refreshKeys = () =>
@@ -235,6 +276,12 @@ export function Launcher() {
     if (s) openResult(s.path).catch(fail);
   };
 
+  // Enter came before the results did: open the top one now that it's on
+  // screen (so a recording's preview is there to play), unless the box moved on.
+  useEffect(() => {
+    if (found?.open && found.query === query && mode === "search") primary(found.hits[0]);
+  }, [found]);
+
   const primaryLabel = current && plays(current) ? `Play from ${current.location}` : "Open";
   const actions: MenuItem[] = current
     ? [
@@ -264,6 +311,9 @@ export function Launcher() {
     return (selected + by + n) % n;
   };
 
+  /** The box still holds the search Up last brought back. */
+  const recalled = () => recall.current >= 0 && query === recentSearches()[recall.current];
+
   const onQueryChange = (value: string) => {
     recall.current = -1;
     setVoiceNote(null);
@@ -275,8 +325,10 @@ export function Launcher() {
     if (e.key === "Escape") {
       if (voice.state !== "off") voice.cancel();
       else if (mode === "ask") switchMode("search");
-      else if (query) setQuery("");
-      else hide();
+      else if (query) {
+        recall.current = -1;
+        setQuery("");
+      } else hide();
     } else if (e.key === "Tab") {
       switchMode(mode === "ask" ? "search" : "ask");
     } else if (voice.state === "listening" && e.key === "Enter") {
@@ -286,8 +338,9 @@ export function Launcher() {
       else if (asked && e.ctrlKey && e.shiftKey && key === "c") copy(answerAsText(asked.answer), "Answer copied");
       else if (asked && e.ctrlKey && /^[1-9]$/.test(e.key)) openSource(Number(e.key));
       else return;
-    } else if (e.key === "ArrowUp" && !query) {
-      // Up in an empty box brings back recent searches, newest first.
+    } else if (e.key === "ArrowUp" && (!query || ((selected === 0 || !hits.length) && recalled()))) {
+      // Up in an empty box brings back recent searches, newest first. From
+      // the top of the list it keeps going back while the box holds one.
       const recent = recentSearches();
       if (!recent.length) return;
       recall.current = Math.min(recall.current + 1, recent.length - 1);
@@ -300,7 +353,13 @@ export function Launcher() {
     } else if (e.key === "Enter" && (e.ctrlKey || e.shiftKey)) {
       reveal(current);
     } else if (e.key === "Enter") {
-      primary(current);
+      if (found?.query === query) primary(current);
+      else if (query.trim()) {
+        // Typed and pressed Enter before the results caught up: what's on
+        // screen is for the old text, so search now and open when it lands.
+        clearTimeout(debounce.current);
+        runSearch(query, true);
+      }
     } else if (e.ctrlKey && e.shiftKey && key === "e") {
       reveal(current);
     } else if (e.ctrlKey && e.shiftKey && key === "c") {
@@ -349,7 +408,7 @@ export function Launcher() {
   })();
 
   return (
-    <div ref={root} className="launcher" onKeyDown={onKeyDown}>
+    <div ref={root} className="launcher" tabIndex={-1 /* a click on text focuses this, not the page, so the keys keep working */} onKeyDown={onKeyDown}>
       <div className={`lsearch${mode === "ask" ? " ask" : ""}`}>
         {talking ? (
           <span className="mic">
@@ -472,7 +531,7 @@ export function Launcher() {
             actions={[
               { label: primaryLabel, keys: ["Enter"], run: () => primary(current) },
               { label: "Open folder", keys: ["Ctrl", "Shift", "E"], run: () => reveal(current) },
-              { label: "All actions", keys: ["Ctrl", "K"], run: () => setMenu(menu ? null : { right: 12, bottom: 44 }) },
+              { label: "All actions", keys: ["Ctrl", "K"], run: () => setMenu(menu ? null : { right: 12, bottom: 44 }), toggles: true },
             ]}
           />
         </>

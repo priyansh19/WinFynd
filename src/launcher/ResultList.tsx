@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { FileIcon } from "../components/FileIcon";
 import { kindClass } from "../lib/kinds";
 import { excerpt, isTimestamp, queryWords, reasonOf } from "../lib/match";
@@ -42,9 +43,6 @@ function Row({
       role="option"
       aria-selected={selected}
       className={`row ${kindClass(r.kind)}${selected ? " on" : ""}`}
-      ref={(el) => {
-        if (selected) el?.scrollIntoView({ block: "nearest" });
-      }}
       onMouseDown={(e) => e.preventDefault() /* keep focus in the search box */}
       onClick={() => onSelect(index)}
       onDoubleClick={() => onOpen(index)}
@@ -80,9 +78,6 @@ function Photo({ r, index, selected, onSelect, onOpen }: { r: SearchResult; inde
       aria-label={r.name}
       title={r.name}
       className={`photo${selected ? " on" : ""}`}
-      ref={(el) => {
-        if (selected) el?.scrollIntoView({ block: "nearest" });
-      }}
       onMouseDown={(e) => e.preventDefault()}
       onClick={() => onSelect(index)}
       onDoubleClick={() => onOpen(index)}
@@ -107,6 +102,12 @@ export function ResultList({
   onOpen: (index: number) => void;
   onContextMenu: (index: number, x: number, y: number) => void;
 }) {
+  // Only when the selection or the results change: the launcher re-renders
+  // several times a second while indexing, and the wheel has to win then.
+  useEffect(() => {
+    document.getElementById(`result-${selected}`)?.scrollIntoView({ block: "nearest" });
+  }, [selected, results]);
+
   return (
     <div className="llist" id="results" role="listbox" aria-label="Results">
       {groupResults(results).map((g) => {

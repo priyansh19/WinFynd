@@ -109,7 +109,7 @@ export function AnswerPanel({
         <Icon name="lock" size={14} />
         Answered on this PC by {modelLabel(answer.model)}
         {seconds !== null && ` in ${seconds.toFixed(1)} s`}
-        {files > 0 && `, from ${files} of your ${files === 1 ? "file" : "files"}`}.
+        {files > 0 && `, from ${files === 1 ? "one of your files" : `${files} of your files`}`}.
       </div>
     </div>
   );
