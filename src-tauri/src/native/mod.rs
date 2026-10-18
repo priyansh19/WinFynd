@@ -75,6 +75,37 @@ pub fn appearance<R: Runtime>(window: WebviewWindow<R>) -> Appearance {
     Appearance { accent, backdrop: backdrop_for(window.label()) }
 }
 
+/// Longest selection used as a search; anything past it is cut.
+#[cfg_attr(not(windows), allow(dead_code))]
+const SELECTION_CHARS: usize = 200;
+
+/// The text selected in the app in front, as a one-line search, for the
+/// "Search selected text" shortcut. Gives up after 400 ms so a busy app
+/// can't hold the launcher back.
+pub fn selected_text() -> Option<String> {
+    #[cfg(windows)]
+    {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(win::selected_text(SELECTION_CHARS as i32 * 4));
+        });
+        rx.recv_timeout(std::time::Duration::from_millis(400)).ok().flatten().and_then(|t| as_query(&t))
+    }
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
+
+/// Selected text as a search: whitespace and line breaks folded to single
+/// spaces, cut to `SELECTION_CHARS`; None when nothing is left.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn as_query(raw: &str) -> Option<String> {
+    let text: String = raw.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(SELECTION_CHARS).collect();
+    let text = text.trim_end().to_string();
+    (!text.is_empty()).then_some(text)
+}
+
 /// Explorer's icon for a file, or with `thumbnail` its thumbnail when it has
 /// one, as a PNG data URL.
 #[tauri::command]
@@ -99,5 +130,20 @@ pub async fn shell_image(path: String, size: u32, thumbnail: bool) -> Result<Str
     {
         let _ = (path, size, thumbnail);
         Err("Explorer images are only available on Windows".into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn selections_become_one_line_searches() {
+        assert_eq!(as_query("  lease\r\n renewal \t notice "), Some("lease renewal notice".into()));
+        assert_eq!(as_query(" \n\t "), None);
+        let long = "word ".repeat(100);
+        let q = as_query(&long).unwrap();
+        assert!(q.chars().count() <= SELECTION_CHARS);
+        assert!(!q.ends_with(' '));
     }
 }

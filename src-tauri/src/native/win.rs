@@ -1,6 +1,7 @@
 //! Win32 calls behind the native look: the accent palette from the registry,
-//! the OS build (Mica needs Windows 11), DWM rounded corners, and Explorer's
-//! icons and thumbnails through the shell's image factory.
+//! the OS build (Mica needs Windows 11), DWM rounded corners, Explorer's
+//! icons and thumbnails through the shell's image factory, and the text
+//! selected in other apps through UI Automation.
 
 use std::ffi::c_void;
 use std::mem::size_of;
@@ -12,10 +13,13 @@ use windows::Win32::Graphics::Gdi::{
     DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
     DIB_RGB_COLORS, HGDIOBJ,
 };
-use windows::Win32::System::Com::{CoInitializeEx, IBindCtx, COINIT_APARTMENTTHREADED};
+use windows::Win32::System::Com::{
+    CoCreateInstance, CoInitializeEx, IBindCtx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, COINIT_MULTITHREADED,
+};
 use windows::Win32::System::Registry::{
     RegGetValueW, HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, RRF_RT_REG_BINARY, RRF_RT_REG_SZ,
 };
+use windows::Win32::UI::Accessibility::{CUIAutomation, IUIAutomation, IUIAutomationTextPattern, UIA_TextPatternId};
 use windows::Win32::UI::Shell::{
     IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF, SIIGBF_ICONONLY, SIIGBF_RESIZETOFIT,
 };
@@ -132,5 +136,24 @@ pub fn shell_image(path: &str, size: u32, thumbnail: bool) -> Result<(u32, u32, 
             p[3] = a;
         }
         Ok((w, h, pixels))
+    }
+}
+
+/// The text selected in the focused control of the app in front, read through
+/// UI Automation so the clipboard is left alone. None when that app doesn't
+/// expose its selection this way, or nothing is selected.
+pub fn selected_text(max_chars: i32) -> Option<String> {
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+        let uia: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).ok()?;
+        let focused = uia.GetFocusedElement().ok()?;
+        let pattern: IUIAutomationTextPattern = focused.GetCurrentPatternAs(UIA_TextPatternId).ok()?;
+        let ranges = pattern.GetSelection().ok()?;
+        let mut text = String::new();
+        for i in 0..ranges.Length().ok()? {
+            text.push_str(&ranges.GetElement(i).ok()?.GetText(max_chars).ok()?.to_string());
+            text.push(' ');
+        }
+        Some(text)
     }
 }

@@ -179,7 +179,11 @@ export function Launcher() {
         input.current?.select();
       }),
       listen("launcher://ask", () => switchMode("ask")),
-      listen("launcher://selection", () => switchMode("search")),
+      // The text selected in the app in front, when that app shares it.
+      listen<string | null>("launcher://selection", (text) => {
+        switchMode("search");
+        if (text) setQuery(text);
+      }),
       // Setup's "Try one of these": the search typed in for the user, or the question asked.
       listen<{ text: string; ask: boolean }>("launcher://query", ({ text, ask: asking }) => {
         switchMode(asking ? "ask" : "search");
