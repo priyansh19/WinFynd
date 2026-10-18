@@ -322,7 +322,7 @@
           <details class="help-qa k-amber reveal" id="q-folders" data-find>
             <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 5.5a1 1 0 0 1 1-1h4l2 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"></path></svg></span><h3 class="help-qa__q">Which folders does it search, and can I change them?</h3><span class="help-qa__a">Every drive on your PC. Switch that off and pick folders instead.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
             <div class="help-qa__body">
-              <p>By default WinFynd reads every drive on your PC: all of C: and any other drive, like D:. The switch is called <span class="ui">Allow full OS context</span>, in setup and in <span class="ui">Settings &gt; Folders</span>.</p>
+              <p>By default WinFynd reads every drive on your PC: all of C: and any other drive, like D:. The switch is called <span class="ui">Allow full OS context</span>, in setup and in <span class="ui">Settings&nbsp;&gt; Folders</span>.</p>
               <p>Switch it off to choose folders instead. Documents, Pictures, Desktop and Downloads start ticked, and you can add any folder. Remove one and its files leave the index.</p>
               <p>Reading the whole PC means the index holds text from files anywhere on it. All of it stays on this PC.</p>
               <ul class="help-list">
@@ -363,7 +363,7 @@
           <details class="help-qa k-other reveal" id="q-uninstall" data-find>
             <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 5.5h13M8 5.5V3.5h4v2M5.5 5.5l.8 11a1 1 0 0 0 1 1h5.4a1 1 0 0 0 1-1l.8-11"></path></svg></span><h3 class="help-qa__q">How do I uninstall it?</h3><span class="help-qa__a">From Windows Settings, like any app.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
             <div class="help-qa__body">
-              <p>Open Windows <span class="ui">Settings &gt; Apps</span> (Installed apps on Windows 11, Apps &amp; features on Windows 10), find WinFynd and choose <span class="ui">Uninstall</span>.</p>
+              <p>Open Windows <span class="ui">Settings&nbsp;&gt; Apps</span> (Installed apps on Windows 11, Apps &amp; features on Windows 10), find WinFynd and choose <span class="ui">Uninstall</span>.</p>
               <ul class="help-list">
                 <li>Your own files are never touched.</li>
                 <li>Your index and settings stay unless you tick “Also delete my search index and settings”. Keep them and a reinstall picks up where you left off.</li>
@@ -388,7 +388,7 @@
             <p class="help-fix__why">Either WinFynd isn’t running, or another app owns those keys. PowerToys Run, for example, uses Alt&nbsp;+&nbsp;Space too.</p>
             <ol class="help-steps">
               <li>Look for the WinFynd icon in the notification area, next to the clock. No icon? Start WinFynd from the Start menu.</li>
-              <li>Open <span class="ui">Settings &gt; Shortcuts &amp; voice</span>. A shortcut another app owns says “Another app is using this shortcut. Pick a different one.”</li>
+              <li>Open <span class="ui">Settings&nbsp;&gt; Shortcuts &amp; voice</span>. A shortcut another app owns says “Another app is using this shortcut. Pick a different one.”</li>
               <li>Click <span class="ui">Change</span> and press keys no other app uses, or change the shortcut in the other app.</li>
             </ol>
           </article>
@@ -397,7 +397,7 @@
             <div class="help-fix__head"><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l7 3.8v7.4l-7 3.8-7-3.8V6.3z"></path><path d="M3 6.3l7 3.9 7-3.9M10 10.2v7.3"></path></svg></span><h3 id="fix-meaning-t" class="heading">Results only match names or exact words</h3></div>
             <p class="help-fix__why">Search by meaning needs Ollama running and the search model downloaded. Until then the search window says “exact words only” next to the result count.</p>
             <ol class="help-steps">
-              <li>Open <span class="ui">Settings &gt; Models</span>.</li>
+              <li>Open <span class="ui">Settings&nbsp;&gt; Models</span>.</li>
               <li>If it says “Ollama isn’t running”, start Ollama from the Start menu, then click <span class="ui">Check again</span>. Not installed yet? It’s free from ollama.com.</li>
               <li>If EmbeddingGemma 2 says “Not downloaded”, click <span class="ui">Download</span>.</li>
             </ol>
@@ -415,7 +415,7 @@
                   </div>
                 </div>
               
-              <figcaption>What you want to see in Settings &gt; Models.</figcaption>
+              <figcaption>What you want to see in Settings&nbsp;&gt; Models.</figcaption>
             </figure>
             <p class="help-fix__after">You don’t need to start over. The next full check, right after the download and then every 20 minutes, adds the files WinFynd already read to search by meaning. Finding photos by what’s in them also needs Most accurate or Balanced; Smallest reads text only.</p>
           </article>
@@ -426,7 +426,7 @@
             <ol class="help-steps">
               <li>Install FFmpeg. Open Terminal and run:
                 <span class="help-cmd"><code>winget install Gyan.FFmpeg</code><button type="button" class="button button--secondary button--small help-copy" data-copy="winget install Gyan.FFmpeg"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"></rect><path d="M13 7V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3"></path></svg><span data-copy-label>Copy</span></button></span></li>
-              <li>In <span class="ui">Settings &gt; Models</span>, click <span class="ui">Check again</span> next to “Search what’s shown in videos”. Once FFmpeg is found, its switch is on.</li>
+              <li>In <span class="ui">Settings&nbsp;&gt; Models</span>, click <span class="ui">Check again</span> next to “Search what’s shown in videos”. Once FFmpeg is found, its switch is on.</li>
               <li>Leave it to read. It takes up to 48 frames from each video, after your other files.</li>
             </ol>
             <figure class="shot help-crop" role="img" aria-label="Settings, Models, Speech: FFmpeg, reads frames from videos and less common audio formats. Found, version 7.1.">
@@ -439,7 +439,7 @@
                   </div>
                 </div>
               
-              <figcaption>Once FFmpeg is found, Settings &gt; Models says so.</figcaption>
+              <figcaption>Once FFmpeg is found, Settings&nbsp;&gt; Models says so.</figcaption>
             </figure>
             <p class="help-fix__after">Frames are matched like photos, so this needs a search model that reads photos: Most accurate or Balanced. FFmpeg also lets WinFynd hear less common audio formats, like WMA and Opus.</p>
           </article>
@@ -496,7 +496,7 @@
             <p class="body">Include these four things, so the problem can be reproduced without a round of questions.</p>
           </div>
           <ol class="help-report__list">
-            <li><span class="help-report__n">1</span><div><b>Your WinFynd version</b><span>In Settings &gt; About. It’s in the installer’s name too, like WinFynd-Setup-0.1.0.exe.</span></div></li>
+            <li><span class="help-report__n">1</span><div><b>Your WinFynd version</b><span>In Settings&nbsp;&gt; About. It’s in the installer’s name too, like WinFynd-Setup-0.1.0.exe.</span></div></li>
             <li><span class="help-report__n">2</span><div><b>Your Windows version</b><span>Press Win&nbsp;+&nbsp;R, type winver and press Enter.</span></div></li>
             <li><span class="help-report__n">3</span><div><b>What happened</b><span>What you did, what you expected and what you got. For a search, the words you typed.</span></div></li>
             <li><span class="help-report__n">4</span><div><b>The log file</b><span class="help-report__path">%LOCALAPPDATA%\<wbr>app.winfynd.desktop\<wbr>logs\<wbr>winfynd.log</span></div></li>
