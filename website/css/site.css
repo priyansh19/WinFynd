@@ -73,11 +73,14 @@
     --stroke-strong: rgba(20, 20, 60, 0.15);
     --stroke-hover: rgba(20, 20, 60, 0.24);
     --track: rgba(0, 0, 0, 0.10);
-    --accent: #2f6ce5;
+    /* Text colours are a step deeper than the app's #2f6ce5 and #0f7b0f, so links, labels and
+       chips keep 4.5:1 where they sit on a bloom glow (measured, both 1440 and 390 wide).
+       --accent-strong and --focus keep the app's blue for fills and focus rings. */
+    --accent: #1f55c4;
     --accent-strong: #2f6ce5;
     --on-accent: #ffffff;
     --focus: #2f6ce5;
-    --ok: #0f7b0f;
+    --ok: #0b600b;
     --header-bg: rgba(246, 246, 252, 0.78);
     --shadow-card: 0 1px 2px rgba(30, 30, 80, 0.06);
     --shadow-lift: 0 16px 36px rgba(30, 30, 80, 0.12), 0 2px 8px rgba(30, 30, 80, 0.06);
@@ -91,6 +94,8 @@
 
 /* ---------- Base ---------- */
 *, *::before, *::after { box-sizing: border-box; }
+/* scroll-padding-top is the one anchor offset for every page: any #id target (links, the
+   skip link, scrollIntoView) lands 16 px under the sticky header. Pages add no scroll-margin. */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; overflow-x: clip; scroll-padding-top: calc(var(--header-h) + 16px); }
 body {
   margin: 0;
@@ -106,7 +111,7 @@ body {
 img, svg { max-width: 100%; }
 a { color: inherit; }
 p { margin: 0; }
-h1, h2, h3, h4 { margin: 0; font-family: var(--font-display); font-weight: 600; }
+h1, h2, h3, h4 { margin: 0; font-family: var(--font-display); font-weight: 600; text-wrap: balance; }
 button { font: inherit; color: inherit; }
 ::selection { background: color-mix(in srgb, var(--accent) 38%, transparent); }
 
@@ -145,11 +150,13 @@ button { font: inherit; color: inherit; }
   letter-spacing: -0.016em;
   text-wrap: balance;
 }
-.heading { font: 600 20px/28px var(--font-display); letter-spacing: -0.008em; }
+.heading { font: 600 20px/28px var(--font-display); letter-spacing: -0.008em; text-wrap: balance; }
 .lead { font-size: clamp(17px, 1.5vw, 20px); line-height: 1.55; color: var(--text2); max-width: 60ch; text-wrap: pretty; }
 .body { font-size: 16px; line-height: 1.6; color: var(--text2); text-wrap: pretty; }
 .fine { font-size: 13px; line-height: 1.5; color: var(--text3); }
 .mono { font-family: var(--mono); font-size: 0.92em; }
+/* The name of a button, switch or setting in running copy: "switch off <span class="ui">Allow full OS context</span>". */
+.ui { color: var(--text); font-weight: 600; }
 
 /* Eyebrow: a small label in the colour of what the section is about.
    Put a k-* class on it (or on a parent) to colour it; defaults to the accent. */
@@ -160,6 +167,11 @@ button { font: inherit; color: inherit; }
   letter-spacing: 0.01em;
 }
 .eyebrow svg { flex: none; }
+/* Light mode: eyebrows often sit on a bloom glow (heroes at phone width are the worst case),
+   so they are mixed 10% toward black. Every kind hue then keeps 4.5:1 on the glows. */
+@media (prefers-color-scheme: light) {
+  .eyebrow { color: color-mix(in srgb, var(--k, var(--accent)) 90%, #000); }
+}
 
 .section-head { display: flex; flex-direction: column; gap: 16px; max-width: 760px; margin-bottom: clamp(40px, 5vw, 64px); }
 .section-head .title { margin-top: 2px; }
@@ -234,7 +246,7 @@ button { font: inherit; color: inherit; }
 
 /* Ask uses the accent as its "kind" colour (k-ask), next to the eight file kinds in wf.css. */
 .k-ask { --k: #7aa8ff; }
-@media (prefers-color-scheme: light) { .k-ask { --k: #2f6ce5; } }
+@media (prefers-color-scheme: light) { .k-ask { --k: #1f55c4; } }
 
 /* Kind chip: a file kind's name in its own hue. */
 .kind-chip {
@@ -279,9 +291,12 @@ button { font: inherit; color: inherit; }
 
 /* ---------- Bloom glows ----------
    Soft spectrum-hue light placed in a corner or behind a product shot.
-   Position with top/left/right/bottom; size with --w/--h. Never animated. */
+   Position with top/left/right/bottom; size with --w/--h. Never animated.
+   overflow-anchor: none, because a glow placed in percentages of a tall box moves when
+   content above it opens; as Chrome's scroll anchor it would make the page jump. */
 .bloom {
   position: absolute; z-index: -1; pointer-events: none;
+  overflow-anchor: none;
   width: var(--w, 720px); height: var(--h, 520px);
   border-radius: 50%;
   background: radial-gradient(closest-side, var(--c, var(--glow-blue)), transparent);
@@ -305,7 +320,12 @@ button { font: inherit; color: inherit; }
 }
 .shot-desk.wf { background: var(--wall); }
 .shot-window { box-shadow: var(--shadow-shot); border-radius: var(--radius); }
-.shot figcaption { margin-top: 14px; font-size: 13px; color: var(--text3); }
+.shot figcaption { margin-top: 14px; font-size: 13px; color: var(--text2); } /* text3 had 4.8:1 at best on a pink bloom */
+/* A shot is positioned, so its large shadow paints over plain copy next to it and dims it.
+   The shot's siblings (copy before, beside or after it) get their own stacking level.
+   Zero specificity: any page rule that positions an element still wins. */
+:where(.shot) ~ :where(:not(.shot)),
+:where(:not(.shot):has(~ .shot)) { position: relative; z-index: 1; }
 [data-fit] { transform-origin: top left; }
 .fit-frame { overflow: hidden; }
 
@@ -407,6 +427,14 @@ button { font: inherit; color: inherit; }
 }
 .footer-bottom .loads-nothing { display: inline-flex; align-items: center; gap: 8px; color: var(--text2); }
 .footer-bottom .loads-nothing svg { color: var(--ok); }
+.footer-end { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
+.motion-toggle {
+  font: inherit; color: var(--text2); background: none; border: 0; padding: 0; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--stroke-strong, currentColor); text-underline-offset: 4px;
+}
+.motion-toggle:hover { color: var(--text); text-decoration-color: currentColor; }
+/* "Pause animations" in the footer: freeze every CSS loop too */
+.is-paused *, .is-paused *::before, .is-paused *::after { animation-play-state: paused !important; }
 .footer-version { display: inline-flex; align-items: center; gap: 10px; }
 .footer-version .tagver {
   display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px;
@@ -474,3 +502,9 @@ main { view-transition-name: main; }
   ::view-transition-old(main), ::view-transition-new(main) { animation: none; }
   .link-arrow:hover svg { transform: none; }
 }
+
+/* ---------- Release switch ----------
+   Until 0.1.0 is published on GitHub, content that only makes sense after the release
+   (.after-release) is hidden and its "coming soon" twin (.until-release) shows.
+   At release, change the selector below to .until-release. Works without JavaScript. */
+.after-release { display: none !important; }

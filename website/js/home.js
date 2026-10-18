@@ -48,17 +48,6 @@
       s._sel = all(".row.on, .demo-sel.is-sel", s);
     });
 
-    /* Fit the 880 px launcher into the stage (CSS steps are the no-JS fallback). */
-    var phone = window.matchMedia("(max-width: 699px)");
-    function fit() {
-      if (phone.matches) { stage.style.removeProperty("--z"); return; }
-      var z = Math.min(1, (stage.clientWidth - 48) / 880);
-      stage.style.setProperty("--z", String(Math.floor(z * 1000) / 1000));
-    }
-    fit();
-    if ("ResizeObserver" in window) new ResizeObserver(fit).observe(stage);
-    else window.addEventListener("resize", fit);
-
     /* A clock that only runs while the demo is on screen and the tab is visible.
        "hold" waits also stop while the visitor hovers, focuses or pauses the demo. */
     var waiters = [], raf = 0, last = 0;
