@@ -6,7 +6,7 @@ import { formatBytes, isBusy, listModels, useEngineStatus, useTimeLeft, type Ins
 import { useIndexingFeed } from "../../lib/feed";
 import { KINDS, timeLeft } from "../../lib/kinds";
 import { openOllamaDownload, watchFirstIndex } from "../../lib/onboarding";
-import { useIndexStats } from "../../lib/stats";
+import { driveList, useDrives, useIndexStats } from "../../lib/stats";
 import { Page, type StepProps } from "../Onboarding";
 
 type Mark = "done" | "live" | "wait";
@@ -19,11 +19,13 @@ const folders = (n: number) => (n === 1 ? "1 folder" : `${n} folders`);
  * The first download and read can take a while, so this shows what's left,
  * the files dropping in, and lets the user close the window while it finishes.
  */
-export function WarmUpStep({ config, pull, startPull, finish, onReady }: StepProps & { onReady: (sawReading: boolean) => void }) {
+export function WarmUpStep({ config, pulls, startPull, finish, onReady }: StepProps & { onReady: (sawReading: boolean) => void }) {
+  const pull = pulls[config.embedModel];
   const status = useEngineStatus();
   const left = useTimeLeft(status);
   const { items } = useIndexingFeed();
   const stats = useIndexStats(true);
+  const drives = useDrives();
   const [installed, setInstalled] = useState<InstalledModel[] | null | undefined>(undefined);
   const started = useRef(false);
   const sawReading = useRef(false);
@@ -47,15 +49,17 @@ export function WarmUpStep({ config, pull, startPull, finish, onReady }: StepPro
   }, [pull?.done, missing]);
 
   const model = installed ? has(installed, config.embedModel) : undefined;
-  const downloading = pull && !pull.done && pull.model === config.embedModel ? pull : null;
-  const failed = pull?.done && pull.error && pull.model === config.embedModel ? pull.error : null;
+  const downloading = pull && !pull.done ? pull : null;
+  const failed = pull?.done && pull.error ? pull.error : null;
 
-  // The search model is part of warming up: start it if it isn't on this PC yet (say Ollama arrived late).
+  // The search model is part of warming up: start it if it isn't on this PC
+  // yet and no download of it has started (say Ollama arrived late). One that
+  // just finished counts, while the list of models catches up.
   useEffect(() => {
-    if (started.current || !installed || model || downloading) return;
+    if (started.current || !installed || model || pull) return;
     started.current = true;
     startPull(config.embedModel);
-  }, [installed, model, downloading, config.embedModel, startPull]);
+  }, [installed, model, pull, config.embedModel, startPull]);
 
   const busy = !status || isBusy(status) || status.state === "loading";
   if (status && isBusy(status)) sawReading.current = true;
@@ -70,12 +74,16 @@ export function WarmUpStep({ config, pull, startPull, finish, onReady }: StepPro
     return () => window.clearTimeout(t);
   }, [complete]);
 
-  const total = status ? status.files + status.queued : 0;
+  // This pass: files read so far out of all it has to read.
+  const total = status ? status.done + status.queued : 0;
   const scanning = !status || status.state === "scanning" || status.state === "loading";
   const modelMark: Mark = model ? "done" : installed === null || failed ? "wait" : "live";
   const findMark: Mark = scanning ? "live" : "done";
   const readMark: Mark = !status ? "wait" : busy ? "live" : "done";
   const kinds = stats ? KINDS.filter((k) => stats.kinds[k.kind]) : [];
+  // "on C: and D:" with full OS context, otherwise "in 3 folders".
+  const searched = drives?.filter((d) => !config.skip.includes(d.path)) ?? [];
+  const where = config.wholePc ? (searched.length ? `on ${driveList(searched)}` : "on this PC") : `in ${folders(config.roots.length)}`;
 
   return (
     <Page
@@ -128,7 +136,7 @@ export function WarmUpStep({ config, pull, startPull, finish, onReady }: StepPro
           <Row
             mark={findMark}
             title="Finding your files"
-            sub={scanning ? `Looking through ${folders(config.roots.length)}…` : `${total.toLocaleString()} files in ${folders(config.roots.length)}`}
+            sub={scanning ? `Looking for files ${where}…` : `${(busy ? Math.max(total, status!.files) : status!.files).toLocaleString()} files ${where}`}
           />
           <Row
             mark={readMark}
@@ -137,11 +145,11 @@ export function WarmUpStep({ config, pull, startPull, finish, onReady }: StepPro
               !status
                 ? "Starting…"
                 : busy
-                  ? `${status.files.toLocaleString()} of ${total.toLocaleString()}${status.state === "paused" ? " · paused" : timeLeft(left) ? ` · ${timeLeft(left)}` : ""}`
+                  ? `${status.done.toLocaleString()} of ${total.toLocaleString()}${status.state === "paused" ? " · paused" : timeLeft(left) ? ` · ${timeLeft(left)}` : ""}`
                   : `${status.files.toLocaleString()} files read`
             }
           >
-            {status && busy && !scanning && <Bar label="Files read" live={status.state !== "paused"} value={pct(status.files, total)} />}
+            {status && busy && !scanning && <Bar label="Files read" live={status.state !== "paused"} value={pct(status.done, total)} />}
           </Row>
           <p className="warm-note small faint">
             {model
@@ -154,7 +162,7 @@ export function WarmUpStep({ config, pull, startPull, finish, onReady }: StepPro
             <span className={`pulse${busy ? "" : " still"}`} />
             Reading now
           </span>
-          {items.length > 0 ? <FileFeed items={items} /> : <span className="small faint">{busy ? "Looking through your folders…" : "Nothing left to read."}</span>}
+          {items.length > 0 ? <FileFeed items={items} /> : <span className="small faint">{busy ? "Looking for files…" : "Nothing left to read."}</span>}
         </section>
       </div>
 

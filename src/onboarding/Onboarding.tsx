@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { AppIcon, Icon } from "../components/Icon";
 import { Caps } from "../components/TitleBar";
 import {
@@ -10,7 +11,7 @@ import {
   type SpeechProgress,
 } from "../lib/engine";
 import { finishOnboarding, markSetupDone, type AfterSetup } from "../lib/onboarding";
-import { listen } from "../lib/tauri";
+import { inTauri, listen } from "../lib/tauri";
 import { FoldersStep } from "./steps/Folders";
 import { ModelStep } from "./steps/Model";
 import { ReadyStep } from "./steps/Ready";
@@ -18,7 +19,7 @@ import { ShortcutsStep } from "./steps/Shortcuts";
 import { WarmUpStep } from "./steps/WarmUp";
 import { WelcomeStep } from "./steps/Welcome";
 
-const STEPS = ["Welcome", "Folders", "Search model", "Shortcuts", "Warm-up"];
+const STEPS = ["Welcome", "What to search", "Search model", "Shortcuts", "Warm-up"];
 /** After the last step: every step shows as done. */
 const READY = STEPS.length;
 
@@ -29,18 +30,19 @@ export interface StepProps {
   next: () => void;
   back: () => void;
   finish: (then: AfterSetup) => Promise<void>;
-  /** The search model download, shared so it carries on across steps. */
-  pull: PullProgress | null;
+  /** Search model downloads by model, shared so they carry on across steps. */
+  pulls: Record<string, PullProgress>;
   startPull: (model: string) => void;
   /** The Whisper download; the speech setting turns on when it finishes. */
   speech: SpeechProgress | null;
-  startSpeech: (id: string) => void;
+  /** Download a Whisper model, or with null, don't turn speech on when one finishes. */
+  startSpeech: (id: string | null) => void;
 }
 
 export function Onboarding() {
   const [index, setIndex] = useState(0);
   const [config, save] = useEngineConfig();
-  const [pull, setPull] = useState<PullProgress | null>(null);
+  const [pulls, setPulls] = useState<Record<string, PullProgress>>({});
   const [speech, setSpeech] = useState<SpeechProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** When reading started, if this run of setup saw it happen; null when the index was already done. */
@@ -49,23 +51,28 @@ export function Onboarding() {
   const finished = useRef(false);
   const latest = useRef(config);
   latest.current = config;
+  /** The Whisper model setup asked for and still wants. */
+  const wantSpeech = useRef<string | null>(null);
 
   useEffect(() => {
     const subs = [
-      listen<PullProgress>("models://pull", setPull),
+      listen<PullProgress>("models://pull", (p) => setPulls((all) => ({ ...all, [p.model]: p }))),
+      // Only setup's own download, and only while it's still wanted; Settings can download too.
       listen<SpeechProgress>("models://speech", (p) => {
+        if (p.id !== wantSpeech.current) return;
         setSpeech(p);
         if (p.error) setError(`Whisper didn't download: ${p.error}`);
         const c = latest.current;
         if (p.done && !p.error && c) save({ ...c, speechModel: p.id }).catch((e) => setError(String(e)));
       }),
-      // "Run setup again" shows this window after it was finished: start over.
+      // Shown again ("Run setup again", or after closing it early): time reading
+      // from now, and start over if it was finished.
       listen("onboarding://shown", () => {
-        if (!finished.current) return;
-        finished.current = false;
         opened.current = Date.now();
         setReadFor(null);
         setError(null);
+        if (!finished.current) return;
+        finished.current = false;
         setIndex(0);
       }),
     ];
@@ -73,15 +80,17 @@ export function Onboarding() {
   }, [save]);
 
   const startPull = useCallback(async (model: string) => {
-    setPull({ model, status: "starting", completed: 0, total: 0, done: false, error: null });
+    setPulls((all) => ({ ...all, [model]: { model, status: "starting", completed: 0, total: 0, done: false, error: null } }));
     try {
       await pullModel(model);
     } catch (e) {
-      setPull({ model, status: "failed", completed: 0, total: 0, done: true, error: String(e) });
+      setPulls((all) => ({ ...all, [model]: { model, status: "failed", completed: 0, total: 0, done: true, error: String(e) } }));
     }
   }, []);
 
-  const startSpeech = useCallback(async (id: string) => {
+  const startSpeech = useCallback(async (id: string | null) => {
+    wantSpeech.current = id;
+    if (!id) return;
     setSpeech({ id, completed: 0, total: 0, done: false, error: null });
     try {
       await downloadSpeechModel(id);
@@ -97,11 +106,24 @@ export function Onboarding() {
     return finishOnboarding(then).catch((e) => setError(String(e)));
   }, []);
 
+  // Closing the window once warm-up starts finishes setup, the same as
+  // "Close and finish in the background", so it doesn't open again next time.
+  useEffect(() => {
+    if (!inTauri || index < 4) return;
+    const off = getCurrentWindow().onCloseRequested((e) => {
+      e.preventDefault();
+      finish("tray");
+    });
+    return () => {
+      off.then((f) => f());
+    };
+  }, [index, finish]);
+
   const next = () => setIndex((i) => Math.min(i + 1, READY));
   const back = () => setIndex((i) => Math.max(i - 1, 0));
 
   const props: StepProps | null = config
-    ? { config, save, next, back, finish, pull, startPull, speech, startSpeech }
+    ? { config, save, next, back, finish, pulls, startPull, speech, startSpeech }
     : null;
 
   return (

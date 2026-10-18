@@ -14,7 +14,8 @@ export function Corner({ status }: { status: EngineStatus | null }) {
   if (!status) return null;
   const busy = isBusy(status);
   const paused = status.state === "paused";
-  const total = status.files + status.queued;
+  // This pass: files read so far out of all it has to read.
+  const total = status.done + status.queued;
 
   return (
     <section className="panel corner" aria-label="Indexing">
@@ -32,11 +33,13 @@ export function Corner({ status }: { status: EngineStatus | null }) {
       {items.length > 0 ? (
         <FileFeed items={items} />
       ) : (
-        <p className="small faint corner-quiet">{busy ? "Looking through your folders…" : "New and changed files are read within seconds of being saved."}</p>
+        <p className="small faint corner-quiet">{busy ? "Looking for new files…" : "New and changed files are read within seconds of being saved."}</p>
       )}
-      <Bar label="Files read" live={busy && !paused} value={total ? (status.files / total) * 100 : 100} />
+      <Bar label="Files read" live={busy && !paused} value={total ? (status.done / total) * 100 : busy ? undefined : 100} />
       <span className="small faint num">
-        {busy ? `${status.files.toLocaleString()} of ${total.toLocaleString()} files read` : `${status.files.toLocaleString()} files ready to search`}
+        {busy && total
+          ? `${status.done.toLocaleString()} of ${total.toLocaleString()} files read`
+          : `${status.files.toLocaleString()} files ready to search`}
       </span>
     </section>
   );

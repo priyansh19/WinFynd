@@ -46,9 +46,10 @@ impl Pending {
         }
     }
 
-    pub fn remove_prefix(&mut self, prefix: &Path) {
-        self.order.retain(|q| !q.starts_with(prefix));
-        self.queued.retain(|q| !q.starts_with(prefix));
+    /// Keep only the files `keep` says yes to.
+    pub fn retain(&mut self, keep: impl Fn(&Path) -> bool) {
+        self.order.retain(|q| keep(q));
+        self.queued.retain(|q| keep(q));
     }
 
     pub fn clear(&mut self) {

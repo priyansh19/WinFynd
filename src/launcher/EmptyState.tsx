@@ -15,8 +15,9 @@ const clockTime = (unix: number) => new Date(unix * 1000).toLocaleTimeString(und
  */
 export function Notes({ status }: { status: EngineStatus | null }) {
   if (!status) return null;
-  const total = status.files + status.queued;
-  const done = status.files.toLocaleString();
+  // This pass: files read so far out of all it has to read.
+  const total = status.done + status.queued;
+  const done = status.done.toLocaleString();
   return (
     <>
       {status.ollama !== "ok" && status.state !== "loading" && (
@@ -54,10 +55,10 @@ export function Notes({ status }: { status: EngineStatus | null }) {
                   can search now; results fill in as it goes.
                 </>
               ) : (
-                "Looking through your folders for new files. You can search now; results fill in as it goes."
+                "Looking for new files. You can search now; results fill in as it goes."
               )}
             </span>
-            <Bar label="Files read" live value={status.queued > 0 ? (status.files / total) * 100 : undefined} />
+            <Bar label="Files read" live value={status.queued > 0 ? (status.done / total) * 100 : undefined} />
           </div>
         )
       )}
@@ -73,23 +74,26 @@ function folderNames(roots: string[]): string {
   return names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
 }
 
-/** A search that found nothing: what to try instead. */
-export function NothingFound({ roots, onAsk }: { roots: string[]; onAsk: () => void }) {
+/** A search that found nothing: what to try instead. `roots` is null when the whole PC is searched. */
+export function NothingFound({ roots, onAsk }: { roots: string[] | null; onAsk: () => void }) {
   return (
     <div className="lempty">
       <h2>No files match yet</h2>
       <p>
-        Nothing in {folderNames(roots)} looks like this. Describe what was in it, or ask a question and WinFynd will look at the closest files.
+        {roots ? `Nothing in ${folderNames(roots)} looks like this.` : "Nothing on this PC looks like this."} Describe what was in it, or ask a question and
+        WinFynd will look at the closest files.
       </p>
       <div className="actions">
         <button type="button" className="btn" onMouseDown={(e) => e.preventDefault()} onClick={onAsk}>
           <Icon name="sparkle" />
           Ask instead
         </button>
-        <button type="button" className="btn" onMouseDown={(e) => e.preventDefault()} onClick={() => openSettings("folders")}>
-          <Icon name="folderAdd" />
-          Add a folder to search
-        </button>
+        {roots && (
+          <button type="button" className="btn" onMouseDown={(e) => e.preventDefault()} onClick={() => openSettings("folders")}>
+            <Icon name="folderAdd" />
+            Add a folder to search
+          </button>
+        )}
       </div>
     </div>
   );

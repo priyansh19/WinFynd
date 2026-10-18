@@ -19,12 +19,15 @@ impl Watcher {
     /// the roots before watching starts (minutes on a big Documents folder,
     /// and it froze the app). Renames show up as a removal plus a new file,
     /// which the indexer handles the same way.
-    pub fn start(roots: &[PathBuf], jobs: Sender<Job>) -> Option<Self> {
+    ///
+    /// `skip` is the user's skipped folders. Watching a whole drive also
+    /// hears Windows and apps at work; those events stop at `is_excluded`.
+    pub fn start(roots: &[PathBuf], skip: Vec<PathBuf>, jobs: Sender<Job>) -> Option<Self> {
         let handler = move |result: DebounceEventResult| {
             let Ok(events) = result else { return };
             for event in events {
                 for path in &event.paths {
-                    if is_excluded(path) {
+                    if is_excluded(path) || skip.iter().any(|s| path.starts_with(s)) {
                         continue;
                     }
                     let job = if path.is_file() {

@@ -118,11 +118,20 @@ fn watch<R: Runtime>(app: &AppHandle<R>) {
         if busy {
             was_busy = true;
             if let Some(t) = &tray {
-                let total = s.files.max(0) as usize + s.queued;
-                let _ = t.set_tooltip(Some(format!("WinFynd · indexing {} of {} files", s.files, total)));
+                let tip = if s.queued > 0 {
+                    format!("WinFynd · reading {} of {} files", thousands(s.done), thousands(s.done + s.queued as u64))
+                } else if s.ollama == "modelMissing" {
+                    "WinFynd · waiting for the search model".into()
+                } else {
+                    "WinFynd · looking for files".into()
+                };
+                let _ = t.set_tooltip(Some(tip));
             }
             // Give up quietly if it never finishes (for example, the model is never downloaded).
             if started.elapsed() > Duration::from_secs(12 * 3600) {
+                if let Some(t) = &tray {
+                    let _ = t.set_tooltip(Some("WinFynd"));
+                }
                 return;
             }
             continue;
@@ -157,7 +166,7 @@ fn thousands(n: u64) -> String {
     let digits = n.to_string();
     let mut out = String::new();
     for (i, c) in digits.chars().enumerate() {
-        if i > 0 && (digits.len() - i) % 3 == 0 {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
             out.push(',');
         }
         out.push(c);

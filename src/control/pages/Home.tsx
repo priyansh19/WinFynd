@@ -4,7 +4,7 @@ import { Keys, KeyCombo } from "../../components/Keycap";
 import { formatBytes, isBusy, listModels, rescan, useEngineConfig, useTimeLeft, type EngineStatus, type InstalledModel } from "../../lib/engine";
 import { getHotkeys, type HotkeyConfig } from "../../lib/hotkeys";
 import { KINDS, timeLeft, totalOf } from "../../lib/kinds";
-import { pauseIndexing, useIndexStats } from "../../lib/stats";
+import { driveList, pauseIndexing, useDrives, useIndexStats } from "../../lib/stats";
 import type { PageId } from "../Settings";
 
 const FIRST_DONE = "wf.firstIndexDone";
@@ -41,10 +41,11 @@ export function HomePage({ status, go }: { status: EngineStatus | null; go: (pag
   const paused = status?.state === "paused";
   const stats = useIndexStats(busy);
   const [config] = useEngineConfig();
+  const drives = useDrives();
   const [keys, setKeys] = useState<HotkeyConfig | null>(null);
   const [models, setModels] = useState<{ installed: InstalledModel[] | null; error: string | null } | null>(null);
   const left = useTimeLeft(status);
-  const [firstTime] = useState(() => !firstIndexDone());
+  const [firstTime, setFirstTime] = useState(() => !firstIndexDone());
 
   useEffect(() => {
     getHotkeys()
@@ -58,6 +59,7 @@ export function HomePage({ status, go }: { status: EngineStatus | null; go: (pag
   // Remember when the first full index finishes, so later passes don't say "for the first time".
   useEffect(() => {
     if (status && !busy && status.files > 0) {
+      setFirstTime(false);
       try {
         localStorage.setItem(FIRST_DONE, "1");
       } catch {
@@ -66,11 +68,16 @@ export function HomePage({ status, go }: { status: EngineStatus | null; go: (pag
     }
   }, [status, busy]);
 
-  const total = status ? status.files + status.queued : 0;
-  const pct = total ? Math.floor((status!.files / total) * 100) : 100;
+  // This pass: files read so far out of all it has to read.
+  const total = status ? status.done + status.queued : 0;
+  const pct = total ? Math.floor((status!.done / total) * 100) : busy ? 0 : 100;
   const kinds = stats?.kinds ?? {};
   const kindTotal = totalOf(kinds);
   const roots = config?.roots ?? [];
+  const whole = !!config?.wholePc;
+  const searched = drives?.filter((d) => !config?.skip.includes(d.path)) ?? [];
+  // "51,204 files on C: and D:" with full OS context, otherwise "from 3 folders".
+  const where = whole ? (searched.length ? `on ${driveList(searched)}` : "on this PC") : `from ${roots.length} ${roots.length === 1 ? "folder" : "folders"}`;
   const embed = models?.installed?.find((m) => m.name === config?.embedModel || m.name === `${config?.embedModel}:latest`);
 
   return (
@@ -108,7 +115,7 @@ export function HomePage({ status, go }: { status: EngineStatus | null; go: (pag
             <>
               <span className="hero-title">Reading is paused</span>
               <span className="muted num">
-                {status!.files.toLocaleString()} of {total.toLocaleString()} files{status!.pausedUntil ? ` · resumes at ${clock(status!.pausedUntil)}` : ""}
+                {status!.done.toLocaleString()} of {total.toLocaleString()} files{status!.pausedUntil ? ` · resumes at ${clock(status!.pausedUntil)}` : ""}
               </span>
               <span className="small faint">You can search what's been read so far.</span>
             </>
@@ -116,7 +123,7 @@ export function HomePage({ status, go }: { status: EngineStatus | null; go: (pag
             <>
               <span className="hero-title">{firstTime ? "Reading your files for the first time" : "Reading new and changed files"}</span>
               <span className="muted num">
-                {status!.queued > 0 ? `${status!.files.toLocaleString()} of ${total.toLocaleString()} files` : "Looking through your folders"}
+                {status!.queued > 0 ? `${status!.done.toLocaleString()} of ${total.toLocaleString()} files` : whole ? "Looking through your drives" : "Looking through your folders"}
                 {timeLeft(left) && ` · ${timeLeft(left)}`}
               </span>
               <span className="small faint">You can search already. Results fill in as it goes.</span>
@@ -125,7 +132,7 @@ export function HomePage({ status, go }: { status: EngineStatus | null; go: (pag
             <>
               <span className="hero-title">Everything is ready to search</span>
               <span className="muted num">
-                {(status?.files ?? 0).toLocaleString()} files from {roots.length} {roots.length === 1 ? "folder" : "folders"}
+                {(status?.files ?? 0).toLocaleString()} files {where}
               </span>
               <span className="small faint">New and changed files are read within seconds of being saved.</span>
             </>
@@ -167,15 +174,27 @@ export function HomePage({ status, go }: { status: EngineStatus | null; go: (pag
 
       <h2 className="h2">Quick settings</h2>
       <div className="quick">
-        <button type="button" className="card" onClick={() => go("folders")}>
-          <Icon name="folder" size={20} className="k-amber kc" />
-          <span className="grow">
-            <span className="t">
-              {roots.length} {roots.length === 1 ? "folder" : "folders"} watched
+        {whole ? (
+          <button type="button" className="card" onClick={() => go("folders")}>
+            <Icon name="pc" size={20} className="k-doc kc" />
+            <span className="grow">
+              <span className="t">Searching the whole PC</span>
+              <span className="s ellip">
+                Full OS context is on{searched.length ? ` · ${searched.length === 1 ? "drive" : "drives"} ${driveList(searched, true)}` : ""}
+              </span>
             </span>
-            <span className="s ellip">{roots.length ? roots.map(folderName).join(", ") : "Add one to start"}</span>
-          </span>
-        </button>
+          </button>
+        ) : (
+          <button type="button" className="card" onClick={() => go("folders")}>
+            <Icon name="folder" size={20} className="k-amber kc" />
+            <span className="grow">
+              <span className="t">
+                {roots.length} {roots.length === 1 ? "folder" : "folders"} watched
+              </span>
+              <span className="s ellip">{roots.length ? roots.map(folderName).join(", ") : "Add one to start"}</span>
+            </span>
+          </button>
+        )}
         <button type="button" className="card" onClick={() => go("shortcuts")}>
           <Icon name="keyboard" size={20} className="k-code kc" />
           <span className="grow">

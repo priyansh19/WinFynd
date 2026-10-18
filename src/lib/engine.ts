@@ -7,6 +7,8 @@ export interface EngineStatus {
   files: number;
   chunks: number;
   queued: number;
+  /** Files read so far in the current pass; back to 0 once everything is read. */
+  done: number;
   current: string | null;
   ollama: "ok" | "offline" | "modelMissing";
   message: string | null;
@@ -17,7 +19,12 @@ export interface EngineStatus {
 }
 
 export interface EngineConfig {
+  /** "Allow full OS context": search every fixed drive. Off, only `roots`. */
+  wholePc: boolean;
+  /** The folders to search when `wholePc` is off. */
   roots: string[];
+  /** Folders never read, on top of what's always skipped. */
+  skip: string[];
   ollamaUrl: string;
   embedModel: string;
   dimensions: 768 | 512 | 256 | 128;
@@ -113,7 +120,7 @@ export const isBusy = (s: EngineStatus | null) => !!s && (s.state === "scanning"
  * last minute or so; NaN until there's enough to go on.
  */
 export function useTimeLeft(status: EngineStatus | null): number {
-  const samples = useRef<{ t: number; files: number }[]>([]);
+  const samples = useRef<{ t: number; done: number }[]>([]);
   const [left, setLeft] = useState(NaN);
   useEffect(() => {
     if (!status || status.state !== "indexing") {
@@ -122,10 +129,11 @@ export function useTimeLeft(status: EngineStatus | null): number {
       return;
     }
     const now = Date.now();
-    const list = [...samples.current, { t: now, files: status.files }].filter((s) => now - s.t < 90_000);
+    // Samples from an earlier pass (a higher count) don't belong to this one.
+    const list = [...samples.current, { t: now, done: status.done }].filter((s) => now - s.t < 90_000 && s.done <= status.done);
     samples.current = list;
     const first = list[0];
-    const rate = list.length > 3 && now - first.t > 10_000 ? (status.files - first.files) / ((now - first.t) / 1000) : 0;
+    const rate = list.length > 3 && now - first.t > 10_000 ? (status.done - first.done) / ((now - first.t) / 1000) : 0;
     setLeft(rate > 0 ? status.queued / rate : NaN);
   }, [status]);
   return left;
@@ -139,7 +147,10 @@ export function formatBytes(n: number): string {
 
 // Browser preview stubs.
 let previewConfig: EngineConfig = {
-  roots: ["C:\\Users\\gupta\\Documents", "C:\\Users\\gupta\\Pictures", "C:\\Users\\gupta\\OneDrive\\Desktop"],
+  // ?scope=folders in the preview URL starts with full OS context off.
+  wholePc: new URLSearchParams(location.search).get("scope") !== "folders",
+  roots: ["C:\\Users\\gupta\\Documents", "C:\\Users\\gupta\\Pictures", "C:\\Users\\gupta\\OneDrive\\Desktop", "C:\\Users\\gupta\\Downloads"],
+  skip: [],
   ollamaUrl: "http://127.0.0.1:11434",
   embedModel: "embeddinggemma-2",
   dimensions: 768,
@@ -149,12 +160,13 @@ let previewConfig: EngineConfig = {
   indexVideoFrames: true,
   readOnlineFiles: false,
 };
+export const previewEngineConfig = () => previewConfig;
 stubCommands({
   // ?state=idle in the preview URL shows a finished index.
   engine_status: () =>
     new URLSearchParams(location.search).get("state") === "idle"
-      ? { state: "idle", files: 51204, chunks: 412880, queued: 0, current: null, ollama: "ok", message: null, unreadable: 0, pausedUntil: null }
-      : { state: "indexing", files: 12840, chunks: 96211, queued: 38364, current: null, ollama: "ok", message: null, unreadable: 0, pausedUntil: null },
+      ? { state: "idle", files: 51204, chunks: 412880, queued: 0, done: 0, current: null, ollama: "ok", message: null, unreadable: 0, pausedUntil: null }
+      : { state: "indexing", files: 12840, chunks: 96211, queued: 38364, done: 12840, current: null, ollama: "ok", message: null, unreadable: 0, pausedUntil: null },
   get_engine_config: () => previewConfig,
   set_engine_config: ({ config }) => (previewConfig = config as EngineConfig),
   rescan: () => undefined,

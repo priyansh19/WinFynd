@@ -57,6 +57,7 @@ pub fn run() {
             onboarding::watch_first_index,
             stats::index_stats,
             stats::estimate_folders,
+            stats::list_drives,
             stats::ollama_info,
             stats::pause_indexing,
             stats::delete_index,

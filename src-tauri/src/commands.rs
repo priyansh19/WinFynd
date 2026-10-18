@@ -69,8 +69,11 @@ pub async fn set_engine_config<R: Runtime>(
 ) -> Result<EngineConfig, String> {
     let engine = engine.inner().clone();
     blocking(move || {
-        // A disconnected network drive can take a long time to answer.
-        if config.roots.iter().any(|r| !r.is_dir()) {
+        // A disconnected network drive can take a long time to answer. Only
+        // folders just added are checked, so one that's gone since can't
+        // block every other setting.
+        let old = engine.config();
+        if config.roots.iter().filter(|r| !old.roots.contains(r)).any(|r| !r.is_dir()) {
             return Err("One of the folders doesn't exist".into());
         }
         if ![768, 512, 256, 128].contains(&config.dimensions) {
@@ -79,7 +82,7 @@ pub async fn set_engine_config<R: Runtime>(
         if !config.speech_model.is_empty() && !speech::is_installed(&engine.speech_dir, &config.speech_model) {
             return Err("Download that speech model first".into());
         }
-        let saved = engine.set_config(&app, config)?;
+        let saved = engine.set_config(config)?;
         // Every window shows folders and models; tell them all.
         let _ = app.emit("engine://config", &saved);
         Ok(saved)
@@ -222,7 +225,7 @@ pub async fn download_speech_model<R: Runtime>(app: AppHandle<R>, engine: Engine
             let mut cfg = engine.config();
             if !speech::is_installed(&engine.speech_dir, &cfg.speech_model) {
                 cfg.speech_model = id.clone();
-                let _ = engine.set_config(&app, cfg);
+                let _ = engine.set_config(cfg);
             }
         }
         emit(SpeechProgress { id: id.clone(), completed: 0, total: 0, done: true, error: result.err() });
@@ -230,11 +233,10 @@ pub async fn download_speech_model<R: Runtime>(app: AppHandle<R>, engine: Engine
     Ok(())
 }
 
-/// Only paths inside the index can be opened, so a page can't open arbitrary files.
+/// Only paths the index covers can be opened, so a page can't open arbitrary files.
 fn indexed_path(engine: &Engine, path: &str) -> Result<PathBuf, String> {
     let p = PathBuf::from(path);
-    let roots = engine.config().roots;
-    if roots.iter().any(|r| p.starts_with(r)) && p.exists() {
+    if engine.covers(&p) && p.exists() {
         Ok(p)
     } else {
         Err("That file isn't in an indexed folder".into())

@@ -422,3 +422,85 @@ fn eval_reports_rank_and_empty_answers() {
     assert_eq!(r.empty_correct, 1.0, "{:?}", r.misses);
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// Full OS context: every drive is read, plus chosen folders that aren't on
+/// one; skipped folders are left out; turning it off forgets everything
+/// outside the chosen folders.
+#[test]
+fn whole_pc_reads_every_drive_and_forgets_on_opt_out() {
+    let base = temp_dir("whole-pc");
+    let (drive, nas) = (base.join("drive"), base.join("nas"));
+    let (docs, games) = (drive.join("Documents"), drive.join("Games"));
+    for d in [&docs, &games, &nas, &drive.join("project/node_modules")] {
+        std::fs::create_dir_all(d).unwrap();
+    }
+    std::fs::write(docs.join("lease.txt"), "Flat lease renewal, signed in March.").unwrap();
+    std::fs::write(drive.join("notes.txt"), "Ideas for the garden shed.").unwrap();
+    std::fs::write(games.join("save.txt"), "level 12 checkpoint").unwrap();
+    std::fs::write(nas.join("photo-list.txt"), "Holiday photos to print.").unwrap();
+    std::fs::write(drive.join("project/node_modules/x.txt"), "garden").unwrap();
+
+    let engine = engine_for(&base, fake_ollama());
+    *engine.test_drives.lock().unwrap() = vec![drive.clone()];
+    let on = EngineConfig { whole_pc: true, roots: vec![docs.clone(), nas.clone()], skip: vec![games.clone()], ..engine.config() };
+    engine.set_config(on.clone()).unwrap();
+    assert_eq!(engine.roots(), vec![drive.clone(), nas.clone()], "Documents is on the drive already");
+
+    let names = |paths: Vec<PathBuf>| {
+        let mut n: Vec<String> = paths.iter().map(|p| p.file_name().unwrap().to_string_lossy().to_string()).collect();
+        n.sort();
+        n
+    };
+    let files = engine.walk_roots();
+    assert_eq!(names(files.clone()), ["lease.txt", "notes.txt", "photo-list.txt"], "skipped and node_modules are left out");
+    files.iter().for_each(|p| engine.index_file(p));
+    engine.index_file(&games.join("save.txt"));
+    assert_eq!(db::counts(&engine.db.lock().unwrap()).0, 3, "a skipped file isn't stored even when asked for");
+    assert!(engine.covers(&drive.join("notes.txt")));
+    assert!(!engine.covers(&games.join("save.txt")));
+    assert!(engine.search("garden shed", 10).hits.iter().any(|h| h.name == "notes.txt"));
+
+    let off = EngineConfig { whole_pc: false, ..on };
+    engine.set_config(off.clone()).unwrap();
+    engine.prune(&off);
+    let left = db::all_paths(&engine.db.lock().unwrap()).unwrap().into_iter().map(PathBuf::from).collect();
+    assert_eq!(names(left), ["lease.txt", "photo-list.txt"]);
+    assert!(!engine.search("garden shed", 10).hits.iter().any(|h| h.name == "notes.txt"), "its vectors are gone too");
+    assert!(!engine.covers(&drive.join("notes.txt")));
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// A rescan queues only what changed, and forgets files deleted while the
+/// app wasn't watching, but not the files of a folder that's unplugged.
+#[test]
+fn rescans_queue_only_changes_and_forget_deleted_files() {
+    let base = temp_dir("rescan");
+    let (main, usb) = (base.join("main"), base.join("usb"));
+    std::fs::create_dir_all(&main).unwrap();
+    std::fs::create_dir_all(&usb).unwrap();
+    std::fs::write(main.join("a.txt"), "first note about the boiler service").unwrap();
+    std::fs::write(main.join("b.txt"), "second note about the car insurance").unwrap();
+    std::fs::write(usb.join("c.txt"), "photo backup list").unwrap();
+    let engine = engine_for(&main, fake_ollama());
+    engine.refresh_ollama_state();
+    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+    engine.index_file(&usb.join("c.txt"));
+
+    let mut pending = queue::Pending::default();
+    engine.queue_files(&mut pending, walk(&main, &[]));
+    assert!(pending.is_empty(), "nothing changed, so nothing is queued");
+
+    std::fs::write(main.join("b.txt"), "second note about the car insurance renewal in May").unwrap();
+    engine.queue_files(&mut pending, walk(&main, &[]));
+    assert_eq!(pending.pop_front(), Some(main.join("b.txt")));
+    assert!(pending.is_empty());
+
+    // a.txt is deleted while nothing watches, and the USB drive is unplugged.
+    std::fs::remove_file(main.join("a.txt")).unwrap();
+    std::fs::rename(&usb, base.join("usb-unplugged")).unwrap();
+    engine.forget_missing(&[main.clone(), usb.clone()], &walk(&main, &[]));
+    let mut left: Vec<String> = db::all_paths(&engine.db.lock().unwrap()).unwrap();
+    left.sort();
+    assert_eq!(left, [main.join("b.txt"), usb.join("c.txt")].map(|p| p.to_string_lossy().to_string()));
+    let _ = std::fs::remove_dir_all(&base);
+}

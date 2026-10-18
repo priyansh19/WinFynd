@@ -9,8 +9,14 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct EngineConfig {
-    /// Folders that are scanned and watched.
+    /// Search every fixed drive ("Allow full OS context", on by default).
+    /// Off, only `roots` is searched.
+    pub whole_pc: bool,
+    /// The folders to search when `whole_pc` is off. When it's on, any of
+    /// them that isn't on a fixed drive (a network folder) is searched too.
     pub roots: Vec<PathBuf>,
+    /// Folders never read, on top of what's always skipped (`is_excluded`).
+    pub skip: Vec<PathBuf>,
     /// Local Ollama server. Only loopback is ever contacted.
     pub ollama_url: String,
     /// EmbeddingGemma 2 by default: text and images share one vector space.
@@ -33,7 +39,9 @@ pub struct EngineConfig {
 impl Default for EngineConfig {
     fn default() -> Self {
         Self {
+            whole_pc: true,
             roots: Vec::new(),
+            skip: Vec::new(),
             ollama_url: "http://127.0.0.1:11434".into(),
             embed_model: "embeddinggemma-2".into(),
             dimensions: 768,

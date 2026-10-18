@@ -16,7 +16,7 @@ const SPEECH = "small";
 
 const has = (installed: InstalledModel[], name: string) => installed.some((m) => m.name === name || m.name === `${name}:latest`);
 
-export function ModelStep({ config, save, next, back, pull, startPull, speech, startSpeech }: StepProps) {
+export function ModelStep({ config, save, next, back, pulls, startPull, speech, startSpeech }: StepProps) {
   /** undefined while looking, null when Ollama isn't running. */
   const [installed, setInstalled] = useState<InstalledModel[] | null | undefined>(undefined);
   const [version, setVersion] = useState<string | null>(null);
@@ -66,8 +66,10 @@ export function ModelStep({ config, save, next, back, pull, startPull, speech, s
         await save({ ...config, embedModel: pick, indexImages, speechModel });
       }
       // Downloads carry on through the next steps; warm-up shows them.
-      if (installed && !has(installed, pick) && !(pull && !pull.done && pull.model === pick)) startPull(pick);
-      if (withSpeech && !speechModel && whisper && !(speech && !speech.done)) startSpeech(SPEECH);
+      const pull = pulls[pick];
+      if (installed && !has(installed, pick) && !(pull && !pull.done)) startPull(pick);
+      if (!withSpeech) startSpeech(null);
+      else if (!speechModel && whisper && !(speech && !speech.done)) startSpeech(SPEECH);
       next();
     } catch (e) {
       setError(String(e));

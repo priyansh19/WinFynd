@@ -1,7 +1,8 @@
 //! Numbers for Settings and setup that the search engine doesn't need itself:
-//! files per kind (overall and per folder), a quick count of what a folder
-//! holds before it's indexed, the index's size on disk, and the version of
-//! the local Ollama. Everything here only reads.
+//! files per kind (overall and per folder or drive), a quick count of what a
+//! folder holds before it's indexed, the drives and their sizes, the index's
+//! size on disk, and the version of the local Ollama. Everything here only
+//! reads.
 //!
 //! Like every command, these are `async` and do their work off the window
 //! thread (see `commands.rs`).
@@ -14,6 +15,7 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 use tauri::{AppHandle, Manager, Runtime, State};
 
+use crate::engine::scope::{self, Drive};
 use crate::engine::Engine;
 
 type EngineState<'a> = State<'a, Arc<Engine>>;
@@ -46,13 +48,13 @@ fn index_path<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
     app.path().app_data_dir().ok().map(|d| d.join("index.sqlite3"))
 }
 
-/// Files in the index per kind, overall and for each watched folder.
+/// Files in the index per kind, overall and for each searched folder or drive.
 #[tauri::command]
 pub async fn index_stats<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>) -> Result<IndexStats, String> {
     let engine = engine.inner().clone();
     let db_path = index_path(&app);
     blocking(move || {
-        let roots = engine.config().roots;
+        let roots = engine.roots();
         let db = engine.db.lock().unwrap();
         // Files per kind under a folder; "" counts every file.
         let by_kind = |prefix: &str| -> BTreeMap<String, i64> {
@@ -91,12 +93,31 @@ fn with_separator(root: &Path) -> String {
     }
 }
 
-/// How many files each folder holds, by kind, skipping what the indexer
-/// skips. Used by setup before anything is indexed, so it stops counting a
-/// folder after a couple of seconds and says the number is partial.
+/// How many files each folder or drive holds, by kind, skipping what the
+/// indexer skips. Used by setup before anything is indexed, so it stops
+/// counting after a couple of seconds and says the number is partial. The
+/// folders are counted side by side.
 #[tauri::command]
 pub async fn estimate_folders(paths: Vec<String>) -> Result<Vec<FolderStats>, String> {
-    blocking(move || paths.iter().map(|p| estimate(Path::new(p), Duration::from_secs(2))).collect()).await
+    blocking(move || {
+        let counting: Vec<_> = paths
+            .iter()
+            .cloned()
+            .map(|p| std::thread::spawn(move || estimate(Path::new(&p), Duration::from_secs(2))))
+            .collect();
+        counting
+            .into_iter()
+            .zip(paths)
+            .map(|(t, path)| t.join().unwrap_or(FolderStats { path, files: 0, kinds: BTreeMap::new(), partial: true }))
+            .collect()
+    })
+    .await
+}
+
+/// The fixed drives, with their names and sizes.
+#[tauri::command]
+pub async fn list_drives() -> Result<Vec<Drive>, String> {
+    blocking(scope::drives).await
 }
 
 fn estimate(root: &Path, limit: Duration) -> FolderStats {
@@ -104,7 +125,7 @@ fn estimate(root: &Path, limit: Duration) -> FolderStats {
     let mut kinds = BTreeMap::new();
     let mut partial = false;
     let walker = walkdir::WalkDir::new(root).follow_links(false).into_iter();
-    for entry in walker.filter_entry(|e| e.depth() == 0 || !crate::engine::is_excluded(e.path())).filter_map(Result::ok) {
+    for entry in walker.filter_entry(|e| e.depth() == 0 || !crate::engine::walk_skips(e, &[])).filter_map(Result::ok) {
         if started.elapsed() > limit {
             partial = true;
             break;
