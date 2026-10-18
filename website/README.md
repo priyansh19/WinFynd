@@ -45,7 +45,8 @@ then open http://localhost:8000.
 The site is hosted on Vercel. The Vercel project is imported at the repository root, and `vercel.json` there (in Vercel's services mode) deploys only this folder, as one public service named `website` that serves the whole domain. The desktop app (the root Vite UI and `src-tauri`) is never deployed: it runs on people's PCs and talks to its engine over Tauri IPC, not HTTP.
 
 - Every push to `main` deploys the live site; every pull request gets a preview link.
-- The `website` service turns on clean addresses (`/privacy` instead of `/privacy.html`) and sends security headers, including a Content-Security-Policy that only allows this site's own files, which backs the "loads nothing from anyone else" promise. `404.html` is served for any missing address.
+- Clean addresses come from a rewrite in the `website` service (`/privacy` serves `privacy.html`), not from `cleanUrls`, which broke every page but Home in production. When you add a page, add its name to that rewrite.
+- The service sends security headers, including a Content-Security-Policy that only allows this site's own files, which backs the "loads nothing from anyone else" promise. `404.html` is served for any missing address.
 - Keep Vercel Analytics and Speed Insights off: they would add third-party requests.
 
 Any other static host works too: publish this folder as it is.

@@ -4,8 +4,11 @@
     "website": {
       "root": "website/",
       "outputDirectory": ".",
-      "cleanUrls": true,
+      "cleanUrls": false,
       "trailingSlash": false,
+      "rewrites": [
+        { "source": "/:page(how-it-works|download|privacy|help|changelog)", "destination": "/:page.html" }
+      ],
       "headers": [
         {
           "source": "/(.*)",
