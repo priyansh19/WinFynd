@@ -79,8 +79,9 @@ pub struct TextChunk {
 
 pub enum Extracted {
     Text(Vec<TextChunk>),
-    /// Base64 PNG/JPEG, ready for the embedder.
-    Image(String),
+    /// A picture: base64 PNG/JPEG for the embedder (None when pictures
+    /// aren't embedded), and any text read from it.
+    Image { b64: Option<String>, text: Vec<TextChunk> },
     /// Nothing to read inside; the file is still findable by name.
     NameOnly,
     /// Audio or video: what's said, as timed text, and sampled frames as
@@ -93,7 +94,13 @@ pub fn extract(path: &Path, kind: Kind, with_images: bool) -> Extracted {
     // Parsers for third-party formats can panic on malformed files; a bad
     // file must never take the indexer down.
     let result = std::panic::catch_unwind(|| match kind {
-        Kind::Image if with_images && size <= MAX_IMAGE_BYTES => image_b64(path).map(Extracted::Image),
+        Kind::Image if size <= MAX_IMAGE_BYTES => {
+            let b64 = if with_images { image_b64(path) } else { None };
+            let text: Vec<TextChunk> = super::ocr::read(path)
+                .map(|t| chunk_text(&t, true).into_iter().map(|text| TextChunk { label: None, text }).collect())
+                .unwrap_or_default();
+            (b64.is_some() || !text.is_empty()).then_some(Extracted::Image { b64, text })
+        }
         Kind::Image | Kind::Video | Kind::Audio | Kind::Other => None,
         _ if size > MAX_TEXT_BYTES => None,
         _ => text_chunks(path, kind).map(Extracted::Text),

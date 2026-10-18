@@ -31,3 +31,7 @@ reqwest = { version = "0.13.5", default-features = false, features = ["blocking"
 tauri-plugin-dialog = "2.8.3"
 whisper-rs = "0.16"
 symphonia = { version = "0.5", features = ["aac", "alac", "flac", "isomp4", "mkv", "mp3", "ogg", "vorbis", "wav", "pcm"] }
+
+[target.'cfg(windows)'.dependencies]
+# Windows' built-in OCR, for text in screenshots and scans (engine/ocr.rs).
+windows = { version = "0.62", features = ["Foundation", "Foundation_Collections", "Graphics_Imaging", "Media_Ocr", "Storage", "Storage_Streams", "Win32_System_WinRT"] }

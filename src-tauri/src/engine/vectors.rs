@@ -2,6 +2,11 @@
 //! product over ~100k 768-d vectors takes a few milliseconds, which is plenty
 //! for a personal index and needs no extra service.
 //!
+//! Each vector is kept as 8-bit integers plus one scale, a quarter of the
+//! memory of 32-bit floats (a million 768-d chunks: ~0.8 GB instead of 3 GB).
+//! That moves a cosine by about 0.005 at most, far below what ranking uses.
+//! The stored copies in SQLite stay full precision.
+//!
 //! Text and pictures (photos, video frames) are ranked apart: a text query
 //! lands much closer to any text than to any picture, so one shared ranking
 //! would bury every image.
@@ -12,13 +17,15 @@ pub struct VectorIndex {
     dims: usize,
     ids: Vec<i64>,
     visual: Vec<bool>,
-    data: Vec<f32>,
+    data: Vec<i8>,
+    /// Per vector: data × scale = the original values.
+    scales: Vec<f32>,
     pos: HashMap<i64, usize>,
 }
 
 impl VectorIndex {
     pub fn new(dims: usize) -> Self {
-        Self { dims, ids: Vec::new(), visual: Vec::new(), data: Vec::new(), pos: HashMap::new() }
+        Self { dims, ids: Vec::new(), visual: Vec::new(), data: Vec::new(), scales: Vec::new(), pos: HashMap::new() }
     }
 
     #[cfg(test)]
@@ -34,7 +41,10 @@ impl VectorIndex {
         self.pos.insert(id, self.ids.len());
         self.ids.push(id);
         self.visual.push(visual);
-        self.data.extend_from_slice(v);
+        let max = v.iter().fold(0f32, |m, x| m.max(x.abs()));
+        let scale = if max > 0.0 { max / 127.0 } else { 1.0 };
+        self.data.extend(v.iter().map(|x| (x / scale).round() as i8));
+        self.scales.push(scale);
     }
 
     pub fn remove(&mut self, id: i64) {
@@ -44,12 +54,14 @@ impl VectorIndex {
             let moved = self.ids[last];
             self.ids[i] = moved;
             self.visual[i] = self.visual[last];
+            self.scales[i] = self.scales[last];
             self.pos.insert(moved, i);
             let (head, tail) = self.data.split_at_mut(last * self.dims);
             head[i * self.dims..(i + 1) * self.dims].copy_from_slice(&tail[..self.dims]);
         }
         self.ids.pop();
         self.visual.pop();
+        self.scales.pop();
         self.data.truncate(last * self.dims);
     }
 
@@ -59,8 +71,9 @@ impl VectorIndex {
         let mut text = Vec::new();
         let mut visual = Vec::new();
         if query.len() == self.dims {
-            for ((v, id), is_visual) in self.data.chunks_exact(self.dims).zip(&self.ids).zip(&self.visual) {
-                let s = dot(v, query);
+            let rows = self.data.chunks_exact(self.dims).zip(&self.scales);
+            for (((v, scale), id), is_visual) in rows.zip(&self.ids).zip(&self.visual) {
+                let s = dot(v, query) * scale;
                 if *is_visual {
                     visual.push((*id, s));
                 } else {
@@ -74,8 +87,8 @@ impl VectorIndex {
     }
 }
 
-fn dot(a: &[f32], b: &[f32]) -> f32 {
-    a.iter().zip(b).map(|(x, y)| x * y).sum()
+fn dot(a: &[i8], b: &[f32]) -> f32 {
+    a.iter().zip(b).map(|(x, y)| *x as f32 * y).sum()
 }
 
 fn best(mut scored: Vec<(i64, f32)>, k: usize) -> Vec<(i64, f32)> {
@@ -107,6 +120,25 @@ mod tests {
         ix.insert(3, &[0.0, 1.0], false);
         assert_eq!(ix.len(), 2);
         assert_eq!(top(&ix, 5).len(), 2);
+    }
+
+    #[test]
+    fn eight_bit_scores_stay_close_to_full_precision() {
+        let dims = 768;
+        let unit = |seed: u32| {
+            let v: Vec<f32> = (0..dims).map(|i| (((i as u32).wrapping_mul(2654435761) ^ seed) % 1000) as f32 / 500.0 - 1.0).collect();
+            let n = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+            v.into_iter().map(|x| x / n).collect::<Vec<f32>>()
+        };
+        let q = unit(7);
+        let mut ix = VectorIndex::new(dims);
+        for id in 0..50 {
+            ix.insert(id, &unit(id as u32 * 31 + 1), false);
+        }
+        for (id, score, _) in ix.rank(&q, 50, 0) {
+            let exact: f32 = unit(id as u32 * 31 + 1).iter().zip(&q).map(|(a, b)| a * b).sum();
+            assert!((score - exact).abs() < 0.005, "{score} vs {exact}");
+        }
     }
 
     #[test]

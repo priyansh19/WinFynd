@@ -10,6 +10,7 @@ mod db;
 pub mod eval;
 mod extract;
 mod media;
+mod ocr;
 pub mod ollama;
 mod queue;
 pub mod search;
@@ -601,6 +602,9 @@ impl Engine {
             cfg.dimensions,
             if cfg.index_images { "+img" } else { "" }
         );
+        if kind == Kind::Image && ocr::available() {
+            key.push_str("+ocr");
+        }
         if is_media(kind) {
             if speech::is_installed(&self.speech_dir, &cfg.speech_model) {
                 key.push_str(&format!("+asr:{}", cfg.speech_model));
@@ -800,6 +804,7 @@ fn plan_chunks(path: &Path, name: &str, kind: Kind, mtime: i64, extracted: Extra
     let opening = match &extracted {
         Extracted::Text(text) => text.iter().map(|c| c.text.as_str()).collect::<Vec<_>>().join(" ").chars().take(600).collect(),
         Extracted::Media { transcript, .. } => transcript.first().map(|c| c.text.chars().take(600).collect()).unwrap_or_default(),
+        Extracted::Image { text, .. } => text.first().map(|c| c.text.chars().take(600).collect()).unwrap_or_default(),
         _ => String::new(),
     };
     let (card_input, card) = file_card(&title, &folders, kind, mtime, &opening);
@@ -821,9 +826,16 @@ fn plan_chunks(path: &Path, name: &str, kind: Kind, mtime: i64, extracted: Extra
                 chunks.push(db::NewChunk { label: c.label, text: Some(c.text), vector: None, visual: false });
             }
         }
-        Extracted::Image(b64) => {
-            inputs.push(EmbedInput::Image(b64));
-            chunks.push(db::NewChunk { label: None, text: None, vector: None, visual: true });
+        Extracted::Image { b64, text } => {
+            // Text read from the picture is searched like any document.
+            for c in text {
+                inputs.push(EmbedInput::Document { title: title.clone(), text: format!("{}\n{}", context(&c.label), c.text) });
+                chunks.push(db::NewChunk { label: c.label, text: Some(c.text), vector: None, visual: false });
+            }
+            if let Some(b64) = b64 {
+                inputs.push(EmbedInput::Image(b64));
+                chunks.push(db::NewChunk { label: None, text: None, vector: None, visual: true });
+            }
         }
         Extracted::NameOnly => {}
         Extracted::Media { transcript, frames } => {

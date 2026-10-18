@@ -21,7 +21,7 @@ use serde::Serialize;
 
 use super::db::{self, Filter};
 use super::ollama::{self, EmbedInput};
-use super::{media, Engine};
+use super::{media, name_words, Engine};
 
 /// Nearest text chunks and pictures pulled from the vector index.
 const TEXT_CANDIDATES: usize = 200;
@@ -39,6 +39,9 @@ const W_ALL_WORDS: f32 = 1.0;
 const W_SOME_WORDS: f32 = 0.4;
 const W_NAME: f32 = 1.0;
 const W_FILTER_ONLY: f32 = 0.6;
+const W_CLOSE_NAME: f32 = 0.8;
+/// Names checked for typos when no name matches exactly.
+const CLOSE_NAME_CANDIDATES: usize = 400;
 /// The "some words" list is only consulted when "all words" finds fewer.
 const SOME_WORDS_BELOW: usize = 10;
 /// Extra for a file of a kind the query hints at without naming it outright
@@ -355,6 +358,68 @@ struct Votes {
     visual_cosine: Option<f32>,
     all_words: bool,
     name: bool,
+    close_name: bool,
+}
+
+/// First chunks of files whose name has a word close to every query word,
+/// closest first: "invioce recipt" finds "Invoice receipt.pdf".
+fn close_names(db: &rusqlite::Connection, terms: &[String]) -> Vec<i64> {
+    let candidates = db::name_candidates(db, terms, CLOSE_NAME_CANDIDATES).unwrap_or_default();
+    let mut scored: Vec<(usize, usize, i64)> = candidates
+        .into_iter()
+        .enumerate()
+        .filter_map(|(order, (id, name))| {
+            let stem = name.rsplit_once('.').map_or(name.as_str(), |(s, _)| s);
+            let words: Vec<String> = name_words(stem).to_lowercase().split(' ').map(str::to_string).collect();
+            let mut total = 0;
+            for t in terms {
+                total += words.iter().filter_map(|w| typo_distance(t, w)).min()?;
+            }
+            Some((total, order, id))
+        })
+        .collect();
+    scored.sort();
+    scored.into_iter().map(|(_, _, id)| id).collect()
+}
+
+/// Edits (insert, delete, change, swap two letters) between a query word and
+/// a name word, or None when they're too far apart to be a typo. A word that
+/// is being typed matches the start of a longer name word. Short words must
+/// match exactly.
+fn typo_distance(term: &str, word: &str) -> Option<usize> {
+    let t: Vec<char> = term.chars().collect();
+    let w: Vec<char> = word.chars().collect();
+    let allowed = match t.len() {
+        0..=3 => 0,
+        4..=7 => 1,
+        _ => 2,
+    };
+    let whole = edits(&t, &w);
+    let start = if w.len() > t.len() { edits(&t, &w[..t.len()]) } else { whole };
+    let d = whole.min(start);
+    (d <= allowed).then_some(d)
+}
+
+/// Optimal string alignment distance.
+fn edits(a: &[char], b: &[char]) -> usize {
+    let mut d = vec![vec![0usize; b.len() + 1]; a.len() + 1];
+    for (i, row) in d.iter_mut().enumerate() {
+        row[0] = i;
+    }
+    for (j, cell) in d[0].iter_mut().enumerate() {
+        *cell = j;
+    }
+    for i in 1..=a.len() {
+        for j in 1..=b.len() {
+            let cost = usize::from(a[i - 1] != b[j - 1]);
+            let mut v = (d[i - 1][j] + 1).min(d[i][j - 1] + 1).min(d[i - 1][j - 1] + cost);
+            if i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1] {
+                v = v.min(d[i - 2][j - 2] + 1);
+            }
+            d[i][j] = v;
+        }
+    }
+    d[a.len()][b.len()]
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -364,6 +429,8 @@ enum List {
     AllWords,
     SomeWords,
     Name,
+    /// Names that match every word allowing a typo or two.
+    CloseName,
     FilterOnly,
 }
 
@@ -404,6 +471,10 @@ impl Engine {
             }
             lists.push((List::AllWords, W_ALL_WORDS, all));
             let names = db::name_search(&db, &q.terms, WORD_CANDIDATES).unwrap_or_default();
+            if names.is_empty() && q.terms.iter().any(|t| t.chars().count() >= 4) {
+                let close = close_names(&db, &q.terms);
+                lists.push((List::CloseName, W_CLOSE_NAME, close.into_iter().map(|id| (id, None)).collect()));
+            }
             lists.push((List::Name, W_NAME, names.into_iter().map(|id| (id, None)).collect()));
             if q.terms.is_empty() && !q.filter.is_empty() {
                 let newest = db::newest_matching(&db, &q.filter, WORD_CANDIDATES).unwrap_or_default();
@@ -438,6 +509,7 @@ impl Engine {
                     List::Visual => v.visual_cosine = max_opt(v.visual_cosine, *cosine),
                     List::AllWords => v.all_words = true,
                     List::Name => v.name = true,
+                    List::CloseName => v.close_name = true,
                     _ => {}
                 }
                 if first_vote {
@@ -475,6 +547,7 @@ impl Engine {
         let confident = |v: &Votes| {
             v.all_words
                 || v.name
+                || v.close_name
                 || v.cosine.is_some_and(|c| c >= CONFIDENT_TEXT_COSINE)
                 || v.visual_cosine.is_some_and(|c| c >= CONFIDENT_VISUAL_COSINE)
                 || (q.terms.is_empty() && q.semantic.is_empty())
@@ -489,9 +562,17 @@ impl Engine {
                 .then(a_id.cmp(b_id))
         });
 
-        let mut hits = Vec::new();
+        let mut hits: Vec<Hit> = Vec::new();
+        // Copies of one file (same name and size) show once, best placed.
+        let mut copies: HashMap<(String, i64), usize> = HashMap::new();
         let mut weak = 0;
         for (file_id, v) in ranked {
+            if let Some(f) = files.get(&file_id) {
+                if let Some(n) = copies.get_mut(&(f.name.to_lowercase(), f.size)) {
+                    *n += 1;
+                    continue;
+                }
+            }
             let is_confident = confident(&v);
             if !is_confident {
                 if weak >= MAX_WEAK {
@@ -513,10 +594,12 @@ impl Engine {
                 (_, Some(label)) => format!("Matches the meaning on {}", label.to_lowercase()),
                 _ if text_words >= 1.0 => "Exact words match".to_string(),
                 _ if v.name => "Name matches".to_string(),
+                _ if v.close_name => "Name is a close match".to_string(),
                 _ if card && q.terms.is_empty() => format!("Newest {}", file.kind),
                 _ if card => "Name and folder are a close match".to_string(),
                 _ => "Matches the meaning".to_string(),
             };
+            copies.insert((file.name.to_lowercase(), file.size), 0);
             hits.push(Hit {
                 id: file.id,
                 chunk_id: v.chunk,
@@ -533,6 +616,13 @@ impl Engine {
             });
             if hits.len() >= limit {
                 break;
+            }
+        }
+        for h in hits.iter_mut() {
+            match copies.get(&(h.name.to_lowercase(), h.size)) {
+                Some(1) => h.reason.push_str(" · 1 more copy"),
+                Some(&n) if n > 1 => h.reason.push_str(&format!(" · {n} more copies")),
+                _ => {}
             }
         }
         SearchResponse { hits, semantic, filters: q.chips }
@@ -651,6 +741,17 @@ mod tests {
         assert_eq!(q.terms, vec!["balance", "2025"]);
         assert!(q.filter.is_empty());
         assert_eq!(q.hint, Some("spreadsheet"));
+    }
+
+    #[test]
+    fn typos_are_forgiven_by_word_length() {
+        assert_eq!(typo_distance("invioce", "invoice"), Some(1));
+        assert_eq!(typo_distance("recipt", "receipt"), Some(1));
+        assert_eq!(typo_distance("passprot", "passport"), Some(1));
+        assert_eq!(typo_distance("insurence", "insurance"), Some(1));
+        assert_eq!(typo_distance("invo", "invoice"), Some(0), "a word being typed");
+        assert_eq!(typo_distance("cat", "car"), None, "short words must match");
+        assert_eq!(typo_distance("budget", "bridge"), None);
     }
 
     #[test]

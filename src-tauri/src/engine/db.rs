@@ -280,6 +280,32 @@ pub fn name_search(conn: &Connection, terms: &[String], limit: usize) -> rusqlit
     Ok(rows.filter_map(|r| r.ok().flatten()).collect())
 }
 
+/// Files whose name shares any three-letter piece with one of `terms`, as
+/// (first chunk id, file name), for typo-tolerant name matching. The caller
+/// decides which are close enough.
+pub fn name_candidates(conn: &Connection, terms: &[String], limit: usize) -> rusqlite::Result<Vec<(i64, String)>> {
+    let mut grams: Vec<String> = Vec::new();
+    for t in terms {
+        let chars: Vec<char> = t.chars().collect();
+        for w in chars.windows(3) {
+            let g: String = w.iter().collect();
+            if !g.contains('"') && !grams.contains(&g) {
+                grams.push(g);
+            }
+        }
+    }
+    if grams.is_empty() {
+        return Ok(Vec::new());
+    }
+    let query = grams.iter().map(|g| format!("\"{g}\"")).collect::<Vec<_>>().join(" OR ");
+    let mut stmt = conn.prepare(
+        "SELECT (SELECT c.id FROM chunks c WHERE c.file_id = n.file_id ORDER BY c.ord LIMIT 1), n.name
+         FROM fts_names n WHERE fts_names MATCH ?1 ORDER BY bm25(fts_names, 4.0, 0.0) LIMIT ?2",
+    )?;
+    let rows = stmt.query_map(params![query, limit as i64], |r| Ok((r.get::<_, Option<i64>>(0)?, r.get::<_, String>(1)?)))?;
+    Ok(rows.filter_map(|r| r.ok()).filter_map(|(id, name)| Some((id?, name))).collect())
+}
+
 /// What a query restricts results to.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Filter {

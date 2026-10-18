@@ -357,6 +357,41 @@ fn returns_only_relevant_files_among_many() {
 }
 
 #[test]
+fn copies_of_a_file_show_once() {
+    let root = temp_dir("copies");
+    for dir in ["Desktop", "Downloads", "Backup"] {
+        std::fs::create_dir_all(root.join(dir)).unwrap();
+        std::fs::write(root.join(dir).join("lease agreement.txt"), "The lease renews in January.").unwrap();
+    }
+    std::fs::write(root.join("Backup").join("lease notes.txt"), "Ask about the lease deposit and renewal terms.").unwrap();
+    let engine = engine_for(&root, fake_ollama());
+    engine.refresh_ollama_state();
+    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+    let hits = engine.search("lease", 10).hits;
+    let agreements: Vec<_> = hits.iter().filter(|h| h.name == "lease agreement.txt").collect();
+    assert_eq!(agreements.len(), 1);
+    assert!(agreements[0].reason.ends_with(" · 2 more copies"), "{}", agreements[0].reason);
+    assert!(hits.iter().any(|h| h.name == "lease notes.txt"));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn file_names_are_found_through_typos() {
+    let root = temp_dir("typos");
+    std::fs::write(root.join("Invoice_Receipt_March.pdf.txt"), "Paid in full.").unwrap();
+    std::fs::write(root.join("holiday plans.txt"), "Beach week in August.").unwrap();
+    let engine = engine_for(&root, fake_ollama());
+    engine.refresh_ollama_state();
+    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+    let hits = engine.search("invioce recipt", 10).hits;
+    assert_eq!(hits[0].name, "Invoice_Receipt_March.pdf.txt");
+    assert!(hits[0].confident);
+    assert_eq!(hits[0].reason, "Name is a close match");
+    assert!(hits.iter().all(|h| h.name == "Invoice_Receipt_March.pdf.txt" || !h.confident));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn text_still_indexes_when_the_model_rejects_images() {
     let root = temp_dir("noimg");
     image::RgbImage::from_pixel(32, 32, image::Rgb([10, 10, 10])).save(root.join("receipt scan.png")).unwrap();

@@ -6310,6 +6310,7 @@ dependencies = [
  "tauri-plugin-opener",
  "walkdir",
  "whisper-rs",
+ "windows",
  "zip 9.0.5",
 ]
 
