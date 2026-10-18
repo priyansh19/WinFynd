@@ -46,6 +46,10 @@
   background: color-mix(in srgb, var(--k) 16%, var(--bg));
   border: 1px solid color-mix(in srgb, var(--k) 50%, transparent);
 }
+/* Light: the step numbers get a whiter disc and a deeper hue, so amber and blue keep 4.5:1 too. */
+@media (prefers-color-scheme: light) {
+  .hero-step__n { color: color-mix(in srgb, var(--k) 85%, #000); background: color-mix(in srgb, var(--k) 12%, #fff); }
+}
 .hero-step__txt { display: flex; flex-direction: column; min-width: 0; }
 .hero-step__t { font: 600 16px/22px var(--font); display: flex; align-items: center; gap: 8px; }
 .hero-step__d { font-size: 14px; line-height: 20px; color: var(--text2); }
@@ -116,6 +120,9 @@
   background: color-mix(in srgb, var(--k) 16%, var(--bg));
   border: 1px solid color-mix(in srgb, var(--k) 50%, transparent);
 }
+@media (prefers-color-scheme: light) {
+  .step-n { color: color-mix(in srgb, var(--k) 85%, #000); background: color-mix(in srgb, var(--k) 12%, #fff); }
+}
 .step-link {
   position: absolute; left: 52px; right: -8px; top: 50%; height: 2px; margin-top: -1px; border-radius: 1px;
   background: linear-gradient(90deg, var(--hk), var(--hn));
@@ -141,7 +148,6 @@
 .step-copy { padding: 20px 22px 24px; display: flex; flex-direction: column; gap: 8px; }
 .step-copy .heading { margin-top: 2px; }
 .step-copy .fine { margin-top: 4px; }
-.hiw-ui { color: var(--text); font-weight: 600; }
 
 /* Step visuals: pieces of the app at full size. */
 .sv { position: absolute; inset: 16px; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
@@ -156,7 +162,12 @@
 .sv-read { gap: 4px; }
 .sv-line { display: flex; align-items: center; gap: 10px; height: 31px; font-size: 13px; }
 .sv-line__n { flex: 1; min-width: 0; color: var(--text); }
-.sv-tag { flex: none; }
+/* The tags sit on a visual tinted with the step's hue, so they get their own solid backing:
+   4.5:1 for every kind in both themes. */
+.sv-tag { flex: none; background: color-mix(in srgb, var(--k) 14%, #15162f); }
+@media (prefers-color-scheme: light) {
+  .sv-tag { color: color-mix(in srgb, var(--k) 85%, #000); background: color-mix(in srgb, var(--k) 12%, #fff); }
+}
 
 .sv-understand { gap: 8px; }
 .sv-space { width: 100%; height: auto; display: block; overflow: visible; }
@@ -408,8 +419,10 @@
 .fr-toast-wrap { display: block; }
 .fr-toast { width: 100%; max-width: 364px; animation: none; }
 
+/* overflow: clip, not .shot-desk's hidden: a hidden box is a scroll container, so jumping to
+   a #fr-… pane would scroll the deck itself a few pixels. */
 .fr-deck {
-  position: relative; min-width: 0;
+  position: relative; min-width: 0; overflow: clip;
   padding: 20px; border-radius: var(--radius-l);
   border: 1px solid var(--stroke);
   box-shadow: var(--shadow-shot);

@@ -179,6 +179,8 @@
 .demo-pause .i-play, .hero-demo.is-paused .demo-pause .i-pause { display: none; }
 .hero-demo.is-paused .demo-pause .i-play { display: block; }
 .demo-pause[hidden] { display: none; }
+/* Without JavaScript the chips and Pause would do nothing, so they are left out. */
+html:not(.js) .demo-controls { display: none; }
 
 /* ---------- Phones: the same launcher, stacked ----------
    Search box, the top results, then the preview, then the footer, at 1:1 so the
@@ -294,7 +296,7 @@
 .rv-rows { display: flex; flex-direction: column; margin: 0 -6px; }
 .rv-rows .row { height: 48px; }
 
-.reads-note { margin-top: 20px; max-width: 72ch; }
+.reads-note { margin-top: 20px; max-width: 72ch; text-wrap: pretty; }
 @media (max-width: 860px) { .read-grid { grid-template-columns: 1fr; } }
 @media (max-width: 480px) {
   .read-visual { height: 270px; }
@@ -315,6 +317,11 @@
 /* Once js/site.js has zoomed a shot to fit, let its window shadow show (no-JS keeps the clip). */
 .js .fit-frame { overflow: visible; }
 .fit-frame { width: 100%; }
+/* Without JavaScript nothing zooms the three window shots, so they take the frame's width
+   at 1:1 and reflow instead of being cut off on the right. */
+html:not(.js) .ask-shot .wf[data-fit], html:not(.js) .live-shot .wf[data-fit], html:not(.js) .priv-shot .wf[data-fit] { width: 100% !important; }
+html:not(.js) .ask-launcher .lsearch { height: auto; min-height: 60px; padding-top: 12px; padding-bottom: 12px; }
+html:not(.js) .ask-launcher .lsearch .q, html:not(.js) .priv-card .s { white-space: normal; }
 @media (max-width: 1099px) {
   .split, .split--shot-left { grid-template-columns: minmax(0, 1fr); }
   .split--shot-left .shot { order: 2; }
@@ -323,8 +330,6 @@
 }
 
 /* ---------- Ask ---------- */
-.inline-keys { display: inline-flex; gap: 4px; vertical-align: 2px; }
-.inline-keys .kbd { height: 24px; min-width: 24px; padding: 0 7px; font-size: 12px; color: var(--text); }
 .model-line { display: flex; gap: 12px; align-items: flex-start; font-size: 15px; line-height: 1.55; color: var(--text2); padding: 14px 16px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--stroke); }
 .model-line svg { flex: none; margin-top: 2px; color: var(--accent); }
 .ask-shot .wf[data-fit] { width: 760px; }
@@ -382,7 +387,6 @@
 .promises { list-style: none; margin: 6px 0 4px; padding: 0; display: flex; flex-direction: column; gap: 20px; }
 .promise { display: flex; gap: 16px; align-items: flex-start; }
 .promise-t { font: 600 17px/24px var(--font); margin-bottom: 2px; }
-.home-ui { color: var(--text); font-weight: 600; }
 .priv-shot .wf[data-fit] { width: 640px; }
 .priv-body { padding: 0 24px 24px; }
 .priv-banner { padding: 18px 22px; display: flex; align-items: center; gap: 18px; background: linear-gradient(120deg, rgba(61, 214, 140, 0.14), rgba(91, 155, 255, 0.08) 60%, transparent), var(--card); }
@@ -458,5 +462,6 @@
   @keyframes demo-fade { from { opacity: 0; } }
   .js .kinds-panel .kinds-bar { clip-path: none; transition: none; }
   .live-chips .chip.is-flash { animation: none; }
+  .eyebrow .pulse::after { animation: none; }
   .shortcut:hover .keycap { transform: none; border-bottom-width: 3px; margin-bottom: 0; }
 }

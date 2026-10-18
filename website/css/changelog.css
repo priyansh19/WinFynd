@@ -39,9 +39,10 @@
   box-shadow: 0 0 0 5px var(--bg), 0 0 18px 2px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 .release-node::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--accent); }
-/* A published version: the node fills with the spectrum (it means "done"). */
-.release--out .release-node { border: 0; background: var(--spectrum-diag); box-shadow: 0 0 0 5px var(--bg); }
-.release--out .release-node::after { content: none; }
+/* A published version: the node fills with the spectrum (it means "done").
+   .release-node--out is the same node for 0.1.0, shown by the release switch. */
+.release--out .release-node, .release-node--out { border: 0; background: var(--spectrum-diag); box-shadow: 0 0 0 5px var(--bg); }
+.release--out .release-node::after, .release-node--out::after { content: none; }
 
 .release-ver { font: 600 48px/52px var(--font-display); letter-spacing: -0.03em; }
 .release-name { margin-top: 4px; font: 600 18px/26px var(--font-display); color: var(--text2); }
@@ -111,13 +112,12 @@
   border: 1px solid var(--stroke);
   background: var(--card);
   box-shadow: var(--shadow-card);
-  overflow: hidden;
+  overflow: clip;
 }
 .area {
   display: grid; grid-template-columns: 208px minmax(0, 1fr); gap: 16px clamp(24px, 3vw, 40px);
   padding: 30px clamp(24px, 3vw, 36px) 32px;
   background: radial-gradient(380px 200px at 0% 0%, color-mix(in srgb, var(--k) 9%, transparent), transparent 72%);
-  scroll-margin-top: calc(var(--header-h) + 24px);
 }
 .area + .area { border-top: 1px solid var(--stroke); }
 .area-head { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
@@ -157,22 +157,10 @@
 }
 .cl-reasons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .cl-reasons .cl-why { white-space: normal; }
-.cl-ui { color: var(--text); font-weight: 600; }
-.cl-keys { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; vertical-align: 1px; }
-.cl-plus { font-size: 12px; color: var(--text3); }
-.cl-keys kbd, .cl-kbd {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 24px; height: 23px; padding: 0 7px; box-sizing: border-box;
-  border-radius: 5px;
-  font: 600 12.5px/1 var(--font); color: var(--text);
-  background: var(--fill);
-  border: 1px solid var(--stroke-strong); border-bottom-width: 2px;
-}
-.cl-kbd { vertical-align: 1px; }
 .cl-path { font-family: var(--mono); font-size: 0.9em; color: var(--text); background: var(--fill); padding: 1px 6px; border-radius: 4px; overflow-wrap: anywhere; }
 
 /* ---------- Known limits ---------- */
-.limits { margin-top: 20px; scroll-margin-top: calc(var(--header-h) + 24px); }
+.limits { margin-top: 20px; }
 .limits-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
 .limits-badge { --k: var(--text3); color: var(--text2); background: var(--fill); border-color: var(--stroke-strong); }
 .limits-title { font: 600 24px/30px var(--font-display); letter-spacing: -0.014em; }

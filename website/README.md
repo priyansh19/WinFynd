@@ -1,6 +1,6 @@
 # WinFynd website
 
-The public site for WinFynd. Plain HTML, CSS and a little vanilla JavaScript: no build step, no framework, and no requests to anyone else (no web fonts, CDNs, analytics or external images). Every product visual is live HTML styled with `css/wf.css`, a copy of the app's own theme, so the pages look exactly like the app. The data in them is one realistic example PC (51,204 files in Documents, Pictures and Desktop).
+The public site for WinFynd. Plain HTML, CSS and a little vanilla JavaScript: no build step, no framework, and no requests to anyone else (no web fonts, CDNs, analytics or external images). Every product visual is live HTML styled with `css/wf.css`, a copy of the app's own theme, so the pages look exactly like the app. The data in them is one realistic example PC (51,204 files on drives C: and D:).
 
 ## Pages
 

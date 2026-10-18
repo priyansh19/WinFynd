@@ -114,7 +114,21 @@
         if (n !== null) { e.preventDefault(); select(n, true); }
       });
     });
-    select(0, false);
+    /* A link to #fr-welcome, #fr-what, #fr-model or #fr-warmup opens that tab and brings the
+       steps and the screen into view (site.js has already shown the section). */
+    function fromHash() {
+      var id = location.hash.slice(1);
+      try { id = decodeURIComponent(id); } catch (e) { /* keep it as written */ }
+      for (var k = 0; k < panes.length; k++) if (panes[k].id === id) return k;
+      return -1;
+    }
+    var start = fromHash();
+    select(start < 0 ? 0 : start, false);
+    if (start >= 0) requestAnimationFrame(function () { root.scrollIntoView({ block: "start" }); });
+    window.addEventListener("hashchange", function () {
+      var k = fromHash();
+      if (k >= 0) { select(k, false); root.scrollIntoView({ block: "start" }); }
+    });
     if ("ResizeObserver" in window) new ResizeObserver(fit).observe(deck);
     else window.addEventListener("resize", fit);
     if (phone.addEventListener) phone.addEventListener("change", fit);
