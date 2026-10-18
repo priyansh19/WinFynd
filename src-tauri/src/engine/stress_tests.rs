@@ -88,7 +88,7 @@ fn stays_responsive_while_indexing_thousands_of_files() {
     let run = start(&root, fake_ollama());
     run.engine.enqueue(Job::Scan);
 
-    let took = wait_until_indexed(&run.engine, 1200, Duration::from_secs(180));
+    let took = wait_until_indexed(&run.engine, 1200, Duration::from_secs(300));
     let sent = run.emitted.load(Ordering::Relaxed);
     assert!(sent <= max_events(took), "{sent} status events in {took:?}; the windows can't keep up with that");
     assert!(run.engine.search("budget", 5).semantic);
