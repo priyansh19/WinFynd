@@ -59,8 +59,14 @@ export async function search(query: string): Promise<SearchResponse> {
   const res = await invoke<SearchResponse>("search", { query, limit: 30 });
   const photos = res.hits.filter((h) => h.kind === "image").map((h) => h.path);
   if (inTauri && photos.length) {
-    const flags = await invoke<boolean[]>("online_only", { paths: photos }).catch(() => []);
-    photos.forEach((p, i) => (flags[i] ? onlineOnly.add(p) : onlineOnly.delete(p)));
+    // The results never wait on the disk: a photo that isn't answered for in
+    // time (a sleeping drive) gets Explorer's thumbnail, the same as one that's
+    // only online, so it's never read directly either.
+    const flags = await Promise.race([
+      invoke<boolean[]>("online_only", { paths: photos }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 150)),
+    ]).catch(() => null);
+    photos.forEach((p, i) => (!flags || flags[i] ? onlineOnly.add(p) : onlineOnly.delete(p)));
   }
   return res;
 }

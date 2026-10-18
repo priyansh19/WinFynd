@@ -146,12 +146,36 @@ pub async fn online_only(paths: Vec<String>) -> Result<Vec<bool>, String> {
 #[cfg(windows)]
 fn is_online_only(path: &str) -> bool {
     use std::os::windows::fs::MetadataExt;
+    // Cloud placeholders only live on local drives, and asking a share that's
+    // out of reach waits out its connect timeout.
+    if on_network(path) {
+        return false;
+    }
     const FILE_ATTRIBUTE_OFFLINE: u32 = 0x1000;
     const FILE_ATTRIBUTE_RECALL_ON_OPEN: u32 = 0x40000;
     const FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS: u32 = 0x400000;
     std::fs::metadata(path).is_ok_and(|m| {
         m.file_attributes() & (FILE_ATTRIBUTE_OFFLINE | FILE_ATTRIBUTE_RECALL_ON_OPEN | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0
     })
+}
+
+/// `\\server\share\…`, or a drive letter mapped to one.
+#[cfg(windows)]
+fn on_network(path: &str) -> bool {
+    use std::path::{Component, Path, Prefix};
+    use windows::core::HSTRING;
+    use windows::Win32::Storage::FileSystem::GetDriveTypeW;
+    const DRIVE_REMOTE: u32 = 4;
+    match Path::new(path).components().next() {
+        Some(Component::Prefix(p)) => match p.kind() {
+            Prefix::Disk(d) | Prefix::VerbatimDisk(d) => {
+                let kind = unsafe { GetDriveTypeW(&HSTRING::from(format!("{}:\\", d as char))) };
+                kind == DRIVE_REMOTE
+            }
+            _ => true,
+        },
+        _ => false,
+    }
 }
 
 #[cfg(not(windows))]

@@ -16,6 +16,13 @@ export const openLink = (url: string) => invoke<void>("open_link", { url });
 export const runSetup = () => invoke<void>("run_setup");
 const latestRelease = () => invoke<Release>("latest_release");
 
+// Registered before the startup check below, so the browser preview answers it.
+stubCommands({
+  open_link: () => undefined,
+  run_setup: () => undefined,
+  latest_release: () => ({ version: "0.1.0", url: `${REPO}/releases/tag/v0.1.0`, newer: false }),
+});
+
 /** The running version, read once. */
 const appVersion = (inTauri ? getVersion() : Promise.resolve("0.1.0")).catch(() => "");
 
@@ -28,7 +35,8 @@ export function useAppVersion(): string {
 }
 
 const CHECK = "wf.updateCheck";
-const CHECKED_AT = "wf.updateCheckedAt";
+/** When a check was last tried, and by which version: { at, by }. */
+const ATTEMPT = "wf.updateAttempt";
 const LATEST = "wf.latestRelease";
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -71,15 +79,25 @@ const listeners = new Set<(r: Release) => void>();
 async function checkNow() {
   const [r, version] = await Promise.all([latestRelease(), appVersion]);
   write(LATEST, JSON.stringify({ ...r, checkedBy: version }));
-  write(CHECKED_AT, String(Date.now()));
   listeners.forEach((f) => f(r));
 }
 
-/** Once a day, and straight away after an update. */
+/**
+ * Once a day, and straight away after an update. A check that fails counts
+ * too, so GitHub is asked at most once a day even while it keeps failing.
+ */
 async function checkIfDue() {
   if (!checksForUpdates()) return;
-  const due = Date.now() - Number(read(CHECKED_AT) ?? 0) > DAY || !(await cached());
-  if (due) await checkNow();
+  const version = await appVersion;
+  let last: { at: number; by: string } | null = null;
+  try {
+    last = JSON.parse(read(ATTEMPT) ?? "null");
+  } catch {
+    // Unreadable: the same as never tried.
+  }
+  if (last && last.by === version && Date.now() - last.at < DAY) return;
+  write(ATTEMPT, JSON.stringify({ at: Date.now(), by: version }));
+  await checkNow();
 }
 
 // Settings loads this when WinFynd starts and stays loaded in the tray, so
@@ -111,9 +129,3 @@ export function useUpdateCheck(): { release: Release | null; enabled: boolean; s
   };
   return { release, enabled, setEnabled, checkNow };
 }
-
-stubCommands({
-  open_link: () => undefined,
-  run_setup: () => undefined,
-  latest_release: () => ({ version: "0.1.0", url: `${REPO}/releases/tag/v0.1.0`, newer: false }),
-});

@@ -18,6 +18,8 @@ export function HotkeyRecorder({
   const [combo, setCombo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const saveRef = useRef<() => void>(() => {});
+  const comboRef = useRef(combo);
+  comboRef.current = combo;
 
   // Hotkeys stay released only while this window has focus. Closing the window
   // just hides it, so recording would otherwise leave them off everywhere.
@@ -45,6 +47,8 @@ export function HotkeyRecorder({
       // Tab, Space and Enter can't be shortcuts. Space and Enter press a
       // focused button, and Enter anywhere else saves.
       if (tab || (plain && onButton && (e.code === "Space" || enter))) return;
+      // Shift on its own, on the way to Shift+Tab, keeps what's recorded.
+      if (comboRef.current && e.key === "Shift" && !e.ctrlKey && !e.altKey && !e.metaKey) return;
       e.preventDefault();
       e.stopPropagation();
       if (plain && e.code === "Escape") onCancel();
