@@ -33,6 +33,15 @@ fn strip_prompt(s: &str) -> String {
 
 /// A tiny HTTP server that speaks just enough of the Ollama API.
 fn fake_ollama() -> String {
+    fake_ollama_with(true)
+}
+
+/// Like `fake_ollama`, but answers 400 to any image, like a text-only tag.
+fn fake_ollama_without_images() -> String {
+    fake_ollama_with(false)
+}
+
+fn fake_ollama_with(images: bool) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
     std::thread::spawn(move || {
@@ -56,6 +65,11 @@ fn fake_ollama() -> String {
             reader.read_exact(&mut body).unwrap();
             let body: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
 
+            let has_image = body["input"].as_array().is_some_and(|a| a.iter().any(Value::is_object));
+            if !images && request_line.contains("/api/embed") && has_image {
+                let _ = write!(stream, "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                continue;
+            }
             let resp = if request_line.contains("/api/tags") {
                 json!({ "models": [{ "name": "embeddinggemma-2:latest", "size": 1 }, { "name": "testchat:latest", "size": 1 }] })
             } else if request_line.contains("/api/embed") {
@@ -282,5 +296,63 @@ fn indexes_what_is_shown_in_video() {
     let mut got = 0;
     media::decode_audio(&video, Some(&ffmpeg), |piece, _| got += piece.len());
     assert!((got as i64 - 20 * media::SAMPLE_RATE as i64).abs() < media::SAMPLE_RATE as i64);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn returns_only_relevant_files_among_many() {
+    let root = temp_dir("relevance");
+    // Plenty of unrelated files, like a real Documents folder.
+    let topics = [
+        "Grocery list with apples bananas oat milk and coffee beans for the week",
+        "Notes from the dentist appointment about a cleaning next spring",
+        "Draft blog post about learning Rust lifetimes and the borrow checker",
+        "Wedding guest list with table numbers and dietary preferences",
+        "Meeting minutes: hiring plan for the support team in Pune",
+        "Recipe for paneer butter masala with cream and kasuri methi",
+    ];
+    for i in 0..120 {
+        std::fs::write(root.join(format!("note-{i}.txt")), format!("{} number {i}.", topics[i % topics.len()])).unwrap();
+    }
+    std::fs::write(
+        root.join("car-insurance.txt"),
+        "The car insurance renewal is due in May. The premium went up compared to last year. Call the broker before then.\n\n\
+         Unrelated paragraph about the garden: tomatoes and basil need watering every evening.",
+    )
+    .unwrap();
+    image::RgbImage::from_pixel(32, 32, image::Rgb([200, 180, 90])).save(root.join("IMG_0001.jpg")).unwrap();
+
+    let engine = engine_for(&root, fake_ollama());
+    engine.refresh_ollama_state();
+    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+
+    let r = engine.search("car insurance premium", 30);
+    assert_eq!(r.hits.len(), 1, "{:?}", r.hits.iter().map(|h| (&h.name, h.score, &h.reason)).collect::<Vec<_>>());
+    assert_eq!(r.hits[0].name, "car-insurance.txt");
+    // Small chunks: the snippet is the insurance paragraph, not the garden.
+    assert!(!r.hits[0].snippet.as_deref().unwrap().contains("tomatoes"));
+
+    // A photo still surfaces among a hundred text files.
+    let r = engine.search("photo of the beach", 30);
+    assert_eq!(r.hits[0].name, "IMG_0001.jpg");
+    assert_eq!(r.hits[0].reason, "Image matches your search");
+    assert!(r.hits.len() <= 2, "{:?}", r.hits.iter().map(|h| &h.name).collect::<Vec<_>>());
+
+    // Filler words alone ("find the file") pull in nothing.
+    assert!(engine.search("find the file about", 30).hits.len() <= 1);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn text_still_indexes_when_the_model_rejects_images() {
+    let root = temp_dir("noimg");
+    image::RgbImage::from_pixel(32, 32, image::Rgb([10, 10, 10])).save(root.join("receipt scan.png")).unwrap();
+    std::fs::write(root.join("plan.txt"), "Quarterly roadmap planning").unwrap();
+    let engine = engine_for(&root, fake_ollama_without_images());
+    engine.refresh_ollama_state();
+    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+    assert_eq!(engine.status().ollama, "ok", "an image error must not mark Ollama offline");
+    assert_eq!(engine.search("roadmap", 10).hits[0].name, "plan.txt");
+    assert_eq!(engine.search("receipt", 10).hits[0].name, "receipt scan.png");
     let _ = std::fs::remove_dir_all(&root);
 }

@@ -1,19 +1,49 @@
 //! All chunk vectors held in memory as one flat array. A brute-force dot
 //! product over ~100k 768-d vectors takes a few milliseconds, which is plenty
 //! for a personal index and needs no extra service.
+//!
+//! Text and pictures (photos, video frames) are kept apart when scoring: a
+//! text query lands much closer to text than to any picture, so raw cosine
+//! would bury every image. Each side is judged against its own spread of
+//! scores instead.
 
 use std::collections::HashMap;
 
 pub struct VectorIndex {
     dims: usize,
     ids: Vec<i64>,
+    visual: Vec<bool>,
     data: Vec<f32>,
     pos: HashMap<i64, usize>,
 }
 
+/// Mean and spread of one modality's scores for a query.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Spread {
+    pub mean: f32,
+    pub std: f32,
+    pub count: usize,
+}
+
+impl Spread {
+    /// How many standard deviations above this modality's typical score.
+    pub fn z(&self, score: f32) -> f32 {
+        // A floor keeps a handful of near-identical vectors from making
+        // every tiny difference look significant.
+        (score - self.mean) / self.std.max(0.02)
+    }
+}
+
+pub struct Ranked {
+    /// (chunk id, cosine, is visual), best first within each modality.
+    pub top: Vec<(i64, f32, bool)>,
+    pub text: Spread,
+    pub visual: Spread,
+}
+
 impl VectorIndex {
     pub fn new(dims: usize) -> Self {
-        Self { dims, ids: Vec::new(), data: Vec::new(), pos: HashMap::new() }
+        Self { dims, ids: Vec::new(), visual: Vec::new(), data: Vec::new(), pos: HashMap::new() }
     }
 
     #[cfg(test)]
@@ -21,13 +51,14 @@ impl VectorIndex {
         self.ids.len()
     }
 
-    pub fn insert(&mut self, id: i64, v: &[f32]) {
+    pub fn insert(&mut self, id: i64, v: &[f32], visual: bool) {
         if v.len() != self.dims {
             return;
         }
         self.remove(id);
         self.pos.insert(id, self.ids.len());
         self.ids.push(id);
+        self.visual.push(visual);
         self.data.extend_from_slice(v);
     }
 
@@ -37,34 +68,72 @@ impl VectorIndex {
         if i != last {
             let moved = self.ids[last];
             self.ids[i] = moved;
+            self.visual[i] = self.visual[last];
             self.pos.insert(moved, i);
             let (head, tail) = self.data.split_at_mut(last * self.dims);
             head[i * self.dims..(i + 1) * self.dims].copy_from_slice(&tail[..self.dims]);
         }
         self.ids.pop();
+        self.visual.pop();
         self.data.truncate(last * self.dims);
     }
 
-    /// Best `k` ids by dot product (cosine, since vectors are unit length).
-    pub fn top_k(&self, query: &[f32], k: usize) -> Vec<(i64, f32)> {
-        if query.len() != self.dims || k == 0 {
-            return Vec::new();
+    /// Cosine (vectors are unit length) and modality of one stored chunk.
+    pub fn score(&self, id: i64, query: &[f32]) -> Option<(f32, bool)> {
+        let i = *self.pos.get(&id)?;
+        if query.len() != self.dims {
+            return None;
         }
-        let mut scored: Vec<(i64, f32)> = self
-            .data
-            .chunks_exact(self.dims)
-            .zip(&self.ids)
-            .map(|(v, id)| (*id, v.iter().zip(query).map(|(a, b)| a * b).sum()))
-            .collect();
-        let k = k.min(scored.len());
-        if k == 0 {
-            return scored;
-        }
-        scored.select_nth_unstable_by(k - 1, |a, b| b.1.total_cmp(&a.1));
-        scored.truncate(k);
-        scored.sort_by(|a, b| b.1.total_cmp(&a.1));
-        scored
+        let v = &self.data[i * self.dims..(i + 1) * self.dims];
+        Some((dot(v, query), self.visual[i]))
     }
+
+    /// Best `k_text` text chunks and `k_visual` pictures, plus how scores are
+    /// spread across each modality for this query.
+    pub fn rank(&self, query: &[f32], k_text: usize, k_visual: usize) -> Ranked {
+        let mut text = Vec::new();
+        let mut visual = Vec::new();
+        if query.len() == self.dims {
+            for ((v, id), is_visual) in self.data.chunks_exact(self.dims).zip(&self.ids).zip(&self.visual) {
+                let s = dot(v, query);
+                if *is_visual {
+                    visual.push((*id, s));
+                } else {
+                    text.push((*id, s));
+                }
+            }
+        }
+        let text_spread = spread(&text);
+        let visual_spread = spread(&visual);
+        let mut top: Vec<(i64, f32, bool)> = best(text, k_text).into_iter().map(|(id, s)| (id, s, false)).collect();
+        top.extend(best(visual, k_visual).into_iter().map(|(id, s)| (id, s, true)));
+        Ranked { top, text: text_spread, visual: visual_spread }
+    }
+}
+
+fn dot(a: &[f32], b: &[f32]) -> f32 {
+    a.iter().zip(b).map(|(x, y)| x * y).sum()
+}
+
+fn spread(scores: &[(i64, f32)]) -> Spread {
+    let n = scores.len();
+    if n == 0 {
+        return Spread::default();
+    }
+    let mean = scores.iter().map(|s| s.1).sum::<f32>() / n as f32;
+    let var = scores.iter().map(|s| (s.1 - mean).powi(2)).sum::<f32>() / n as f32;
+    Spread { mean, std: var.sqrt(), count: n }
+}
+
+fn best(mut scored: Vec<(i64, f32)>, k: usize) -> Vec<(i64, f32)> {
+    let k = k.min(scored.len());
+    if k == 0 {
+        return Vec::new();
+    }
+    scored.select_nth_unstable_by(k - 1, |a, b| b.1.total_cmp(&a.1));
+    scored.truncate(k);
+    scored.sort_by(|a, b| b.1.total_cmp(&a.1));
+    scored
 }
 
 #[cfg(test)]
@@ -74,15 +143,33 @@ mod tests {
     #[test]
     fn insert_remove_and_rank() {
         let mut ix = VectorIndex::new(2);
-        ix.insert(1, &[1.0, 0.0]);
-        ix.insert(2, &[0.0, 1.0]);
-        ix.insert(3, &[0.6, 0.8]);
-        assert_eq!(ix.top_k(&[1.0, 0.0], 2).iter().map(|x| x.0).collect::<Vec<_>>(), vec![1, 3]);
+        ix.insert(1, &[1.0, 0.0], false);
+        ix.insert(2, &[0.0, 1.0], false);
+        ix.insert(3, &[0.6, 0.8], false);
+        let top = |ix: &VectorIndex, k| ix.rank(&[1.0, 0.0], k, k).top.iter().map(|x| x.0).collect::<Vec<_>>();
+        assert_eq!(top(&ix, 2), vec![1, 3]);
         ix.remove(1);
         assert_eq!(ix.len(), 2);
-        assert_eq!(ix.top_k(&[1.0, 0.0], 1)[0].0, 3);
-        ix.insert(3, &[0.0, 1.0]);
+        assert_eq!(top(&ix, 1), vec![3]);
+        ix.insert(3, &[0.0, 1.0], false);
         assert_eq!(ix.len(), 2);
-        assert_eq!(ix.top_k(&[1.0, 0.0], 5).len(), 2);
+        assert_eq!(top(&ix, 5).len(), 2);
+    }
+
+    #[test]
+    fn modalities_are_ranked_and_spread_separately() {
+        let mut ix = VectorIndex::new(2);
+        ix.insert(1, &[1.0, 0.0], false);
+        ix.insert(2, &[0.0, 1.0], false);
+        ix.insert(10, &[0.3, 0.95], true);
+        ix.insert(11, &[0.1, 0.99], true);
+        // Removing a text vector must keep the moved one's modality.
+        ix.remove(1);
+        let r = ix.rank(&[1.0, 0.0], 5, 5);
+        assert_eq!(r.text.count, 1);
+        assert_eq!(r.visual.count, 2);
+        assert_eq!(r.top.iter().filter(|t| t.2).map(|t| t.0).collect::<Vec<_>>(), vec![10, 11]);
+        assert!(r.visual.z(0.3) > 0.0 && r.visual.z(0.1) < 0.0);
+        assert_eq!(ix.score(11, &[1.0, 0.0]).map(|s| s.1), Some(true));
     }
 }

@@ -40,6 +40,8 @@ const EMBED_BATCH: usize = 16;
 const RESCAN_EVERY: Duration = Duration::from_secs(20 * 60);
 /// Stored with each file; a file whose stamp doesn't match is re-embedded.
 const NOT_EMBEDDED: &str = "none";
+/// Bumped whenever chunking changes, so every file is re-read on the next scan.
+const CHUNKING_VERSION: &str = "c2";
 
 #[derive(Debug, Clone, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -127,8 +129,8 @@ impl Engine {
         emit: impl Fn(&Status) + Send + Sync + 'static,
     ) -> Result<(Arc<Self>, Receiver<Job>), String> {
         let mut vectors = VectorIndex::new(config.dimensions);
-        for (id, v) in db::all_vectors(&conn, config.dimensions).map_err(|e| e.to_string())? {
-            vectors.insert(id, &v);
+        for (id, v, visual) in db::all_vectors(&conn, config.dimensions).map_err(|e| e.to_string())? {
+            vectors.insert(id, &v, visual);
         }
         let (files, chunks) = db::counts(&conn);
         let (tx, rx) = mpsc::channel();
@@ -394,7 +396,7 @@ impl Engine {
         let stamp = match &embedded {
             Ok(vectors) => {
                 for (c, v) in chunks.iter_mut().zip(vectors) {
-                    c.vector = Some(v.clone());
+                    c.vector = v.clone();
                 }
                 model_key
             }
@@ -412,7 +414,7 @@ impl Engine {
         if let Ok((removed, added)) = result {
             let mut v = self.vectors.write().unwrap();
             removed.into_iter().for_each(|id| v.remove(id));
-            added.iter().for_each(|(id, vec)| v.insert(*id, vec));
+            added.iter().for_each(|(id, vec, visual)| v.insert(*id, vec, *visual));
         }
     }
 
@@ -420,7 +422,12 @@ impl Engine {
     /// speech model and on whether frames could be read, so installing
     /// either re-reads audio and video on the next scan.
     fn model_key(&self, cfg: &EngineConfig, kind: Kind) -> String {
-        let mut key = format!("{}@{}{}", cfg.embed_model, cfg.dimensions, if cfg.index_images { "+img" } else { "" });
+        let mut key = format!(
+            "{}@{}{}+{CHUNKING_VERSION}",
+            cfg.embed_model,
+            cfg.dimensions,
+            if cfg.index_images { "+img" } else { "" }
+        );
         if is_media(kind) {
             if speech::is_installed(&self.speech_dir, &cfg.speech_model) {
                 key.push_str(&format!("+asr:{}", cfg.speech_model));
@@ -495,7 +502,8 @@ impl Engine {
         Extracted::Media { transcript, frames }
     }
 
-    fn embed_all(&self, cfg: &EngineConfig, inputs: Vec<EmbedInput>) -> Result<Vec<Vec<f32>>, String> {
+    /// One vector per input, or None for a picture the model couldn't take.
+    fn embed_all(&self, cfg: &EngineConfig, inputs: Vec<EmbedInput>) -> Result<Vec<Option<Vec<f32>>>, String> {
         let status = self.status.lock().unwrap().ollama.clone();
         if status != "ok" {
             return Err(self.status.lock().unwrap().message.clone().unwrap_or_else(|| "Ollama unavailable".into()));
@@ -503,7 +511,30 @@ impl Engine {
         let ollama = self.ollama()?;
         let mut out = Vec::with_capacity(inputs.len());
         for batch in inputs.chunks(EMBED_BATCH) {
-            out.extend(ollama.embed(&cfg.embed_model, batch, cfg.dimensions)?);
+            match ollama.embed(&cfg.embed_model, batch, cfg.dimensions) {
+                Ok(vs) => out.extend(vs.into_iter().map(Some)),
+                // A model tag or Ollama version without image support rejects
+                // pictures. That must not stop text (and file names) from
+                // being searchable, nor mark Ollama as offline.
+                Err(e) if batch.iter().any(EmbedInput::is_image) => {
+                    let text: Vec<&EmbedInput> = batch.iter().filter(|i| !i.is_image()).collect();
+                    let mut vs = if text.is_empty() {
+                        Vec::new()
+                    } else {
+                        ollama.embed_refs(&cfg.embed_model, &text, cfg.dimensions)?
+                    }
+                    .into_iter();
+                    out.extend(batch.iter().map(|i| if i.is_image() { None } else { vs.next() }));
+                    self.update_status(|s| {
+                        s.message = Some(format!(
+                            "Photos can't be searched by what they show: {} didn't accept an image ({e}). \
+                             Update Ollama and use the 740m tag of EmbeddingGemma 2.",
+                            cfg.embed_model
+                        ))
+                    });
+                }
+                Err(e) => return Err(e),
+            }
         }
         Ok(out)
     }
@@ -512,22 +543,24 @@ impl Engine {
 /// What to store for a file and what to send to the embedder, in the same order.
 fn plan_chunks(path: &Path, name: &str, kind: Kind, extracted: Extracted) -> (Vec<EmbedInput>, Vec<db::NewChunk>) {
     let title = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| name.to_string());
+    let text_chunk = |c: extract::TextChunk| db::NewChunk { label: c.label, text: Some(c.text), vector: None, visual: false };
     match extracted {
         Extracted::Text(text) => {
             let inputs = text
                 .iter()
                 .map(|c| EmbedInput::Document { title: title.clone(), text: c.text.clone() })
                 .collect();
-            let chunks = text
-                .into_iter()
-                .map(|c| db::NewChunk { label: c.label, text: Some(c.text), vector: None })
-                .collect();
-            (inputs, chunks)
+            (inputs, text.into_iter().map(text_chunk).collect())
         }
-        Extracted::Image(b64) => (
-            vec![EmbedInput::Image(b64)],
-            vec![db::NewChunk { label: None, text: None, vector: None }],
-        ),
+        Extracted::Image(b64) => {
+            // The name too, so "screenshot" or "passport scan" finds a
+            // picture whose content alone doesn't say so.
+            let (input, chunk) = name_chunk(path, title, kind);
+            (
+                vec![input, EmbedInput::Image(b64)],
+                vec![chunk, db::NewChunk { label: None, text: None, vector: None, visual: true }],
+            )
+        }
         Extracted::NameOnly => {
             let (input, chunk) = name_chunk(path, title, kind);
             (vec![input], vec![chunk])
@@ -540,11 +573,11 @@ fn plan_chunks(path: &Path, name: &str, kind: Kind, extracted: Extracted) -> (Ve
             let mut chunks = vec![chunk];
             for c in transcript {
                 inputs.push(EmbedInput::Document { title: title.clone(), text: c.text.clone() });
-                chunks.push(db::NewChunk { label: c.label, text: Some(c.text), vector: None });
+                chunks.push(text_chunk(c));
             }
             for (at, b64) in frames {
                 inputs.push(EmbedInput::Image(b64));
-                chunks.push(db::NewChunk { label: Some(at), text: None, vector: None });
+                chunks.push(db::NewChunk { label: Some(at), text: None, vector: None, visual: true });
             }
             (inputs, chunks)
         }
@@ -552,15 +585,50 @@ fn plan_chunks(path: &Path, name: &str, kind: Kind, extracted: Extracted) -> (Ve
 }
 
 /// A chunk that stands for the file itself: found by what its name and
-/// folder say.
+/// folders say. Names are split into words ("IMG_2041", "taxReturn2025"
+/// become "IMG 2041", "tax Return 2025") so the embedder reads them as words.
 fn name_chunk(path: &Path, title: String, kind: Kind) -> (EmbedInput, db::NewChunk) {
-    let folder = path
+    let folders: Vec<String> = path
         .parent()
-        .and_then(|p| p.file_name())
-        .map(|f| f.to_string_lossy().to_string())
+        .map(|p| {
+            p.components()
+                .rev()
+                .take(2)
+                .map(|c| c.as_os_str().to_string_lossy().to_string())
+                .filter(|c| !c.is_empty() && !c.ends_with(':') && !c.ends_with('\\') && c != "/")
+                .collect::<Vec<_>>()
+        })
         .unwrap_or_default();
-    let text = format!("{} file in {}", kind.as_str(), folder);
-    (EmbedInput::Document { title, text }, db::NewChunk { label: None, text: None, vector: None })
+    let folders: Vec<String> = folders.into_iter().rev().map(|f| name_words(&f)).collect();
+    let text = format!("{} file in {}", kind.as_str(), folders.join(" / "));
+    (
+        EmbedInput::Document { title: name_words(&title), text },
+        db::NewChunk { label: None, text: None, vector: None, visual: false },
+    )
+}
+
+/// "taxReturn_2025-final" → "tax Return 2025 final".
+pub(crate) fn name_words(name: &str) -> String {
+    let mut out = String::with_capacity(name.len() + 8);
+    let mut prev: Option<char> = None;
+    for c in name.chars() {
+        if !c.is_alphanumeric() {
+            if !out.ends_with(' ') && !out.is_empty() {
+                out.push(' ');
+            }
+        } else {
+            let boundary = match prev {
+                Some(p) => (p.is_lowercase() && c.is_uppercase()) || (p.is_alphabetic() != c.is_alphabetic() && p.is_alphanumeric()),
+                None => false,
+            };
+            if boundary && !out.ends_with(' ') {
+                out.push(' ');
+            }
+            out.push(c);
+        }
+        prev = Some(c);
+    }
+    out.trim().to_string()
 }
 
 fn is_media(kind: Kind) -> bool {
@@ -606,6 +674,13 @@ fn is_cloud_placeholder(_meta: &std::fs::Metadata) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn names_become_words() {
+        assert_eq!(name_words("taxReturn_2025-final"), "tax Return 2025 final");
+        assert_eq!(name_words("IMG_2041"), "IMG 2041");
+        assert_eq!(name_words("Screenshot 2026-10-12 101500"), "Screenshot 2026 10 12 101500");
+    }
 
     #[test]
     fn exclusions() {

@@ -18,6 +18,8 @@ pub struct FileRow {
 pub struct ChunkRow {
     pub label: Option<String>,
     pub text: Option<String>,
+    /// A picture (photo or video frame) rather than text or a file name.
+    pub visual: bool,
 }
 
 pub fn open(path: &Path) -> rusqlite::Result<Connection> {
@@ -50,6 +52,19 @@ pub fn open(path: &Path) -> rusqlite::Result<Connection> {
          CREATE INDEX IF NOT EXISTS chunks_file ON chunks(file_id);
          CREATE VIRTUAL TABLE IF NOT EXISTS fts USING fts5(name, text, chunk_id UNINDEXED, tokenize = 'unicode61 remove_diacritics 2');",
     )?;
+    let has_visual: bool = conn
+        .prepare("SELECT 1 FROM pragma_table_info('chunks') WHERE name = 'visual'")?
+        .exists([])?;
+    if !has_visual {
+        // Older indexes: pictures are the chunks of images and video frames
+        // that carry no text. Those files are re-read on the next scan anyway
+        // (the chunking version is part of their stamp).
+        conn.execute_batch(
+            "ALTER TABLE chunks ADD COLUMN visual INTEGER NOT NULL DEFAULT 0;
+             UPDATE chunks SET visual = 1 WHERE text IS NULL AND file_id IN (SELECT id FROM files WHERE kind IN ('image', 'video'))
+               AND (label IS NOT NULL OR file_id IN (SELECT id FROM files WHERE kind = 'image'));",
+        )?;
+    }
     Ok(conn)
 }
 
@@ -93,16 +108,17 @@ pub fn remove_prefix(conn: &Connection, prefix: &str) -> rusqlite::Result<Vec<i6
 }
 
 /// Chunk ids that were replaced, and the new (chunk id, vector) pairs.
-pub type Replaced = (Vec<i64>, Vec<(i64, Vec<f32>)>);
+pub type Replaced = (Vec<i64>, Vec<(i64, Vec<f32>, bool)>);
 
 pub struct NewChunk {
     pub label: Option<String>,
     pub text: Option<String>,
     pub vector: Option<Vec<f32>>,
+    pub visual: bool,
 }
 
-/// Replace whatever was stored for this file. Returns (chunk id, vector) for
-/// every chunk that has one.
+/// Replace whatever was stored for this file. Returns (chunk id, vector,
+/// visual) for every chunk that has a vector.
 #[allow(clippy::too_many_arguments)]
 pub fn upsert_file(
     conn: &mut Connection,
@@ -133,8 +149,8 @@ pub fn upsert_file(
     for (ord, c) in chunks.into_iter().enumerate() {
         let blob = c.vector.as_ref().map(|v| to_blob(v));
         tx.execute(
-            "INSERT INTO chunks (file_id, ord, label, text, vector) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![file_id, ord as i64, c.label, c.text, blob],
+            "INSERT INTO chunks (file_id, ord, label, text, vector, visual) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![file_id, ord as i64, c.label, c.text, blob, c.visual],
         )?;
         let chunk_id = tx.last_insert_rowid();
         // The first chunk carries the file name so name-only matches work for
@@ -148,49 +164,60 @@ pub fn upsert_file(
             )?;
         }
         if let Some(v) = c.vector {
-            added.push((chunk_id, v));
+            added.push((chunk_id, v, c.visual));
         }
     }
     tx.commit()?;
     Ok((removed, added))
 }
 
-/// Every stored vector, for loading the in-memory index at startup.
-pub fn all_vectors(conn: &Connection, dims: usize) -> rusqlite::Result<Vec<(i64, Vec<f32>)>> {
-    let mut stmt = conn.prepare("SELECT id, vector FROM chunks WHERE vector IS NOT NULL")?;
-    let rows = stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Vec<u8>>(1)?)))?;
+/// Every stored vector and whether it's a picture, for loading the
+/// in-memory index at startup.
+pub fn all_vectors(conn: &Connection, dims: usize) -> rusqlite::Result<Vec<(i64, Vec<f32>, bool)>> {
+    let mut stmt = conn.prepare("SELECT id, vector, visual FROM chunks WHERE vector IS NOT NULL")?;
+    let rows = stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Vec<u8>>(1)?, r.get::<_, bool>(2)?)))?;
     let mut out = Vec::new();
     for row in rows {
-        let (id, blob) = row?;
+        let (id, blob, visual) = row?;
         let v = from_blob(&blob);
         if v.len() == dims {
-            out.push((id, v));
+            out.push((id, v, visual));
         }
     }
     Ok(out)
 }
 
-/// Full-text matches: (chunk id, bm25 rank; lower is better).
-pub fn fts_search(conn: &Connection, query: &str, limit: usize) -> rusqlite::Result<Vec<(i64, f64)>> {
-    let terms: Vec<String> = query
-        .split(|c: char| !c.is_alphanumeric())
-        .filter(|t| t.len() > 1)
-        .map(|t| format!("\"{t}\"*"))
-        .collect();
+/// Full-text matches for the given words: chunk ids, best first. With
+/// `all`, every word must appear (in the file name or the chunk's text);
+/// otherwise any one is enough. `prefix_last` matches the last word as a
+/// prefix, for results while the user is still typing it.
+pub fn fts_search(conn: &Connection, terms: &[String], all: bool, prefix_last: bool, limit: usize) -> rusqlite::Result<Vec<i64>> {
     if terms.is_empty() {
         return Ok(Vec::new());
     }
-    let expr = terms.join(" OR ");
+    let quoted: Vec<String> = terms
+        .iter()
+        .enumerate()
+        .map(|(i, t)| {
+            let t = t.replace('"', "");
+            if prefix_last && i == terms.len() - 1 && t.chars().count() >= 3 {
+                format!("\"{t}\"*")
+            } else {
+                format!("\"{t}\"")
+            }
+        })
+        .collect();
+    let expr = quoted.join(if all { " AND " } else { " OR " });
     let mut stmt = conn.prepare(
-        "SELECT chunk_id, bm25(fts, 4.0, 1.0) FROM fts WHERE fts MATCH ?1 ORDER BY bm25(fts, 4.0, 1.0) LIMIT ?2",
+        "SELECT chunk_id FROM fts WHERE fts MATCH ?1 ORDER BY bm25(fts, 4.0, 1.0) LIMIT ?2",
     )?;
-    let rows = stmt.query_map(params![expr, limit as i64], |r| Ok((r.get(0)?, r.get(1)?)))?;
+    let rows = stmt.query_map(params![expr, limit as i64], |r| r.get(0))?;
     rows.collect()
 }
 
 pub fn chunk_with_file(conn: &Connection, chunk_id: i64) -> rusqlite::Result<Option<(FileRow, ChunkRow)>> {
     conn.query_row(
-        "SELECT f.id, f.path, f.name, f.kind, f.size, f.mtime, c.label, c.text
+        "SELECT f.id, f.path, f.name, f.kind, f.size, f.mtime, c.label, c.text, c.visual
          FROM chunks c JOIN files f ON f.id = c.file_id WHERE c.id = ?1",
         [chunk_id],
         |r| {
@@ -203,7 +230,7 @@ pub fn chunk_with_file(conn: &Connection, chunk_id: i64) -> rusqlite::Result<Opt
                     size: r.get(4)?,
                     mtime: r.get(5)?,
                 },
-                ChunkRow { label: r.get(6)?, text: r.get(7)? },
+                ChunkRow { label: r.get(6)?, text: r.get(7)?, visual: r.get(8)? },
             ))
         },
     )

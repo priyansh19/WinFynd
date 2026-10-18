@@ -10,11 +10,17 @@ use base64::Engine as _;
 /// Biggest text-ish file read whole; larger ones are indexed by name only.
 const MAX_TEXT_BYTES: u64 = 20 * 1024 * 1024;
 const MAX_IMAGE_BYTES: u64 = 40 * 1024 * 1024;
-/// Roughly 250 tokens per window, with overlap so a sentence split across a
-/// boundary still matches.
-const WINDOW_CHARS: usize = 1000;
-const OVERLAP_CHARS: usize = 150;
-const MAX_CHUNKS_PER_FILE: usize = 300;
+/// Chunks aim for about 100 tokens: small enough that one chunk is about one
+/// thing, so its vector isn't an average of several topics. They end on a
+/// sentence (or line, for code and tables) and never run past the hard limit.
+pub(crate) const TARGET_CHARS: usize = 450;
+const MAX_CHARS: usize = 700;
+/// A chunk ends early at a paragraph break once it's at least this long.
+const MIN_CHARS: usize = 100;
+/// The last sentence of a chunk is repeated at the start of the next when
+/// it's this short or shorter, so an idea split across a boundary still matches.
+const OVERLAP_CHARS: usize = 160;
+const MAX_CHUNKS_PER_FILE: usize = 600;
 /// Long side of images sent to the embedder.
 const IMAGE_MAX_SIDE: u32 = 896;
 
@@ -112,9 +118,10 @@ fn text_chunks(path: &Path, kind: Kind) -> Option<Vec<TextChunk>> {
         _ => return None,
     };
 
+    let prose = matches!(kind, Kind::Document | Kind::Slides);
     let mut out = Vec::new();
     for (label, text) in sections {
-        for window in windows(&text) {
+        for window in chunk_text(&text, prose) {
             out.push(TextChunk { label: label.clone(), text: window });
             if out.len() >= MAX_CHUNKS_PER_FILE {
                 return Some(out);
@@ -133,29 +140,145 @@ fn read_lossy(path: &Path) -> Option<String> {
     Some(String::from_utf8_lossy(&bytes).into_owned())
 }
 
-/// Split into overlapping windows on whitespace, collapsing runs of blank space.
-fn windows(text: &str) -> Vec<String> {
-    let clean: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    let chars: Vec<char> = clean.chars().collect();
-    if chars.len() < 3 {
-        return Vec::new();
-    }
-    let mut out = Vec::new();
-    let mut start = 0;
-    while start < chars.len() {
-        let mut end = (start + WINDOW_CHARS).min(chars.len());
-        if end < chars.len() {
-            if let Some(space) = chars[start..end].iter().rposition(|c| *c == ' ') {
-                if space > WINDOW_CHARS / 2 {
-                    end = start + space;
-                }
+/// Split text into small chunks that end on sentence (prose) or line (code,
+/// tables) boundaries, prefer to end at paragraph breaks, and carry a short
+/// last sentence over into the next chunk.
+pub(crate) fn chunk_text(text: &str, prose: bool) -> Vec<String> {
+    let units = units(text, prose);
+    let sep = if prose { " " } else { "\n" };
+    let mut out: Vec<String> = Vec::new();
+    let mut cur: Vec<&str> = Vec::new();
+    let mut len = 0;
+    let mut fresh = 0; // units in `cur` not already in the previous chunk
+    let flush = |cur: &mut Vec<&str>, len: &mut usize, fresh: &mut usize, out: &mut Vec<String>| {
+        if *fresh > 0 {
+            out.push(cur.join(sep));
+        }
+        let carry = match cur.last() {
+            Some(last) if cur.len() > 1 && last.chars().count() <= OVERLAP_CHARS => Some(*last),
+            _ => None,
+        };
+        cur.clear();
+        *len = 0;
+        *fresh = 0;
+        if let Some(last) = carry {
+            cur.push(last);
+            *len = last.chars().count();
+        }
+    };
+    for (unit, para_end) in &units {
+        let n = unit.chars().count();
+        if len > 0 && len + 1 + n > TARGET_CHARS {
+            flush(&mut cur, &mut len, &mut fresh, &mut out);
+            // A carried-over sentence must not push a long one past the limit.
+            if len + 1 + n > MAX_CHARS {
+                cur.clear();
+                len = 0;
             }
         }
-        out.push(chars[start..end].iter().collect::<String>().trim().to_string());
-        if end >= chars.len() {
-            break;
+        cur.push(unit);
+        len += n + usize::from(len > 0);
+        fresh += 1;
+        if *para_end && len >= MIN_CHARS {
+            flush(&mut cur, &mut len, &mut fresh, &mut out);
         }
-        start = end.saturating_sub(OVERLAP_CHARS).max(start + 1);
+    }
+    if fresh > 0 {
+        let tail = cur.join(sep);
+        // A scrap of a few words is folded into the previous chunk.
+        match out.last_mut() {
+            Some(prev) if tail.chars().count() < 80 && fresh == cur.len() && prev.chars().count() + 1 + tail.chars().count() <= MAX_CHARS => {
+                prev.push_str(sep);
+                prev.push_str(&tail);
+            }
+            _ => out.push(tail),
+        }
+    }
+    out.retain(|c| c.chars().count() >= 3);
+    out
+}
+
+/// Sentences (prose) or lines (everything else), whitespace collapsed, each
+/// at most `MAX_CHARS`, flagged when a paragraph ends after them.
+fn units(text: &str, prose: bool) -> Vec<(String, bool)> {
+    let mut out: Vec<(String, bool)> = Vec::new();
+    // Paragraphs are separated by blank lines; in prose a single newline
+    // (one paragraph per line from docx, slides, PDFs) also ends one when
+    // the line ends a sentence.
+    for para in text.split("\n\n").flat_map(|p| p.split("\r\n\r\n")) {
+        let pieces: Vec<String> = if prose {
+            sentences(&para.split_whitespace().collect::<Vec<_>>().join(" "))
+        } else {
+            para.lines().map(|l| l.split_whitespace().collect::<Vec<_>>().join(" ")).collect()
+        };
+        for piece in pieces.into_iter().filter(|p| !p.is_empty()) {
+            for part in split_long(&piece) {
+                out.push((part, false));
+            }
+        }
+        if let Some(last) = out.last_mut() {
+            last.1 = true;
+        }
+    }
+    out
+}
+
+/// Split on sentence ends: . ! ? (and CJK equivalents) followed by a space.
+fn sentences(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut start = 0;
+    let bytes: Vec<(usize, char)> = text.char_indices().collect();
+    for (i, &(at, c)) in bytes.iter().enumerate() {
+        let end_mark = matches!(c, '.' | '!' | '?' | '。' | '！' | '？');
+        let next_space = bytes.get(i + 1).is_none_or(|(_, n)| *n == ' ');
+        if end_mark && next_space {
+            // Don't split after a lone initial or short abbreviation ("e.g.", "Dr.").
+            let word = text[start..at].rsplit(' ').next().unwrap_or("");
+            let abbrev = !word.is_empty()
+                && word.chars().all(|w| w.is_alphabetic() || w == '.')
+                && (word.chars().count() <= 2 || word.contains('.'));
+            if c == '.' && abbrev {
+                continue;
+            }
+            let end = at + c.len_utf8();
+            out.push(text[start..end].trim().to_string());
+            start = end;
+        }
+    }
+    if start < text.len() {
+        out.push(text[start..].trim().to_string());
+    }
+    out
+}
+
+/// Break anything longer than `MAX_CHARS` at word boundaries.
+fn split_long(s: &str) -> Vec<String> {
+    if s.chars().count() <= MAX_CHARS {
+        return vec![s.to_string()];
+    }
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    for word in s.split(' ') {
+        let mut word = word.to_string();
+        // A single unbroken run (base64, minified code) is cut hard.
+        while word.chars().count() > TARGET_CHARS {
+            let head: String = word.chars().take(TARGET_CHARS).collect();
+            word = word.chars().skip(TARGET_CHARS).collect();
+            if !cur.is_empty() {
+                out.push(std::mem::take(&mut cur));
+            }
+            out.push(head);
+        }
+        if !cur.is_empty() && cur.chars().count() + 1 + word.chars().count() > TARGET_CHARS {
+            out.push(std::mem::take(&mut cur));
+        }
+        if !cur.is_empty() {
+            cur.push(' ');
+        }
+        cur.push_str(&word);
+    }
+    if !cur.is_empty() {
+        out.push(cur);
     }
     out
 }
@@ -283,17 +406,53 @@ mod tests {
     use super::*;
 
     #[test]
-    fn windows_overlap_and_cover_everything() {
-        let text = "word ".repeat(600);
-        let w = windows(&text);
-        assert!(w.len() >= 3);
-        assert!(w.iter().all(|s| s.chars().count() <= WINDOW_CHARS));
-        assert!(w.last().unwrap().ends_with("word"));
+    fn chunks_are_small_and_cover_everything() {
+        let text = "The quarterly budget was approved by finance. ".repeat(60);
+        let c = chunk_text(&text, true);
+        assert!(c.len() >= 5, "{}", c.len());
+        assert!(c.iter().all(|s| s.chars().count() <= MAX_CHARS));
+        // Chunks end on whole sentences.
+        assert!(c.iter().all(|s| s.ends_with("finance.")));
+        assert!(c.last().unwrap().ends_with("finance."));
     }
 
     #[test]
-    fn short_text_is_one_window() {
-        assert_eq!(windows("hello   there\n\nworld"), vec!["hello there world".to_string()]);
+    fn short_text_is_one_chunk() {
+        assert_eq!(chunk_text("hello   there\n\nworld", true), vec!["hello there world".to_string()]);
+    }
+
+    #[test]
+    fn paragraphs_split_topics() {
+        let a = "Our trip to Lisbon was booked for March. We stayed near the river and ate pastel de nata every morning. The tram up the hill was packed.";
+        let b = "The car insurance renewal is due in May. The premium went up by twelve percent compared to last year. Call the broker before then.";
+        let c = chunk_text(&format!("{a}\n\n{b}"), true);
+        assert_eq!(c.len(), 2, "{c:?}");
+        assert!(c[0].contains("Lisbon") && !c[0].contains("insurance"));
+        assert!(c[1].contains("insurance") && !c[1].contains("Lisbon"));
+    }
+
+    #[test]
+    fn short_last_sentence_overlaps() {
+        let long = "word ".repeat(70);
+        let text = format!("{}. Short bridge. {}.", long.trim(), long.trim());
+        let c = chunk_text(&text, true);
+        assert!(c.len() >= 2);
+        assert!(c[0].ends_with("Short bridge.") && c[1].starts_with("Short bridge."), "{c:?}");
+    }
+
+    #[test]
+    fn code_splits_on_lines_and_long_runs_are_cut() {
+        let code = (0..200).map(|i| format!("let value_{i} = compute({i});")).collect::<Vec<_>>().join("\n");
+        let c = chunk_text(&code, false);
+        assert!(c.len() > 5);
+        assert!(c.iter().all(|s| s.lines().all(|l| l.starts_with("let value_"))));
+        let blob = "x".repeat(5000);
+        assert!(chunk_text(&blob, false).iter().all(|s| s.chars().count() <= MAX_CHARS));
+    }
+
+    #[test]
+    fn abbreviations_dont_split() {
+        assert_eq!(sentences("Meet Dr. Rao at 5. Bring e.g. the deck."), vec!["Meet Dr. Rao at 5.", "Bring e.g. the deck."]);
     }
 
     #[test]
