@@ -52,16 +52,34 @@ export const GROUP_LABEL: Record<ResultKind, string> = {
   other: "Other files",
 };
 
-export const search = (query: string) => invoke<SearchResponse>("search", { query, limit: 30 });
+/** Photos whose contents are only in OneDrive, as of the last search that found them. */
+const onlineOnly = new Set<string>();
+
+export async function search(query: string): Promise<SearchResponse> {
+  const res = await invoke<SearchResponse>("search", { query, limit: 30 });
+  const photos = res.hits.filter((h) => h.kind === "image").map((h) => h.path);
+  if (inTauri && photos.length) {
+    const flags = await invoke<boolean[]>("online_only", { paths: photos }).catch(() => []);
+    photos.forEach((p, i) => (flags[i] ? onlineOnly.add(p) : onlineOnly.delete(p)));
+  }
+  return res;
+}
+
 export const ask = (question: string) => invoke<Answer>("ask", { question });
 export const transcribeVoice = (samples: Float32Array) => invoke<string>("transcribe_voice", { samples: Array.from(samples) });
 export const openResult = (path: string) => invoke<void>("open_path", { path });
 export const revealResult = (path: string) => invoke<void>("reveal_path", { path });
 
-/** Image thumbnails load straight from disk through Tauri's asset protocol. */
+/**
+ * Image thumbnails load straight from disk through Tauri's asset protocol.
+ * Reading a photo that's only in OneDrive would download it, so those get
+ * null and callers show Explorer's thumbnail, which OneDrive serves without
+ * downloading the file.
+ */
 export function thumbnailUrl(r: Pick<SearchResult, "kind" | "path">): string | null {
   if (r.kind !== "image") return null;
-  return inTauri ? convertFileSrc(r.path) : previewImage(r.path);
+  if (!inTauri) return previewImage(r.path);
+  return onlineOnly.has(r.path) ? null : convertFileSrc(r.path);
 }
 
 /** Seconds into a recording for labels like "1:23" or "1:02:03"; null otherwise. */

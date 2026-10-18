@@ -133,6 +133,32 @@ pub async fn shell_image(path: String, size: u32, thumbnail: bool) -> Result<Str
     }
 }
 
+/// Which of these files are OneDrive placeholders whose contents are only
+/// online. Reading one, even to draw it as a thumbnail, downloads it.
+#[tauri::command]
+pub async fn online_only(paths: Vec<String>) -> Result<Vec<bool>, String> {
+    tauri::async_runtime::spawn_blocking(move || paths.iter().map(|p| is_online_only(p)).collect())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// The same attributes the indexer looks for before reading a file.
+#[cfg(windows)]
+fn is_online_only(path: &str) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    const FILE_ATTRIBUTE_OFFLINE: u32 = 0x1000;
+    const FILE_ATTRIBUTE_RECALL_ON_OPEN: u32 = 0x40000;
+    const FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS: u32 = 0x400000;
+    std::fs::metadata(path).is_ok_and(|m| {
+        m.file_attributes() & (FILE_ATTRIBUTE_OFFLINE | FILE_ATTRIBUTE_RECALL_ON_OPEN | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0
+    })
+}
+
+#[cfg(not(windows))]
+fn is_online_only(_path: &str) -> bool {
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

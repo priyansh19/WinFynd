@@ -16,10 +16,13 @@ export const openLink = (url: string) => invoke<void>("open_link", { url });
 export const runSetup = () => invoke<void>("run_setup");
 const latestRelease = () => invoke<Release>("latest_release");
 
+/** The running version, read once. */
+const appVersion = (inTauri ? getVersion() : Promise.resolve("0.1.0")).catch(() => "");
+
 export function useAppVersion(): string {
   const [version, setVersion] = useState("");
   useEffect(() => {
-    (inTauri ? getVersion() : Promise.resolve("0.1.0")).then(setVersion).catch(() => {});
+    appVersion.then(setVersion);
   }, []);
   return version;
 }
@@ -27,7 +30,8 @@ export function useAppVersion(): string {
 const CHECK = "wf.updateCheck";
 const CHECKED_AT = "wf.updateCheckedAt";
 const LATEST = "wf.latestRelease";
-const DAY = 24 * 60 * 60 * 1000;
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
 
 function read(key: string): string | null {
   try {
@@ -48,41 +52,62 @@ function write(key: string, value: string | null) {
 
 export const checksForUpdates = () => read(CHECK) !== "0";
 
-function cached(): Release | null {
+/**
+ * The last check's result. Its `newer` compares with the version that was
+ * running then, so after an update it's dropped until the next check.
+ */
+async function cached(): Promise<Release | null> {
+  let c: (Release & { checkedBy?: string }) | null = null;
   try {
-    return JSON.parse(read(LATEST) ?? "null");
+    c = JSON.parse(read(LATEST) ?? "null");
   } catch {
-    return null;
+    // Unreadable: the same as never checked.
   }
+  return c && c.checkedBy === (await appVersion) ? c : null;
 }
 
+const listeners = new Set<(r: Release) => void>();
+
+async function checkNow() {
+  const [r, version] = await Promise.all([latestRelease(), appVersion]);
+  write(LATEST, JSON.stringify({ ...r, checkedBy: version }));
+  write(CHECKED_AT, String(Date.now()));
+  listeners.forEach((f) => f(r));
+}
+
+/** Once a day, and straight away after an update. */
+async function checkIfDue() {
+  if (!checksForUpdates()) return;
+  const due = Date.now() - Number(read(CHECKED_AT) ?? 0) > DAY || !(await cached());
+  if (due) await checkNow();
+}
+
+// Settings loads this when WinFynd starts and stays loaded in the tray, so
+// the check runs from here and not only while the About page is open.
+checkIfDue().catch(() => {});
+window.setInterval(() => checkIfDue().catch(() => {}), HOUR);
+
 /**
- * The newest release, checked when Settings opens and then once a day while
- * it stays open in the tray; null until known, and never fetched while
- * update checks are off.
+ * The newest release, checked when WinFynd starts and then once a day while
+ * it runs in the tray; null until known, and never fetched while update
+ * checks are off.
  */
 export function useUpdateCheck(): { release: Release | null; enabled: boolean; setEnabled: (on: boolean) => void; checkNow: () => Promise<void> } {
-  const [release, setRelease] = useState<Release | null>(cached);
+  const [release, setRelease] = useState<Release | null>(null);
   const [enabled, setEnabledState] = useState(checksForUpdates);
 
-  const checkNow = async () => {
-    const r = await latestRelease();
-    write(LATEST, JSON.stringify(r));
-    write(CHECKED_AT, String(Date.now()));
-    setRelease(r);
-  };
-
   useEffect(() => {
-    if (!enabled) return;
-    const due = () => Date.now() - Number(read(CHECKED_AT) ?? 0) > DAY;
-    if (due()) checkNow().catch(() => {});
-    const t = window.setInterval(() => due() && checkNow().catch(() => {}), 60 * 60 * 1000);
-    return () => window.clearInterval(t);
-  }, [enabled]);
+    cached().then(setRelease);
+    listeners.add(setRelease);
+    return () => {
+      listeners.delete(setRelease);
+    };
+  }, []);
 
   const setEnabled = (on: boolean) => {
     write(CHECK, on ? null : "0");
     setEnabledState(on);
+    if (on) checkIfDue().catch(() => {});
   };
   return { release, enabled, setEnabled, checkNow };
 }

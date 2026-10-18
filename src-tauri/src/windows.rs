@@ -50,8 +50,12 @@ pub fn toggle_launcher<R: Runtime>(app: &AppHandle<R>) {
 
 /// Settings and setup open at the design's size, which is taller than a
 /// small laptop at 150% scale. Shrink a window to the screen it's on and
-/// centre it; Tauri still holds it to its minimum size.
+/// centre it; Tauri still holds it to its minimum size. A maximized window
+/// is left alone: resizing it would un-maximize it.
 pub fn fit_to_screen<R: Runtime>(w: &WebviewWindow<R>) {
+    if w.is_maximized().unwrap_or(false) {
+        return;
+    }
     let (Ok(Some(monitor)), Ok(size)) = (w.current_monitor(), w.outer_size()) else { return };
     let area = monitor.work_area().size;
     let (max_w, max_h) = (area.width * 19 / 20, area.height * 19 / 20);

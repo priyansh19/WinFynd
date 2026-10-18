@@ -17,6 +17,17 @@ use hotkeys::HotkeyState;
 
 pub fn run() {
     tauri::Builder::default()
+        // Opening WinFynd while it already runs in the tray (Start menu,
+        // desktop shortcut) shows the running copy instead of starting a
+        // second one with its own tray icon, hotkeys and indexer. It goes
+        // first so the second copy exits before anything else starts.
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if !onboarding::is_complete(app) {
+                onboarding::show(app);
+            } else if !args.iter().any(|arg| arg == "--background") {
+                windows::show_launcher(app);
+            }
+        }))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(hotkeys::handle)
@@ -35,6 +46,7 @@ pub fn run() {
             windows::open_control_center,
             native::appearance,
             native::shell_image,
+            native::online_only,
             commands::search,
             commands::ask,
             commands::transcribe_voice,
