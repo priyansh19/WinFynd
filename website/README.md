@@ -1,7 +1,7 @@
 # WinFynd website
 
-A single static page (`index.html`, no build step) with a live launcher demo, the privacy promise, supported formats, shortcuts and the same five setup steps as the in-app welcome window (`src/onboarding/`). Keep the two in sync when setup changes.
+A static site with no build step: `index.html`, `site.css`, `site.js` and the setup screenshots in `assets/`. The hero runs a working launcher demo over a Windows desktop. The search results, previews, photos and files in it are illustrative, and the photos and video frames are drawn on canvas in `site.js`.
 
-Open `index.html` in a browser to preview it. To host it, publish this folder as-is, for example with GitHub Pages (Settings, Pages, deploy from the `website` folder via an Action) or any static host.
+The Setup section shows the real first-run window from `src/onboarding/`. When those screens change, retake the screenshots (1200×800 WebP) and keep the step text in sync.
 
-The page loads two fonts from Google Fonts; everything else is inline.
+Preview it by opening `index.html` in a browser. To host it, publish this folder as-is, for example on GitHub Pages or any static host. The only outside request is Google Fonts.
