@@ -13,7 +13,8 @@ interface Appearance {
   backdrop: "mica" | "acrylic" | "none";
 }
 
-const SHADES = ["light3", "light2", "light1", "base", "dark1", "dark2", "dark3"];
+/** Windows' own default accent: treated as "not picked", so the design's blue shows. */
+const WINDOWS_DEFAULT = "#0078d4";
 
 async function applyAppearance() {
   if (!inTauri) return;
@@ -21,9 +22,17 @@ async function applyAppearance() {
     const a = await invoke<Appearance>("appearance");
     const root = document.documentElement;
     root.dataset.backdrop = a.backdrop;
-    a.accent.forEach((hex, i) => SHADES[i] && root.style.setProperty(`--accent-${SHADES[i]}`, hex));
+    // Like WinUI: Light 2 on dark backgrounds, Dark 1 on light ones.
+    const picked = a.accent.length === 7 && a.accent[3].toLowerCase() !== WINDOWS_DEFAULT;
+    if (picked) {
+      root.style.setProperty("--sys-accent-dark", a.accent[1]);
+      root.style.setProperty("--sys-accent-light", a.accent[4]);
+    } else {
+      root.style.removeProperty("--sys-accent-dark");
+      root.style.removeProperty("--sys-accent-light");
+    }
   } catch {
-    // Keep the default blue and the solid background.
+    // Keep the design's blue and the solid background.
   }
 }
 

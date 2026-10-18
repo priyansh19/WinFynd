@@ -1,5 +1,5 @@
 // Index status, settings and Ollama model management.
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke, listen, stubCommands } from "./tauri";
 
 export interface EngineStatus {
@@ -25,6 +25,8 @@ export interface EngineConfig {
   indexImages: boolean;
   speechModel: string;
   indexVideoFrames: boolean;
+  /** Read OneDrive files that are only online, which downloads each one. */
+  readOnlineFiles: boolean;
 }
 
 export interface SpeechModel {
@@ -95,11 +97,11 @@ export function useEngineConfig(): [EngineConfig | null, (c: EngineConfig) => Pr
       off.then((f) => f());
     };
   }, []);
-  const save = async (next: EngineConfig) => {
+  const save = useCallback(async (next: EngineConfig) => {
     const saved = await setConfig(next);
     setLocal(saved);
     return saved;
-  };
+  }, []);
   return [config, save];
 }
 
@@ -145,6 +147,7 @@ let previewConfig: EngineConfig = {
   indexImages: true,
   speechModel: "small",
   indexVideoFrames: true,
+  readOnlineFiles: false,
 };
 stubCommands({
   // ?state=idle in the preview URL shows a finished index.

@@ -25,6 +25,9 @@ pub struct EngineConfig {
     pub speech_model: String,
     /// Embed sampled video frames (needs FFmpeg and `index_images`).
     pub index_video_frames: bool,
+    /// Read OneDrive files that are only online, which downloads each one.
+    /// Off: they're found by name until they're on this PC.
+    pub read_online_files: bool,
 }
 
 impl Default for EngineConfig {
@@ -38,6 +41,7 @@ impl Default for EngineConfig {
             index_images: true,
             speech_model: String::new(),
             index_video_frames: true,
+            read_online_files: false,
         }
     }
 }

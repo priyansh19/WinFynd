@@ -263,8 +263,79 @@ pub async fn reveal_path<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>,
     .await?
 }
 
+const REPO: &str = "https://github.com/priyansh19/WinFynd";
+
+/// Open one of WinFynd's own pages (the repository, its releases or issues)
+/// in the browser. Nothing else can be opened this way.
+#[tauri::command]
+pub async fn open_link<R: Runtime>(app: AppHandle<R>, url: String) -> Result<(), String> {
+    if url != REPO && !url.starts_with(&format!("{REPO}/")) {
+        return Err("Only WinFynd's own pages open from here".into());
+    }
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Release {
+    /// The newest release's version, without the leading "v".
+    version: String,
+    url: String,
+    /// True when it's newer than the running app.
+    newer: bool,
+}
+
+/// The newest WinFynd release on GitHub. Settings calls this at most once a
+/// day, and not at all when update checks are turned off.
+#[tauri::command]
+pub async fn latest_release<R: Runtime>(app: AppHandle<R>) -> Result<Release, String> {
+    let running = app.package_info().version.to_string();
+    blocking(move || {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .user_agent(concat!("WinFynd/", env!("CARGO_PKG_VERSION")))
+            .build()
+            .map_err(|e| e.to_string())?;
+        let body: serde_json::Value = client
+            .get("https://api.github.com/repos/priyansh19/WinFynd/releases/latest")
+            .send()
+            .and_then(|r| r.error_for_status())
+            .map_err(|e| e.to_string())?
+            .json()
+            .map_err(|e| e.to_string())?;
+        let version = body["tag_name"].as_str().unwrap_or_default().trim_start_matches('v').to_string();
+        let url = body["html_url"].as_str().unwrap_or(REPO).to_string();
+        Ok(Release { newer: is_newer(&version, &running), version, url })
+    })
+    .await?
+}
+
+/// "0.10.0" is newer than "0.9.2"; anything unparsable isn't newer.
+fn is_newer(candidate: &str, running: &str) -> bool {
+    let parse = |v: &str| v.split('.').map(|p| p.parse::<u64>().ok()).collect::<Option<Vec<_>>>();
+    match (parse(candidate), parse(running)) {
+        (Some(a), Some(b)) => a > b,
+        _ => false,
+    }
+}
+
+/// Open setup again from Settings, as the tray's "Run setup again" does.
+#[tauri::command]
+pub async fn run_setup<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
+    crate::onboarding::show(&app);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn newer_releases_compare_by_number() {
+        assert!(super::is_newer("0.10.0", "0.9.2"));
+        assert!(super::is_newer("1.0.0", "0.1.0"));
+        assert!(!super::is_newer("0.1.0", "0.1.0"));
+        assert!(!super::is_newer("0.1.0-beta", "0.0.1"));
+    }
+
     /// Eval: a plain `fn` command runs on the window thread, where anything
     /// slow shows up as "Not Responding". Every command in this file must
     /// be `async`.

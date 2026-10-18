@@ -339,6 +339,7 @@ impl Engine {
         } else if old.roots != new.roots
             || old.speech_model != new.speech_model
             || old.index_video_frames != new.index_video_frames
+            || old.read_online_files != new.read_online_files
         {
             // Media files carry these settings in their stamp, so a scan
             // re-reads just those.
@@ -559,8 +560,9 @@ impl Engine {
         let cfg = self.config();
         let kind = extract::kind_of(path);
         // A cloud-only OneDrive file is stamped as such, so it's read again
-        // once it's downloaded (which keeps its size and modified time).
-        let cloud_only = is_cloud_placeholder(&meta);
+        // once it's downloaded (which keeps its size and modified time), or
+        // once reading online files is turned on.
+        let cloud_only = is_cloud_placeholder(&meta) && !cfg.read_online_files;
         let model_key = self.model_key(&cfg, kind) + if cloud_only { "+cloud" } else { "" };
         let key = path.to_string_lossy().to_string();
         if let Ok(Some((s, m, model))) = db::file_stamp(&self.db.lock().unwrap(), &key) {

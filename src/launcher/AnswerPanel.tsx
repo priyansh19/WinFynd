@@ -3,15 +3,7 @@ import { FileGlyph } from "../components/FileIcon";
 import { Icon } from "../components/Icon";
 import { Keys } from "../components/Keycap";
 import { kindClass, kindOfPath } from "../lib/kinds";
-import { folderOf, type Answer } from "../lib/search";
-
-/** "llama3.2:3b" reads as "llama3.2 3B". */
-export function modelLabel(model: string): string {
-  return model
-    .replace(/:latest$/, "")
-    .replace(/:(\d+(?:\.\d+)?)b$/i, " $1B")
-    .replace(":", " ");
-}
+import { folderOf, modelLabel, type Answer } from "../lib/search";
 
 /** The answer as plain text with its sources listed, for the clipboard. */
 export function answerAsText(answer: Answer): string {

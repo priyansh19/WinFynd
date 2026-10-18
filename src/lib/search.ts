@@ -77,6 +77,14 @@ export function mediaUrl(r: SearchResult): string | null {
   return convertFileSrc(r.path) + (at ? `#t=${at}` : "");
 }
 
+/** "llama3.2:3b" reads as "llama3.2 3B". */
+export function modelLabel(model: string): string {
+  return model
+    .replace(/:latest$/, "")
+    .replace(/:(\d+(?:\.\d+)?)b$/i, " $1B")
+    .replace(":", " ");
+}
+
 export function folderOf(path: string): string {
   const i = Math.max(path.lastIndexOf("\\"), path.lastIndexOf("/"));
   return i > 0 ? path.slice(0, i) : path;
