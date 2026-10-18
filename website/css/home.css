@@ -345,7 +345,8 @@
 .live-shot .wf[data-fit] { width: 640px; }
 .live-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .live-kinds { flex: 1; }
-.live-folders { min-height: 0; padding: 12px 16px; gap: 14px; }
+.live-scope { min-height: 0; padding: 12px 14px; gap: 12px; }
+.nowrap { white-space: nowrap; }
 .live-win { position: relative; }
 .live-body { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 10px; }
 .live-ring { padding: 18px 22px; display: flex; align-items: center; gap: 22px; }
@@ -381,6 +382,7 @@
 .promises { list-style: none; margin: 6px 0 4px; padding: 0; display: flex; flex-direction: column; gap: 20px; }
 .promise { display: flex; gap: 16px; align-items: flex-start; }
 .promise-t { font: 600 17px/24px var(--font); margin-bottom: 2px; }
+.home-ui { color: var(--text); font-weight: 600; }
 .priv-shot .wf[data-fit] { width: 640px; }
 .priv-body { padding: 0 24px 24px; }
 .priv-banner { padding: 18px 22px; display: flex; align-items: center; gap: 18px; background: linear-gradient(120deg, rgba(61, 214, 140, 0.14), rgba(91, 155, 255, 0.08) 60%, transparent), var(--card); }

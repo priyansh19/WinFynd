@@ -1,6 +1,6 @@
 /* WinFynd website: How it works page behaviour.
    1. Watch step: new files arrive in the feed and finish in their kind colour.
-   2. First run: the three setup screens become tabs; the window is zoomed to fit.
+   2. First run: the four setup screens become tabs; the window is zoomed to fit.
    3. Welcome screen cycles its sample searches; Warm-up counts files up, as in the app.
    Demos run only while on screen and the tab is visible (WinFynd.whenActive).
    Without JavaScript every screen is shown, stacked, and nothing moves. */

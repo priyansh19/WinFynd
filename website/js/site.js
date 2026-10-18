@@ -30,7 +30,11 @@
     }
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (e) {
-        if (e.isIntersecting) { e.target.classList.add("is-in"); io.unobserve(e.target); }
+        /* Also show anything already scrolled past (anchor links, restored scroll),
+           so scrolling back up never meets hidden content. */
+        if (e.isIntersecting || e.boundingClientRect.bottom <= 0) {
+          e.target.classList.add("is-in"); io.unobserve(e.target);
+        }
       });
     }, { rootMargin: "0px 0px -6% 0px", threshold: 0.06 });
     items.forEach(function (el) { io.observe(el); });
