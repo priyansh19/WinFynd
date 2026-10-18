@@ -180,11 +180,17 @@ export function Launcher() {
       }),
       listen("launcher://ask", () => switchMode("ask")),
       listen("launcher://selection", () => switchMode("search")),
+      // Setup's "Try one of these": the search typed in for the user, or the question asked.
+      listen<{ text: string; ask: boolean }>("launcher://query", ({ text, ask: asking }) => {
+        switchMode(asking ? "ask" : "search");
+        setQuery(text);
+        if (asking) runAsk(text);
+      }),
       listen("voice://press", () => onEvent.current.press()),
       listen("voice://release", () => onEvent.current.release()),
     ];
     return () => subs.forEach((p) => p.then((off) => off()));
-  }, [switchMode]);
+  }, [switchMode, runAsk]);
 
   // A short confirmation, like "Path copied", in the footer.
   useEffect(() => {

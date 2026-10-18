@@ -1,135 +1,198 @@
-import { useEffect, useState } from "react";
-import { Icon } from "../components/Icon";
-import { getConfig, pullModel, type EngineConfig, type PullProgress } from "../lib/engine";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AppIcon, Icon } from "../components/Icon";
+import { Caps } from "../components/TitleBar";
+import {
+  downloadSpeechModel,
+  pullModel,
+  useEngineConfig,
+  type EngineConfig,
+  type PullProgress,
+  type SpeechProgress,
+} from "../lib/engine";
+import { finishOnboarding, markSetupDone, type AfterSetup } from "../lib/onboarding";
 import { listen } from "../lib/tauri";
-import { WarmUpStep } from "./steps/WarmUp";
 import { FoldersStep } from "./steps/Folders";
-import { ModelsStep } from "./steps/Models";
+import { ModelStep } from "./steps/Model";
+import { ReadyStep } from "./steps/Ready";
 import { ShortcutsStep } from "./steps/Shortcuts";
+import { WarmUpStep } from "./steps/WarmUp";
 import { WelcomeStep } from "./steps/Welcome";
 
-const STEPS = [
-  { id: "welcome", label: "Welcome" },
-  { id: "folders", label: "What to search" },
-  { id: "models", label: "Search by meaning" },
-  { id: "shortcuts", label: "Shortcuts" },
-  { id: "warmup", label: "Warm-up" },
-] as const;
+const STEPS = ["Welcome", "Folders", "Search model", "Shortcuts", "Warm-up"];
+/** After the last step: every step shows as done. */
+const READY = STEPS.length;
 
-/** Every step shares the engine config and moves the flow itself. */
+/** Every step shares the engine config and the downloads, and moves the flow itself. */
 export interface StepProps {
   config: EngineConfig;
-  setConfig: (c: EngineConfig) => void;
+  save: (c: EngineConfig) => Promise<EngineConfig>;
   next: () => void;
-  back?: () => void;
+  back: () => void;
+  finish: (then: AfterSetup) => Promise<void>;
   /** The search model download, shared so it carries on across steps. */
   pull: PullProgress | null;
-  startPull: (model: string) => Promise<void>;
+  startPull: (model: string) => void;
+  /** The Whisper download; the speech setting turns on when it finishes. */
+  speech: SpeechProgress | null;
+  startSpeech: (id: string) => void;
 }
 
 export function Onboarding() {
   const [index, setIndex] = useState(0);
-  const [config, setConfig] = useState<EngineConfig | null>(null);
-
+  const [config, save] = useEngineConfig();
   const [pull, setPull] = useState<PullProgress | null>(null);
+  const [speech, setSpeech] = useState<SpeechProgress | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  /** When reading started, if this run of setup saw it happen; null when the index was already done. */
+  const [readFor, setReadFor] = useState<number | null>(null);
+  const opened = useRef(Date.now());
+  const finished = useRef(false);
+  const latest = useRef(config);
+  latest.current = config;
 
   useEffect(() => {
-    getConfig().then(setConfig);
-    const off = listen<PullProgress>("models://pull", setPull);
-    return () => {
-      off.then((f) => f());
-    };
-  }, []);
+    const subs = [
+      listen<PullProgress>("models://pull", setPull),
+      listen<SpeechProgress>("models://speech", (p) => {
+        setSpeech(p);
+        if (p.error) setError(`Whisper didn't download: ${p.error}`);
+        const c = latest.current;
+        if (p.done && !p.error && c) save({ ...c, speechModel: p.id }).catch((e) => setError(String(e)));
+      }),
+      // "Run setup again" shows this window after it was finished: start over.
+      listen("onboarding://shown", () => {
+        if (!finished.current) return;
+        finished.current = false;
+        opened.current = Date.now();
+        setReadFor(null);
+        setError(null);
+        setIndex(0);
+      }),
+    ];
+    return () => subs.forEach((p) => p.then((off) => off()));
+  }, [save]);
 
-  const startPull = async (model: string) => {
+  const startPull = useCallback(async (model: string) => {
     setPull({ model, status: "starting", completed: 0, total: 0, done: false, error: null });
     try {
       await pullModel(model);
     } catch (e) {
       setPull({ model, status: "failed", completed: 0, total: 0, done: true, error: String(e) });
     }
-  };
+  }, []);
 
-  const next = () => setIndex((i) => Math.min(i + 1, STEPS.length - 1));
+  const startSpeech = useCallback(async (id: string) => {
+    setSpeech({ id, completed: 0, total: 0, done: false, error: null });
+    try {
+      await downloadSpeechModel(id);
+    } catch (e) {
+      setSpeech(null);
+      setError(`Whisper didn't download: ${e}`);
+    }
+  }, []);
+
+  const finish = useCallback((then: AfterSetup) => {
+    finished.current = true;
+    markSetupDone();
+    return finishOnboarding(then).catch((e) => setError(String(e)));
+  }, []);
+
+  const next = () => setIndex((i) => Math.min(i + 1, READY));
   const back = () => setIndex((i) => Math.max(i - 1, 0));
-  const step = STEPS[index];
-  const shared = { setConfig, next, pull, startPull };
+
+  const props: StepProps | null = config
+    ? { config, save, next, back, finish, pull, startPull, speech, startSpeech }
+    : null;
 
   return (
-    <div className="ob">
-      <aside className="ob-rail">
-        <div className="ob-brand">
-          <span className="ob-mark" aria-hidden="true">
-            <Icon name="search" size={16} />
-          </span>
-          WinFynd
+    <div className="setup">
+      <Rail current={index} />
+      <div className="setup-side">
+        <div className="setup-caps" data-tauri-drag-region>
+          <Caps maximizable={false} />
         </div>
-        <ol className="ob-steps" aria-label="Setup steps">
-          {STEPS.map((s, i) => (
-            <li
-              key={s.id}
-              className="ob-step"
-              data-state={i < index ? "done" : i === index ? "current" : "todo"}
-              aria-current={i === index ? "step" : undefined}
-            >
-              <span className="ob-step-dot" aria-hidden="true">
-                {i < index ? <Check /> : i + 1}
-              </span>
-              {s.label}
-            </li>
-          ))}
-        </ol>
-        <p className="ob-rail-foot">
-          <Icon name="lock" size={14} />
-          Your files, searches and voice stay on this PC.
-        </p>
-      </aside>
-
-      <main className="ob-main" key={step.id}>
-        {config && (
-          <>
-            {step.id === "welcome" && <WelcomeStep {...shared} config={config} />}
-            {step.id === "folders" && <FoldersStep {...shared} config={config} back={back} />}
-            {step.id === "models" && <ModelsStep {...shared} config={config} back={back} />}
-            {step.id === "shortcuts" && <ShortcutsStep {...shared} config={config} back={back} />}
-            {step.id === "warmup" && <WarmUpStep {...shared} config={config} back={back} />}
-          </>
+        {error && (
+          <div className="infobar error setup-error" role="alert">
+            <Icon name="error" size={16} />
+            <span className="grow selectable">{error}</span>
+            <button type="button" className="btn subtle" aria-label="Dismiss" onClick={() => setError(null)}>
+              <Icon name="close" size={14} />
+            </button>
+          </div>
         )}
-      </main>
+        {props && (
+          <div className="setup-step" key={index}>
+            {index === 0 && <WelcomeStep {...props} />}
+            {index === 1 && <FoldersStep {...props} />}
+            {index === 2 && <ModelStep {...props} />}
+            {index === 3 && <ShortcutsStep {...props} />}
+            {index === 4 && (
+              <WarmUpStep
+                {...props}
+                onReady={(sawReading) => {
+                  setReadFor(sawReading ? Date.now() - opened.current : null);
+                  setIndex(READY);
+                }}
+              />
+            )}
+            {index === READY && <ReadyStep {...props} readFor={readFor} />}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-export function Check() {
+/** The gradient rail: the WinFynd mark, where you are in setup, and the privacy promise. */
+function Rail({ current }: { current: number }) {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5 12.5l4.5 4.5L19 7.5" />
-    </svg>
+    <aside className="rail" data-tauri-drag-region>
+      <div className="rail-brand">
+        <AppIcon size={28} inverse />
+        WinFynd
+      </div>
+      <ol className="rail-steps" aria-label="Setup steps">
+        {STEPS.map((s, i) => {
+          const state = i < current ? "done" : i === current ? "current" : "todo";
+          return (
+            <li key={s} className={`rail-step ${state}`} aria-current={state === "current" ? "step" : undefined}>
+              <span className="rail-dot" aria-hidden="true">
+                {state === "done" ? <Icon name="check" size={14} strokeWidth={2.2} /> : i + 1}
+              </span>
+              {s}
+            </li>
+          );
+        })}
+      </ol>
+      <p className="rail-foot">
+        <Icon name="lock" size={14} />
+        Your files, searches and voice stay on this PC.
+      </p>
+    </aside>
   );
 }
 
-/** Title and lead line at the top of each step. */
-export function StepHeader({ title, lead }: { title: string; lead: string }) {
+/** A step's page: its content, then the 72 px footer with Back and the step's actions. */
+export function Page({ children, footer, className }: { children: React.ReactNode; footer: React.ReactNode; className?: string }) {
   return (
-    <header className="ob-header">
-      <h1>{title}</h1>
-      <p>{lead}</p>
-    </header>
+    <>
+      <main className={`setup-main page-enter${className ? ` ${className}` : ""}`}>{children}</main>
+      <footer className="setup-foot">{footer}</footer>
+    </>
   );
 }
 
-/** Back on the left, the step's actions on the right, like Windows setup. */
-export function StepFooter({ back, children }: { back?: () => void; children: React.ReactNode }) {
+/** "Back … Next", the footer of the middle steps. */
+export function NavButtons({ back, next, nextLabel = "Next", disabled }: { back: () => void; next: () => void; nextLabel?: string; disabled?: boolean }) {
   return (
-    <footer className="ob-footer">
-      {back ? (
-        <button type="button" className="ob-btn" onClick={back}>
-          Back
-        </button>
-      ) : (
-        <span />
-      )}
-      <div className="ob-footer-actions">{children}</div>
-    </footer>
+    <>
+      <button type="button" className="btn big" onClick={back}>
+        Back
+      </button>
+      <span className="push" />
+      <button type="button" className="btn accent big" onClick={next} disabled={disabled}>
+        {nextLabel}
+      </button>
+    </>
   );
 }

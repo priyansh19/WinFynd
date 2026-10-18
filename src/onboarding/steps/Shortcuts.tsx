@@ -1,122 +1,105 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { HotkeyRecorder } from "../../components/HotkeyRecorder";
+import { Icon } from "../../components/Icon";
 import { KeyCombo } from "../../components/Keycap";
-import { Segmented } from "../../components/Toggle";
-import {
-  ACTIONS,
-  getHotkeys,
-  setHotkey,
-  setVoiceOptions,
-  type HotkeyAction,
-  type HotkeyConfig,
-  type VoiceMode,
-} from "../../lib/hotkeys";
+import { displayKeys, getHotkeys, setHotkey, type HotkeyAction, type HotkeyConfig } from "../../lib/hotkeys";
 import { tryLauncher } from "../../lib/onboarding";
-import { StepFooter, StepHeader, type StepProps } from "../Onboarding";
+import { NavButtons, Page, type StepProps } from "../Onboarding";
+
+const ROWS: { id: HotkeyAction; title: (c: HotkeyConfig) => string }[] = [
+  { id: "voice", title: (c) => (c.voiceMode === "hold" ? "Talk to search (hold)" : "Talk to search (press)") },
+  { id: "ask", title: () => "Ask a question" },
+  { id: "selection", title: () => "Search selected text" },
+];
 
 export function ShortcutsStep({ next, back }: StepProps) {
-  const [config, setConfig] = useState<HotkeyConfig | null>(null);
+  const [keys, setKeys] = useState<HotkeyConfig | null>(null);
   const [unavailable, setUnavailable] = useState<HotkeyAction[]>([]);
   const [recording, setRecording] = useState<HotkeyAction | null>(null);
 
   useEffect(() => {
-    getHotkeys().then((s) => {
-      setConfig(s.config);
-      setUnavailable(s.unavailable);
-    });
+    getHotkeys()
+      .then((s) => {
+        setKeys(s.config);
+        setUnavailable(s.unavailable);
+      })
+      .catch(() => {});
   }, []);
 
   const cancel = useCallback(() => setRecording(null), []);
 
-  if (!config) return null;
-
   const save = async (action: HotkeyAction, accelerator: string) => {
-    setConfig(await setHotkey(action, accelerator));
+    setKeys(await setHotkey(action, accelerator));
     setUnavailable((u) => u.filter((a) => a !== action));
     setRecording(null);
   };
 
-  const setMode = async (mode: VoiceMode) => setConfig(await setVoiceOptions(mode, config.autoSubmit));
-
-  const [main, ...rest] = ACTIONS;
+  const main = keys ? displayKeys(keys.launcher) : [];
+  const mainTaken = unavailable.includes("launcher");
 
   return (
-    <>
-      <StepHeader
-        title="Search from anywhere"
-        lead="These shortcuts work in every app, even full screen. Keep the defaults or press Change to pick your own."
-      />
+    <Page footer={<NavButtons back={back} next={next} disabled={recording !== null} />}>
+      <h1 className="setup-title">One shortcut, from any app</h1>
+      <p className="setup-lede">Press it now to try. The search box opens over whatever you're doing.</p>
 
-      <section className="ob-card ob-try">
-        <span className="ob-row-text">
-          <span className="ob-muted">{main.label}</span>
-          <span className="ob-try-keys">
-            <KeyCombo accelerator={config[main.id]} />
-          </span>
-          {unavailable.includes(main.id) ? (
-            <span className="ob-error">Another app is using this shortcut. Pick a different one.</span>
-          ) : (
-            <span className="ob-muted">Try it now: press it, search for something, then press Esc to come back here.</span>
-          )}
-        </span>
-        <div className="ob-callout-actions">
-          {recording === main.id ? (
-            <HotkeyRecorder onSave={(acc) => save(main.id, acc)} onCancel={cancel} />
-          ) : (
-            <>
-              <button type="button" className="ob-btn" disabled={recording !== null} onClick={() => setRecording(main.id)}>
-                Change
-              </button>
-              <button type="button" className="ob-btn ob-btn-accent" onClick={() => tryLauncher()}>
-                Open it
-              </button>
-            </>
-          )}
-        </div>
-      </section>
-
-      <ul className="ob-card ob-list">
-        {rest.map((a) => (
-          <li key={a.id} className="ob-row">
-            <span className="ob-row-text">
-              <span className="ob-row-title">{a.label}</span>
-              <span className="ob-muted">{a.hint(config.voiceMode)}</span>
-              {unavailable.includes(a.id) && <span className="ob-error">Another app is using this shortcut. Pick a different one.</span>}
+      <div className="panel try-keys">
+        {recording === "launcher" ? (
+          <HotkeyRecorder onSave={(acc) => save("launcher", acc)} onCancel={cancel} />
+        ) : (
+          <>
+            <span className="try-combo" aria-label={main.join(" + ")}>
+              {main.map((k, i) => (
+                <Fragment key={k}>
+                  {i > 0 && <span className="try-plus muted">+</span>}
+                  <kbd className={`kbd big${k === "Space" ? " wide" : ""}`}>{k}</kbd>
+                </Fragment>
+              ))}
             </span>
-            {recording === a.id ? (
-              <HotkeyRecorder onSave={(acc) => save(a.id, acc)} onCancel={cancel} />
+            {mainTaken ? (
+              <button type="button" className="btn try-btn" onClick={() => setRecording("launcher")}>
+                Pick other keys
+              </button>
             ) : (
-              <span className="ob-hotkey">
-                <KeyCombo accelerator={config[a.id]} />
-                <button type="button" className="ob-btn" disabled={recording !== null} onClick={() => setRecording(a.id)}>
-                  Change
-                </button>
-              </span>
+              <button type="button" className="btn try-btn" onClick={() => tryLauncher().catch(() => {})}>
+                Try it now
+              </button>
             )}
-          </li>
-        ))}
-        <li className="ob-row">
-          <span className="ob-row-text">
-            <span className="ob-row-title">Voice key</span>
-            <span className="ob-muted">How the voice shortcut listens</span>
-          </span>
-          <Segmented
-            label="Voice key mode"
-            value={config.voiceMode}
-            onChange={setMode}
-            options={[
-              { value: "hold", label: "Hold to talk" },
-              { value: "toggle", label: "Press to start / stop" },
-            ]}
-          />
-        </li>
-      </ul>
+          </>
+        )}
+      </div>
+      {mainTaken && recording !== "launcher" && (
+        <div className="infobar error" role="alert">
+          <Icon name="error" size={16} />
+          <span className="grow">Another app is using {main.join(" + ")}. Pick other keys to open search.</span>
+        </div>
+      )}
 
-      <StepFooter back={back}>
-        <button type="button" className="ob-btn ob-btn-accent" disabled={recording !== null} onClick={next}>
-          Next
-        </button>
-      </StepFooter>
-    </>
+      <div className="stack">
+        {keys &&
+          ROWS.map((r) => (
+            <div key={r.id} className={`card tight shortcut-row${recording === r.id ? " recording" : ""}`}>
+              <Icon name="keyboard" size={20} className="k-code kc" />
+              <span className="grow">
+                <span className="t">{r.title(keys)}</span>
+                {unavailable.includes(r.id) && (
+                  <span className="s" style={{ color: "var(--danger)" }}>
+                    Another app is using these keys. Pick different ones.
+                  </span>
+                )}
+              </span>
+              {recording === r.id ? (
+                <HotkeyRecorder onSave={(acc) => save(r.id, acc)} onCancel={cancel} />
+              ) : (
+                <>
+                  <KeyCombo accelerator={keys[r.id]} />
+                  <button type="button" className="btn" disabled={recording !== null} onClick={() => setRecording(r.id)}>
+                    Change
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+      </div>
+    </Page>
   );
 }

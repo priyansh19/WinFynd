@@ -1,7 +1,7 @@
+import { FileFeed } from "../components/FileFeed";
 import { Bar } from "../components/Progress";
 import { isBusy, type EngineStatus } from "../lib/engine";
 import { useIndexingFeed } from "../lib/feed";
-import { kindClass } from "../lib/kinds";
 import { pauseIndexing } from "../lib/stats";
 
 /**
@@ -30,14 +30,7 @@ export function Corner({ status }: { status: EngineStatus | null }) {
         )}
       </div>
       {items.length > 0 ? (
-        <ol className="feed" aria-label="Files being read">
-          {items.slice(0, 5).map((f) => (
-            <li key={f.key} className={`feeditem ${kindClass(f.kind)}${f.stage === "reading" || f.stage === "embedding" ? " reading" : ""}`} title={f.path}>
-              <span className={`state ${f.stage === "embedding" ? "reading" : f.stage}`} aria-label={f.stage} />
-              <span className="ellip">{f.name}</span>
-            </li>
-          ))}
-        </ol>
+        <FileFeed items={items} />
       ) : (
         <p className="small faint corner-quiet">{busy ? "Looking through your folders…" : "New and changed files are read within seconds of being saved."}</p>
       )}

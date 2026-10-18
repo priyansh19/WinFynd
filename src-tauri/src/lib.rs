@@ -54,6 +54,7 @@ pub fn run() {
             onboarding::finish_onboarding,
             onboarding::open_ollama_download,
             onboarding::try_launcher,
+            onboarding::watch_first_index,
             stats::index_stats,
             stats::estimate_folders,
             stats::ollama_info,
