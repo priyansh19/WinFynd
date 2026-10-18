@@ -345,7 +345,8 @@
 .live-shot .wf[data-fit] { width: 640px; }
 .live-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .live-kinds { flex: 1; }
-.live-scope { min-height: 0; padding: 12px 16px; gap: 14px; }
+.live-scope { min-height: 0; padding: 12px 14px; gap: 12px; }
+.nowrap { white-space: nowrap; }
 .live-win { position: relative; }
 .live-body { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 10px; }
 .live-ring { padding: 18px 22px; display: flex; align-items: center; gap: 22px; }

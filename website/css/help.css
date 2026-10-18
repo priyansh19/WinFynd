@@ -2,6 +2,9 @@
    Class names all start with help- so they never meet a wf.css class. */
 
 .help-hero, .help-body, .site-footer { overflow-x: clip; }
+/* The glows are placed in percentages of a tall box. They must never be the scroll anchor,
+   or opening an answer moves them and the page jumps (Chrome's scroll anchoring). */
+.help-hero .bloom, .help-body .bloom { overflow-anchor: none; }
 .help-main [hidden], .help-toc [hidden] { display: none !important; }
 html:not(.js) .help-copy { display: none !important; }
 
@@ -270,13 +273,14 @@ html:not(.js) .help-jump { margin-top: 36px; }
 }
 .help-note svg { flex: none; color: var(--accent); margin-top: 1px; }
 
-.help-set__desk { container: help-s / inline-size; padding: clamp(12px, 4%, 40px); }
+.help-set__desk { container: help-s / inline-size; padding: clamp(12px, 2.6%, 24px); }
 .help-set__win { width: 100%; }
 /* The navigation pane is narrower than the artboard's 288 px so the content keeps its room at this width. */
-.help-set .nav { width: 232px; }
-.help-set .content { padding: 4px 32px 32px; }
+.help-set .nav { width: 216px; }
+.help-set .content { padding: 4px 28px 30px; }
+.help-set .card .grow { min-width: 132px; }
 .help-set__body { flex: 1; min-height: 0; display: flex; }
-@container help-s (max-width: 759px) {
+@container help-s (max-width: 839px) {
   /* The window loses its navigation pane and keeps its real text size. */
   .help-set .nav { display: none; }
   .help-set .content { padding: 4px 20px 24px; }
@@ -290,7 +294,7 @@ html:not(.js) .help-jump { margin-top: 36px; }
   .help-rec__hint { flex-basis: calc(100% - 36px); }
 }
 .help-set__keys, .help-rec__keys { display: inline-flex; gap: 4px; }
-.help-rec__keys { gap: 16px; }
+.help-rec__keys { gap: 12px; }
 /* Recording a new combo: the keys arrive one by one (js/help.js). Static without JS. */
 .help-rec__k, .help-rec__wait { transition: opacity 200ms var(--ease), transform 200ms var(--ease); }
 .help-rec[data-step="0"] .help-rec__k { opacity: 0; transform: scale(0.7); }

@@ -269,7 +269,7 @@
           <details class="help-qa k-audio reveal" id="q-ollama" data-find>
             <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l7 3.8v7.4l-7 3.8-7-3.8V6.3z"></path><path d="M3 6.3l7 3.9 7-3.9M10 10.2v7.3"></path></svg></span><h3 class="help-qa__q">Does it work without Ollama?</h3><span class="help-qa__a">Yes, by exact words and file names. Ollama adds meaning, photos and Ask.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
             <div class="help-qa__body">
-              <p>Without Ollama, WinFynd still finds files by the exact words in them and by their names, and Whisper still turns speech in recordings into words you can search. The result count at the bottom of the search window then ends in “exact words only”.</p>
+              <p>Without Ollama, WinFynd still finds files by the exact words in them and by their names, and Whisper still turns speech in recordings and videos into words you can search. The result count at the bottom of the search window then ends in “exact words only”.</p>
               <p>Ollama is free, from ollama.com. With it and the EmbeddingGemma 2 search model, you also get:</p>
               <ul class="help-list">
                 <li>search by meaning, so “receipt for the blue sofa” finds an order confirmation that never says “receipt”</li>
@@ -315,7 +315,7 @@
                 <li><b>Ask model</b>, any chat model in Ollama: llama3.2 3B, for example, is 2.0 GB.</li>
                 <li><b>The index</b>, which grows with your files.</li>
               </ul>
-              <p>The example PC used across this site has 51,204 files. Its index is 2.3 GB and its models take 4.1 GB.</p>
+              <p>The example PC used across this site has 51,204 files on C: and D:. Its index is 2.3 GB and its models take 4.1 GB.</p>
             </div>
           </details>
 
@@ -327,7 +327,7 @@
               <p>Reading the whole PC means the index holds text from files anywhere on it. All of it stays on this PC.</p>
               <ul class="help-list">
                 <li>New, changed, moved and deleted files are picked up within a couple of seconds, and a full check every 20 minutes catches anything missed.</li>
-                <li>Always skipped: Windows and program folders like Windows, Program Files and AppData, the Recycle Bin, hidden folders like .git, and build folders like node_modules.</li>
+                <li>Always skipped: system and app folders such as Windows, Program Files and AppData, the Recycle Bin, hidden folders like .git, and build folders like node_modules.</li>
                 <li>OneDrive files that live only in the cloud are found by name until you download them. WinFynd never downloads them itself.</li>
               </ul>
             </div>

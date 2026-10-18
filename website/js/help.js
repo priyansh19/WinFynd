@@ -26,9 +26,9 @@
     return id ? doc.getElementById(id) : null;
   }
   function showNow(el) {
-    var r = el.closest(".reveal");
-    while (r) { r.classList.add("is-in"); r = r.parentElement && r.parentElement.closest(".reveal"); }
-    el.querySelectorAll(".reveal").forEach(function (x) { x.classList.add("is-in"); });
+    var list = Array.prototype.slice.call(el.querySelectorAll(".reveal"));
+    for (var r = el.closest(".reveal"); r; r = r.parentElement && r.parentElement.closest(".reveal")) list.push(r);
+    list.forEach(function (x) { x.style.transition = "none"; x.classList.add("is-in"); });
   }
   function openFromHash(settle) {
     var el = targetFromHash();
