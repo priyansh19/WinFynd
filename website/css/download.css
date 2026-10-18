@@ -379,6 +379,8 @@ code.mono { overflow-wrap: anywhere; }
 /* The narrowest phones: a tighter search box, so "receipt for the blue sofa" shows whole. */
 @media (max-width: 340px) {
   .setup-q { padding: 0 10px; gap: 8px; }
+  /* The longest step label wraps here; keep its two lines so the window doesn't jump. */
+  [data-inst-label] { display: block; min-height: 2lh; }
 }
 
 /* ================================================================ Reduced motion */
