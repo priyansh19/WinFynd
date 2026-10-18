@@ -80,6 +80,11 @@ pub fn run() {
             }
             tray.build(app)?;
 
+            // Started at sign-in (setup adds --background to the Run key): stay in the tray.
+            if !std::env::args().any(|arg| arg == "--background") {
+                windows::show_control_center(handle);
+            }
+
             Ok(())
         })
         .on_window_event(|window, event| match (window.label(), event) {
