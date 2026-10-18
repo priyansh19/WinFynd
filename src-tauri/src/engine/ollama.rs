@@ -29,6 +29,10 @@ pub enum EmbedInput {
 }
 
 impl EmbedInput {
+    pub fn is_image(&self) -> bool {
+        matches!(self, EmbedInput::Image(_))
+    }
+
     fn to_json(&self) -> Value {
         // Prompt formats from the EmbeddingGemma 2 model card; media takes no prefix.
         match self {
@@ -74,13 +78,17 @@ impl Ollama {
 
     /// Unit-length vectors, one per input.
     pub fn embed(&self, model: &str, inputs: &[EmbedInput], dimensions: usize) -> Result<Vec<Vec<f32>>, String> {
+        self.embed_refs(model, &inputs.iter().collect::<Vec<_>>(), dimensions)
+    }
+
+    pub fn embed_refs(&self, model: &str, inputs: &[&EmbedInput], dimensions: usize) -> Result<Vec<Vec<f32>>, String> {
         #[derive(Deserialize)]
         struct Resp {
             embeddings: Vec<Vec<f32>>,
         }
         let body = json!({
             "model": model,
-            "input": inputs.iter().map(EmbedInput::to_json).collect::<Vec<_>>(),
+            "input": inputs.iter().map(|i| i.to_json()).collect::<Vec<_>>(),
             "dimensions": dimensions,
             "truncate": true,
             "keep_alive": "10m",

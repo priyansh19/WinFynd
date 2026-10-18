@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
 import { useEngineStatus } from "../lib/engine";
 import { getHotkeys, type VoiceMode } from "../lib/hotkeys";
-import { ask, openResult, revealResult, search, type Answer, type SearchResult } from "../lib/search";
+import { ask, groupResults, openResult, revealResult, search, withoutPhrase, type Answer, type FilterChip, type SearchResult } from "../lib/search";
 import { invoke, listen } from "../lib/tauri";
 import { AnswerPanel } from "./AnswerPanel";
 import { EmptyState } from "./EmptyState";
@@ -17,6 +17,7 @@ export function Launcher() {
   const [mode, setMode] = useState<Mode>("search");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [semantic, setSemantic] = useState(true);
+  const [filters, setFilters] = useState<FilterChip[]>([]);
   const [selected, setSelected] = useState(0);
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [asking, setAsking] = useState(false);
@@ -31,13 +32,16 @@ export function Launcher() {
     const id = ++latest.current;
     if (!q.trim()) {
       setResults([]);
+      setFilters([]);
       return;
     }
     try {
       const r = await search(q);
       if (id !== latest.current) return; // a newer keystroke won
-      setResults(r.hits);
+      // Keep the list in the order it's shown so the arrow keys follow it.
+      setResults(groupResults(r.hits).flatMap((g) => g.items));
       setSemantic(r.semantic);
+      setFilters(r.filters);
       setSelected(0);
       setError(null);
     } catch (e) {
@@ -160,6 +164,24 @@ export function Launcher() {
         </button>
       </div>
 
+      {mode === "search" && filters.length > 0 && (
+        <div className="filter-chips" aria-label="Filters from your search">
+          {filters.map((f) => (
+            <button
+              key={f.label}
+              type="button"
+              className="filter-chip"
+              title={`Remove "${f.phrase}" from the search`}
+              onClick={() => {
+                setQuery(withoutPhrase(query, f.phrase));
+                input.current?.focus();
+              }}
+            >
+              {f.label} <span aria-hidden="true">×</span>
+            </button>
+          ))}
+        </div>
+      )}
       {voice.listening && <VoiceBar level={voice.level} mode={voiceMode} />}
       {error && <div className="launcher-error" role="alert">{error}</div>}
 

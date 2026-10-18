@@ -9,10 +9,8 @@
 
 use std::sync::atomic::AtomicUsize;
 
-use super::e2e_tests::{fake_ollama, temp_dir};
+use super::e2e_tests::{fake_ollama, temp_dir, DIMS};
 use super::*;
-
-const DIMS: usize = 64;
 
 /// The most a status or config read may take while the indexer is busy.
 /// The windows call these, so anything slower is felt as a stutter.
@@ -86,11 +84,18 @@ fn stays_responsive_while_indexing_thousands_of_files() {
     let root = temp_dir("stress-index");
     write_tree(&root, 30, 40);
     let run = start(&root, fake_ollama());
+    let batches = Arc::new(AtomicUsize::new(0));
+    let counter = batches.clone();
+    run.engine.on_activity(move |_| {
+        counter.fetch_add(1, Ordering::Relaxed);
+    });
     run.engine.enqueue(Job::Scan);
 
     let took = wait_until_indexed(&run.engine, 1200, Duration::from_secs(300));
     let sent = run.emitted.load(Ordering::Relaxed);
     assert!(sent <= max_events(took), "{sent} status events in {took:?}; the windows can't keep up with that");
+    let sent = batches.load(Ordering::Relaxed);
+    assert!(sent <= max_events(took), "{sent} file activity events in {took:?}; the windows can't keep up with that");
     assert!(run.engine.search("budget", 5).semantic);
 
     // A rescan with nothing changed is quick and just as quiet.
@@ -149,7 +154,7 @@ fn startup_does_not_wait_for_a_big_index_to_load() {
         let v = vec![0.125f32; DIMS];
         for f in 0..2000 {
             let chunks = (0..10)
-                .map(|_| db::NewChunk { label: None, text: Some("words".into()), vector: Some(v.clone()) })
+                .map(|_| db::NewChunk { label: None, text: Some("words".into()), vector: Some(v.clone()), visual: false })
                 .collect();
             db::upsert_file(&mut conn, &format!("/f{f}"), "f", "text", 1, 1, "m", chunks).unwrap();
         }

@@ -9,7 +9,8 @@ use serde_json::{json, Value};
 use super::config::EngineConfig;
 use super::*;
 
-const DIMS: usize = 64;
+/// Wide enough that unrelated words rarely share a slot in the fake model.
+pub(super) const DIMS: usize = 512;
 
 /// Bag-of-words vector, so texts sharing words land close together.
 fn fake_embedding(text: &str) -> Vec<f32> {
@@ -33,6 +34,15 @@ fn strip_prompt(s: &str) -> String {
 
 /// A tiny HTTP server that speaks just enough of the Ollama API.
 pub(super) fn fake_ollama() -> String {
+    fake_ollama_with(true)
+}
+
+/// Like `fake_ollama`, but answers 400 to any image, like a text-only tag.
+fn fake_ollama_without_images() -> String {
+    fake_ollama_with(false)
+}
+
+fn fake_ollama_with(images: bool) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
     std::thread::spawn(move || {
@@ -56,6 +66,11 @@ pub(super) fn fake_ollama() -> String {
             reader.read_exact(&mut body).unwrap();
             let body: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
 
+            let has_image = body["input"].as_array().is_some_and(|a| a.iter().any(Value::is_object));
+            if !images && request_line.contains("/api/embed") && has_image {
+                let _ = write!(stream, "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                continue;
+            }
             let resp = if request_line.contains("/api/tags") {
                 json!({ "models": [{ "name": "embeddinggemma-2:latest", "size": 1 }, { "name": "testchat:latest", "size": 1 }] })
             } else if request_line.contains("/api/embed") {
@@ -285,5 +300,125 @@ fn indexes_what_is_shown_in_video() {
     let mut got = 0;
     media::decode_audio(&video, Some(&ffmpeg), |piece, _| got += piece.len());
     assert!((got as i64 - 20 * media::SAMPLE_RATE as i64).abs() < media::SAMPLE_RATE as i64);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn returns_only_relevant_files_among_many() {
+    let root = temp_dir("relevance");
+    // Plenty of unrelated files, like a real Documents folder.
+    let topics = [
+        "Grocery list with apples bananas oat milk and coffee beans for the week",
+        "Notes from the dentist appointment about a cleaning next spring",
+        "Draft blog post about learning Rust lifetimes and the borrow checker",
+        "Wedding guest list with table numbers and dietary preferences",
+        "Meeting minutes: hiring plan for the support team in Pune",
+        "Recipe for paneer butter masala with cream and kasuri methi",
+    ];
+    for i in 0..120 {
+        std::fs::write(root.join(format!("note-{i}.txt")), format!("{} number {i}.", topics[i % topics.len()])).unwrap();
+    }
+    std::fs::write(
+        root.join("car-insurance.txt"),
+        "The car insurance renewal is due in May. The premium went up compared to last year. Call the broker before then.\n\n\
+         Unrelated paragraph about the garden: tomatoes and basil need watering every evening.",
+    )
+    .unwrap();
+    image::RgbImage::from_pixel(32, 32, image::Rgb([200, 180, 90])).save(root.join("IMG_0001.jpg")).unwrap();
+
+    let engine = engine_for(&root, fake_ollama());
+    engine.refresh_ollama_state();
+    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+
+    let confident = |q: &str| -> Vec<String> {
+        engine.search(q, 30).hits.into_iter().filter(|h| h.confident).map(|h| h.name).collect()
+    };
+    let r = engine.search("car insurance premium", 30);
+    assert_eq!(confident("car insurance premium"), vec!["car-insurance.txt"], "{:?}", r.hits);
+    assert_eq!(r.hits[0].name, "car-insurance.txt");
+    assert!(r.hits[0].snippet.as_deref().unwrap().contains("insurance"));
+    // Weaker matches are capped and come after.
+    assert!(r.hits.len() <= 1 + 8 && r.hits[1..].iter().all(|h| !h.confident));
+
+    // A photo surfaces among a hundred text files, and "photo" filters to photos.
+    let r = engine.search("photo of the beach", 30);
+    assert_eq!(r.hits.iter().map(|h| h.name.as_str()).collect::<Vec<_>>(), vec!["IMG_0001.jpg"]);
+    assert_eq!(r.hits[0].reason, "Image matches your search");
+    assert_eq!(r.filters[0].label, "Photos");
+
+    // A query that is only a filter lists the newest matching files.
+    let r = engine.search("photos", 30);
+    assert_eq!(r.hits.len(), 1);
+    assert!(r.hits[0].confident);
+
+    // Filler words alone ("find the file about") match nothing confidently.
+    assert!(confident("find the file about").is_empty());
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn text_still_indexes_when_the_model_rejects_images() {
+    let root = temp_dir("noimg");
+    image::RgbImage::from_pixel(32, 32, image::Rgb([10, 10, 10])).save(root.join("receipt scan.png")).unwrap();
+    std::fs::write(root.join("plan.txt"), "Quarterly roadmap planning").unwrap();
+    let engine = engine_for(&root, fake_ollama_without_images());
+    engine.refresh_ollama_state();
+    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+    assert_eq!(engine.status().ollama, "ok", "an image error must not mark Ollama offline");
+    assert_eq!(engine.search("roadmap", 10).hits[0].name, "plan.txt");
+    assert_eq!(engine.search("receipt", 10).hits[0].name, "receipt scan.png");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn reports_each_file_as_it_is_indexed() {
+    let root = temp_dir("activity");
+    std::fs::write(root.join("plan.txt"), "Quarterly roadmap planning").unwrap();
+    std::fs::write(root.join("notes.md"), "Team offsite notes").unwrap();
+    let engine = engine_for(&root, fake_ollama());
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let sink = seen.clone();
+    engine.on_activity(move |batch| {
+        sink.lock().unwrap().push(batch.iter().map(|a| (a.name.clone(), a.kind, a.stage, a.chunks)).collect::<Vec<_>>())
+    });
+    let mut files = engine.walk_roots();
+    files.sort();
+    engine.index_file(&files[0]);
+    engine.publish_activity();
+    engine.index_file(&files[1]);
+    engine.publish_activity();
+    engine.publish_activity();
+    // One batch per send, each file at its latest stage.
+    assert_eq!(
+        *seen.lock().unwrap(),
+        vec![
+            vec![("notes.md".to_string(), "document", "done", Some(2))],
+            vec![("plan.txt".to_string(), "document", "done", Some(2))],
+        ]
+    );
+    // Unchanged files are skipped silently on the next scan.
+    files.iter().for_each(|p| engine.index_file(p));
+    engine.publish_activity();
+    assert_eq!(seen.lock().unwrap().len(), 2);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn eval_reports_rank_and_empty_answers() {
+    let root = temp_dir("eval");
+    std::fs::write(root.join("lease-renewal.txt"), "The apartment lease renewal is due in January.").unwrap();
+    std::fs::write(root.join("groceries.md"), "Shopping list: apples, bananas, oat milk.").unwrap();
+    let engine = engine_for(&root, fake_ollama());
+    engine.refresh_ollama_state();
+    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+    let cases = vec![
+        eval::Case { query: "lease renewal".into(), expect: vec!["lease-renewal.txt".into()] },
+        eval::Case { query: "zebra quantum toaster".into(), expect: vec![] },
+    ];
+    let r = eval::evaluate(&engine, &cases);
+    assert_eq!((r.cases, r.empty_cases), (1, 1));
+    assert_eq!(r.top1, 1.0);
+    assert_eq!(r.mrr, 1.0);
+    assert_eq!(r.empty_correct, 1.0, "{:?}", r.misses);
     let _ = std::fs::remove_dir_all(&root);
 }

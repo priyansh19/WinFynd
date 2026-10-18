@@ -28,9 +28,9 @@ pub const MAX_SECONDS: usize = 4 * 3600;
 /// Frames sampled from one video, at most.
 const MAX_FRAMES: usize = 48;
 const FRAME_SIDE: u32 = 896;
-/// About 250 tokens per transcript chunk, like documents.
-const WINDOW_CHARS: usize = 1000;
-const MAX_TRANSCRIPT_CHUNKS: usize = 300;
+/// Transcript chunks are as small as document chunks.
+const WINDOW_CHARS: usize = super::extract::TARGET_CHARS;
+const MAX_TRANSCRIPT_CHUNKS: usize = 600;
 
 /// A stretch of recognized speech; times in seconds from the start.
 #[derive(Debug, Clone)]
