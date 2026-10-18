@@ -1,4 +1,9 @@
 //! Commands the two windows call for search, indexing and model management.
+//!
+//! Every command here is `async`: Tauri runs plain `fn` commands on the
+//! window thread, so one that waits on a lock, the disk or the network
+//! freezes both windows. `tests::no_command_runs_on_the_window_thread`
+//! keeps it that way.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -31,37 +36,48 @@ pub async fn ask(engine: EngineState<'_>, question: String) -> Result<Answer, St
         .map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
-pub fn engine_status(engine: EngineState<'_>) -> Status {
-    engine.status()
+/// Run blocking work off the window thread.
+async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(f).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn get_engine_config(engine: EngineState<'_>) -> EngineConfig {
-    engine.config()
+pub async fn engine_status(engine: EngineState<'_>) -> Result<Status, String> {
+    Ok(engine.status())
 }
 
 #[tauri::command]
-pub fn set_engine_config<R: Runtime>(
+pub async fn get_engine_config(engine: EngineState<'_>) -> Result<EngineConfig, String> {
+    Ok(engine.config())
+}
+
+#[tauri::command]
+pub async fn set_engine_config<R: Runtime>(
     app: AppHandle<R>,
     engine: EngineState<'_>,
     config: EngineConfig,
 ) -> Result<EngineConfig, String> {
-    if config.roots.iter().any(|r| !r.is_dir()) {
-        return Err("One of the folders doesn't exist".into());
-    }
-    if ![768, 512, 256, 128].contains(&config.dimensions) {
-        return Err("Vector size must be 768, 512, 256 or 128".into());
-    }
-    if !config.speech_model.is_empty() && !speech::is_installed(&engine.speech_dir, &config.speech_model) {
-        return Err("Download that speech model first".into());
-    }
-    engine.set_config(&app, config)
+    let engine = engine.inner().clone();
+    blocking(move || {
+        // A disconnected network drive can take a long time to answer.
+        if config.roots.iter().any(|r| !r.is_dir()) {
+            return Err("One of the folders doesn't exist".into());
+        }
+        if ![768, 512, 256, 128].contains(&config.dimensions) {
+            return Err("Vector size must be 768, 512, 256 or 128".into());
+        }
+        if !config.speech_model.is_empty() && !speech::is_installed(&engine.speech_dir, &config.speech_model) {
+            return Err("Download that speech model first".into());
+        }
+        engine.set_config(&app, config)
+    })
+    .await?
 }
 
 #[tauri::command]
-pub fn rescan(engine: EngineState<'_>) {
+pub async fn rescan(engine: EngineState<'_>) -> Result<(), String> {
     engine.enqueue(Job::Scan);
+    Ok(())
 }
 
 #[derive(Serialize)]
@@ -97,7 +113,7 @@ struct PullProgress {
 /// Download a model into Ollama in the background; progress arrives as
 /// `models://pull` events. Indexing resumes with the new model afterwards.
 #[tauri::command]
-pub fn pull_model<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, model: String) -> Result<(), String> {
+pub async fn pull_model<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, model: String) -> Result<(), String> {
     let client = engine.ollama()?;
     let engine = engine.inner().clone();
     std::thread::spawn(move || {
@@ -149,14 +165,18 @@ fn media_snapshot(engine: &Engine) -> MediaSnapshot {
 /// Speech models on disk and whether FFmpeg is available. `recheck` looks
 /// for FFmpeg again and rescans if it has just been installed.
 #[tauri::command]
-pub fn media_support(engine: EngineState<'_>, recheck: Option<bool>) -> MediaSnapshot {
-    if recheck.unwrap_or(false) {
-        let before = engine.ffmpeg_path();
-        if engine.refresh_ffmpeg() != before {
-            engine.enqueue(Job::Scan);
+pub async fn media_support(engine: EngineState<'_>, recheck: Option<bool>) -> Result<MediaSnapshot, String> {
+    let engine = engine.inner().clone();
+    blocking(move || {
+        if recheck.unwrap_or(false) {
+            let before = engine.ffmpeg_path();
+            if engine.refresh_ffmpeg() != before {
+                engine.enqueue(Job::Scan);
+            }
         }
-    }
-    media_snapshot(&engine)
+        media_snapshot(&engine)
+    })
+    .await
 }
 
 #[derive(Clone, Serialize)]
@@ -173,7 +193,7 @@ struct SpeechProgress {
 /// `models://speech` events. The first model downloaded is switched on, and
 /// audio and video are then transcribed by the next scan.
 #[tauri::command]
-pub fn download_speech_model<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, id: String) -> Result<(), String> {
+pub async fn download_speech_model<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, id: String) -> Result<(), String> {
     if !speech::CATALOG.iter().any(|m| m.id == id) {
         return Err(format!("Unknown speech model {id}"));
     }
@@ -209,15 +229,44 @@ fn indexed_path(engine: &Engine, path: &str) -> Result<PathBuf, String> {
 }
 
 #[tauri::command]
-pub fn open_path<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, path: String) -> Result<(), String> {
-    let p = indexed_path(&engine, &path)?;
-    crate::windows::hide_launcher(&app);
-    app.opener().open_path(p.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
+pub async fn open_path<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, path: String) -> Result<(), String> {
+    let engine = engine.inner().clone();
+    blocking(move || {
+        let p = indexed_path(&engine, &path)?;
+        crate::windows::hide_launcher(&app);
+        app.opener().open_path(p.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
+    })
+    .await?
 }
 
 #[tauri::command]
-pub fn reveal_path<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, path: String) -> Result<(), String> {
-    let p = indexed_path(&engine, &path)?;
-    crate::windows::hide_launcher(&app);
-    app.opener().reveal_item_in_dir(p).map_err(|e| e.to_string())
+pub async fn reveal_path<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, path: String) -> Result<(), String> {
+    let engine = engine.inner().clone();
+    blocking(move || {
+        let p = indexed_path(&engine, &path)?;
+        crate::windows::hide_launcher(&app);
+        app.opener().reveal_item_in_dir(p).map_err(|e| e.to_string())
+    })
+    .await?
+}
+
+#[cfg(test)]
+mod tests {
+    /// Eval: a plain `fn` command runs on the window thread, where anything
+    /// slow shows up as "Not Responding". Every command in this file must
+    /// be `async`.
+    #[test]
+    fn no_command_runs_on_the_window_thread() {
+        let src = include_str!("commands.rs");
+        let mut lines = src.lines();
+        let mut checked = 0;
+        while let Some(line) = lines.next() {
+            if line.trim() == "#[tauri::command]" {
+                let sig = lines.next().unwrap_or_default();
+                assert!(sig.contains("async fn"), "command must be async: {sig}");
+                checked += 1;
+            }
+        }
+        assert!(checked >= 10, "found only {checked} commands");
+    }
 }

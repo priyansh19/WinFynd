@@ -1,7 +1,10 @@
 mod commands;
+mod diag;
 mod engine;
 mod hotkeys;
 mod windows;
+
+use std::sync::Arc;
 
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -46,8 +49,22 @@ pub fn run() {
             hotkeys::register_all(handle, &config);
             *app.state::<HotkeyState>().config.lock().unwrap() = config;
 
+            if let Ok(dir) = handle.path().app_log_dir() {
+                diag::init(&dir);
+            }
+
             let engine = engine::Engine::start(handle)?;
+            let watched = Arc::downgrade(&engine);
             app.manage(engine);
+            // If the windows ever stop answering, the log says what the
+            // indexer was doing at the time.
+            diag::watch_main_thread(handle.clone(), move || match watched.upgrade() {
+                Some(e) => {
+                    let s = e.status();
+                    format!("index {}, {} queued, at {}", s.state, s.queued, s.current.unwrap_or_default())
+                }
+                None => "shutting down".into(),
+            });
 
             let open = MenuItem::with_id(app, "open", "Open WinFynd", true, None::<&str>)?;
             let control = MenuItem::with_id(app, "control", "Control Center", true, None::<&str>)?;

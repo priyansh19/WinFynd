@@ -32,7 +32,7 @@ fn strip_prompt(s: &str) -> String {
 }
 
 /// A tiny HTTP server that speaks just enough of the Ollama API.
-fn fake_ollama() -> String {
+pub(super) fn fake_ollama() -> String {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
     std::thread::spawn(move || {
@@ -94,8 +94,11 @@ fn fake_ollama() -> String {
     format!("http://{addr}")
 }
 
-fn temp_dir(name: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("winfynd-test-{name}-{}", std::process::id()));
+/// A fresh folder for a test. Not the system temp folder: on Windows that's
+/// under AppData, which the indexer skips.
+pub(super) fn temp_dir(name: &str) -> PathBuf {
+    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-scratch");
+    let d = base.join(format!("winfynd-test-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(&d).unwrap();
     d

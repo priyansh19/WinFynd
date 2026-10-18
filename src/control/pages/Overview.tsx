@@ -91,6 +91,12 @@ export function OverviewPage({ status, onOpenModels }: { status: EngineStatus | 
           </div>
         ))}
       </div>
+      {status && status.unreadable > 0 && (
+        <p className="cc-muted">
+          {status.unreadable.toLocaleString()} {status.unreadable === 1 ? "file" : "files"} couldn't be read and can be
+          found by name only.
+        </p>
+      )}
       <p className="cc-muted">
         Hidden folders, app data, node_modules and build output are skipped. OneDrive files that are only in the cloud are
         indexed by name until they're downloaded.

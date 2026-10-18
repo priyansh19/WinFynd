@@ -9,6 +9,7 @@ mod db;
 mod extract;
 mod media;
 pub mod ollama;
+mod queue;
 pub mod search;
 pub mod speech;
 mod vectors;
@@ -16,11 +17,14 @@ mod watch;
 
 #[cfg(test)]
 mod e2e_tests;
+#[cfg(test)]
+mod stress_tests;
 
-use std::collections::VecDeque;
+use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock, Weak};
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use rusqlite::Connection;
@@ -30,6 +34,7 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 use config::EngineConfig;
 use extract::{Extracted, Kind};
 use ollama::{EmbedInput, Ollama};
+use queue::Pending;
 use speech::Transcribe;
 use vectors::VectorIndex;
 
@@ -40,6 +45,11 @@ const EMBED_BATCH: usize = 16;
 const RESCAN_EVERY: Duration = Duration::from_secs(20 * 60);
 /// Stored with each file; a file whose stamp doesn't match is re-embedded.
 const NOT_EMBEDDED: &str = "none";
+/// Status changes are sent to the windows at most this often. Sending one
+/// per file flooded the window thread during big scans and froze the app.
+pub(crate) const STATUS_EVERY: Duration = Duration::from_millis(250);
+/// Longest a document may take to read before it's indexed by name instead.
+const EXTRACT_TIMEOUT: Duration = Duration::from_secs(90);
 
 #[derive(Debug, Clone, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -54,10 +64,15 @@ pub struct Status {
     /// ok, offline or modelMissing.
     pub ollama: String,
     pub message: Option<String>,
+    /// Files that couldn't be read (too slow, or the reader crashed) and
+    /// were indexed by name only, since the app started.
+    pub unreadable: u64,
 }
 
 pub(crate) enum Job {
     Scan,
+    /// A folder appeared (moved or unpacked in): queue just its files.
+    ScanDir(PathBuf),
     Upsert(PathBuf),
     Remove(PathBuf),
     RemovePrefix(PathBuf),
@@ -65,13 +80,19 @@ pub(crate) enum Job {
 }
 
 pub struct Engine {
+    me: Weak<Engine>,
     pub(crate) db: Mutex<Connection>,
     pub(crate) vectors: RwLock<VectorIndex>,
     pub(crate) config: RwLock<EngineConfig>,
     config_path: PathBuf,
     status: Mutex<Status>,
+    /// Bumped on every status change; the publisher sends the latest status
+    /// when it moves.
+    status_version: AtomicU64,
     jobs: Sender<Job>,
-    watcher: Mutex<Option<watch::Watcher>>,
+    /// The folder watcher and how many times it has been (re)started, so a
+    /// slow start can't replace a newer one.
+    watcher: Mutex<(u64, Option<watch::Watcher>)>,
     emit: Box<dyn Fn(&Status) + Send + Sync>,
     /// Where Whisper models are downloaded.
     pub(crate) speech_dir: PathBuf,
@@ -106,6 +127,12 @@ impl Engine {
             .spawn(move || worker.run(rx))
             .map_err(|e| e.to_string())?;
 
+        let publisher = Arc::downgrade(&engine);
+        std::thread::Builder::new()
+            .name("winfynd-status".into())
+            .spawn(move || publish_status(publisher, STATUS_EVERY))
+            .map_err(|e| e.to_string())?;
+
         let ticker = engine.jobs.clone();
         std::thread::spawn(move || loop {
             std::thread::sleep(RESCAN_EVERY);
@@ -119,6 +146,8 @@ impl Engine {
     }
 
     /// Build the engine around an open index without starting any threads.
+    /// This runs while the app starts up, so it must stay quick: the stored
+    /// vectors are loaded later, by the indexer (see `load_index`).
     fn open(
         conn: Connection,
         config: EngineConfig,
@@ -126,26 +155,21 @@ impl Engine {
         speech_dir: PathBuf,
         emit: impl Fn(&Status) + Send + Sync + 'static,
     ) -> Result<(Arc<Self>, Receiver<Job>), String> {
-        let mut vectors = VectorIndex::new(config.dimensions);
-        for (id, v) in db::all_vectors(&conn, config.dimensions).map_err(|e| e.to_string())? {
-            vectors.insert(id, &v);
-        }
-        let (files, chunks) = db::counts(&conn);
         let (tx, rx) = mpsc::channel();
-        let engine = Arc::new(Self {
+        let engine = Arc::new_cyclic(|me| Self {
+            me: me.clone(),
             db: Mutex::new(conn),
-            vectors: RwLock::new(vectors),
+            vectors: RwLock::new(VectorIndex::new(config.dimensions)),
             config: RwLock::new(config),
             config_path,
             status: Mutex::new(Status {
-                state: "idle".into(),
-                files,
-                chunks,
+                state: "loading".into(),
                 ollama: "ok".into(),
                 ..Status::default()
             }),
+            status_version: AtomicU64::new(1),
             jobs: tx,
-            watcher: Mutex::new(None),
+            watcher: Mutex::new((0, None)),
             emit: Box::new(emit),
             speech_dir,
             speech: Mutex::new(None),
@@ -170,13 +194,44 @@ impl Engine {
         Ollama::new(&self.config.read().unwrap().ollama_url)
     }
 
+    /// Change the status. The windows hear about it from `publish_status`,
+    /// a few times a second at most, however often this is called.
     fn update_status(&self, f: impl FnOnce(&mut Status)) {
-        let snapshot = {
-            let mut s = self.status.lock().unwrap();
-            f(&mut s);
-            s.clone()
-        };
-        (self.emit)(&snapshot);
+        f(&mut self.status.lock().unwrap());
+        self.status_version.fetch_add(1, Ordering::Release);
+    }
+
+    /// Send the status to the windows if it changed since `seen`.
+    pub(crate) fn publish_status_if_changed(&self, seen: &mut u64) {
+        let version = self.status_version.load(Ordering::Acquire);
+        if version != *seen {
+            *seen = version;
+            (self.emit)(&self.status());
+        }
+    }
+
+    /// Load the stored vectors and counts. Big indexes take a few seconds,
+    /// so this happens on the indexer thread; until it's done, searches
+    /// match on words only.
+    fn load_index(&self) {
+        let started = Instant::now();
+        let dims = self.config.read().unwrap().dimensions;
+        let stored = db::all_vectors(&self.db.lock().unwrap(), dims);
+        match stored {
+            Ok(stored) => {
+                let mut vectors = VectorIndex::new(dims);
+                stored.iter().for_each(|(id, v)| vectors.insert(*id, v));
+                *self.vectors.write().unwrap() = vectors;
+            }
+            Err(e) => crate::diag::warn(&format!("couldn't load stored vectors: {e}")),
+        }
+        let (files, chunks) = db::counts(&self.db.lock().unwrap());
+        self.update_status(|s| {
+            s.state = "idle".into();
+            s.files = files;
+            s.chunks = chunks;
+        });
+        crate::diag::log("INFO", &format!("index loaded: {files} files, {chunks} chunks in {:?}", started.elapsed()));
     }
 
     /// Apply a new configuration. Changing the model or vector size makes old
@@ -212,65 +267,84 @@ impl Engine {
         }
     }
 
+    /// Watch the roots for changes. Starting a watcher can take a while on
+    /// big folders, so it happens in the background and never holds up a
+    /// window or the indexer.
     fn restart_watcher(&self) {
         let roots = self.config.read().unwrap().roots.clone();
-        let w = watch::Watcher::start(&roots, self.jobs.clone());
-        *self.watcher.lock().unwrap() = w;
+        let jobs = self.jobs.clone();
+        let generation = {
+            let mut slot = self.watcher.lock().unwrap();
+            slot.0 += 1;
+            slot.1 = None;
+            slot.0
+        };
+        let me = self.weak_self();
+        std::thread::spawn(move || {
+            let started = Instant::now();
+            let w = watch::Watcher::start(&roots, jobs);
+            if started.elapsed() > Duration::from_secs(2) {
+                crate::diag::warn(&format!("folder watcher took {:?} to start", started.elapsed()));
+            }
+            let Some(engine) = me.upgrade() else { return };
+            let mut slot = engine.watcher.lock().unwrap();
+            if slot.0 == generation {
+                slot.1 = w;
+            }
+        });
+    }
+
+    fn weak_self(&self) -> Weak<Self> {
+        self.me.clone()
     }
 
     // ---- background indexer -------------------------------------------------
 
     fn run(self: Arc<Self>, rx: Receiver<Job>) {
-        let mut pending: VecDeque<PathBuf> = VecDeque::new();
+        self.load_index();
+        let mut pending = Pending::default();
         loop {
-            // Block for the next job only when there's nothing left to index.
-            let job = if pending.is_empty() {
-                match rx.recv() {
-                    Ok(j) => Some(j),
-                    Err(_) => return,
-                }
-            } else {
-                rx.try_recv().ok()
-            };
+            // Block for the next jobs only when there's nothing left to index.
+            let jobs = if pending.is_empty() { next_jobs(&rx, true) } else { next_jobs(&rx, false) };
+            let Some(jobs) = jobs else { return };
 
-            match job {
-                Some(Job::Scan) => {
-                    self.update_status(|s| {
-                        s.state = "scanning".into();
-                        s.message = None;
-                    });
-                    self.refresh_ffmpeg();
-                    // Media is slow to transcribe, so it goes after everything else.
-                    let (media, other): (Vec<_>, Vec<_>) =
-                        self.walk_roots().into_iter().partition(|p| is_media(extract::kind_of(p)));
-                    for p in other.into_iter().chain(media) {
-                        if !pending.contains(&p) {
-                            pending.push_back(p);
+            // Many jobs can pile up while a file is being read (a folder
+            // being unpacked, say). One full scan covers every scan asked for.
+            let full_scan = jobs.iter().any(|j| matches!(j, Job::Scan));
+            for job in jobs {
+                match job {
+                    Job::Scan => {}
+                    Job::ScanDir(dir) => {
+                        if !full_scan {
+                            self.queue_files(&mut pending, walk(&dir));
                         }
                     }
-                    self.refresh_ollama_state();
-                }
-                Some(Job::Upsert(p)) => {
-                    if !pending.contains(&p) {
-                        pending.push_front(p);
+                    Job::Upsert(p) => pending.push_front(p),
+                    Job::Remove(p) => {
+                        pending.remove(&p);
+                        self.remove_path(&p);
+                    }
+                    Job::RemovePrefix(p) => {
+                        pending.remove_prefix(&p);
+                        self.remove_prefix(&p);
+                    }
+                    Job::Rebuild => {
+                        pending.clear();
+                        let dims = self.config.read().unwrap().dimensions;
+                        let _ = db::clear(&self.db.lock().unwrap());
+                        *self.vectors.write().unwrap() = VectorIndex::new(dims);
+                        let _ = self.jobs.send(Job::Scan);
                     }
                 }
-                Some(Job::Remove(p)) => {
-                    pending.retain(|q| q != &p);
-                    self.remove_path(&p);
-                }
-                Some(Job::RemovePrefix(p)) => {
-                    pending.retain(|q| !q.starts_with(&p));
-                    self.remove_prefix(&p);
-                }
-                Some(Job::Rebuild) => {
-                    pending.clear();
-                    let dims = self.config.read().unwrap().dimensions;
-                    let _ = db::clear(&self.db.lock().unwrap());
-                    *self.vectors.write().unwrap() = VectorIndex::new(dims);
-                    let _ = self.jobs.send(Job::Scan);
-                }
-                None => {}
+            }
+            if full_scan {
+                self.update_status(|s| {
+                    s.state = "scanning".into();
+                    s.message = None;
+                });
+                self.refresh_ffmpeg();
+                self.queue_files(&mut pending, self.walk_roots());
+                self.refresh_ollama_state();
             }
 
             // Index a few files between checks for new jobs, so removals and
@@ -282,7 +356,7 @@ impl Engine {
                     s.queued = pending.len() + 1;
                     s.current = Some(p.display().to_string());
                 });
-                self.index_file(&p);
+                self.index_file_guarded(&p);
                 if started.elapsed() > Duration::from_millis(500) {
                     break;
                 }
@@ -303,6 +377,24 @@ impl Engine {
         }
     }
 
+    /// Queue files found by a walk; media is slow to transcribe, so it goes
+    /// after everything else.
+    fn queue_files(&self, pending: &mut Pending, files: Vec<PathBuf>) {
+        let (media, other): (Vec<_>, Vec<_>) = files.into_iter().partition(|p| is_media(extract::kind_of(p)));
+        other.into_iter().chain(media).for_each(|p| pending.push_back(p));
+    }
+
+    /// Index one file without letting it take the indexer down: if reading
+    /// or storing it panics, it's indexed by name instead and the rest carry on.
+    fn index_file_guarded(&self, path: &Path) {
+        if std::panic::catch_unwind(AssertUnwindSafe(|| self.index_file(path))).is_ok() {
+            return;
+        }
+        crate::diag::warn(&format!("indexing {} crashed; indexing it by name instead", path.display()));
+        self.update_status(|s| s.unreadable += 1);
+        let _ = std::panic::catch_unwind(AssertUnwindSafe(|| self.index_path(path, true)));
+    }
+
     fn refresh_ollama_state(&self) {
         let model = self.config.read().unwrap().embed_model.clone();
         let state = match self.ollama().and_then(|o| o.models()) {
@@ -318,17 +410,7 @@ impl Engine {
 
     fn walk_roots(&self) -> Vec<PathBuf> {
         let roots = self.config.read().unwrap().roots.clone();
-        let mut out = Vec::new();
-        for root in roots {
-            let walker = walkdir::WalkDir::new(&root).follow_links(false).into_iter();
-            for entry in walker.filter_entry(|e| e.depth() == 0 || !is_excluded(e.path())) {
-                let Ok(entry) = entry else { continue };
-                if entry.file_type().is_file() {
-                    out.push(entry.into_path());
-                }
-            }
-        }
-        out
+        roots.iter().flat_map(|r| walk(r)).collect()
     }
 
     fn remove_path(&self, path: &Path) {
@@ -353,6 +435,11 @@ impl Engine {
     }
 
     fn index_file(&self, path: &Path) {
+        self.index_path(path, false)
+    }
+
+    /// Read, embed and store one file; `name_only` skips reading its contents.
+    fn index_path(&self, path: &Path, name_only: bool) {
         let Ok(meta) = std::fs::metadata(path) else {
             self.remove_path(path);
             return;
@@ -373,20 +460,35 @@ impl Engine {
         let model_key = self.model_key(&cfg, kind);
         let key = path.to_string_lossy().to_string();
         if let Ok(Some((s, m, model))) = db::file_stamp(&self.db.lock().unwrap(), &key) {
-            if s == size && m == mtime && model == model_key {
+            // Files stored without vectors are only worth re-reading once
+            // Ollama is back; otherwise every rescan re-reads them all.
+            let waiting_for_ollama = model == NOT_EMBEDDED && self.status.lock().unwrap().ollama != "ok";
+            if s == size && m == mtime && (model == model_key || waiting_for_ollama) && !name_only {
                 return;
             }
         }
 
         let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        #[cfg(test)]
+        if name.starts_with("crash-for-test") && !name_only {
+            panic!("simulated reader crash");
+        }
         // Cloud-only OneDrive files would be downloaded just to read them:
         // index those by name until they're on disk.
-        let extracted = if is_cloud_placeholder(&meta) {
+        let extracted = if name_only || is_cloud_placeholder(&meta) {
             Extracted::NameOnly
         } else if is_media(kind) {
             self.extract_media(&cfg, path, &name, kind)
         } else {
-            extract::extract(path, kind, cfg.index_images)
+            let (p, images) = (path.to_path_buf(), cfg.index_images);
+            match run_with_timeout(EXTRACT_TIMEOUT, move || extract::extract(&p, kind, images)) {
+                Ok(x) => x,
+                Err(why) => {
+                    crate::diag::warn(&format!("reading {} {why}; indexing it by name instead", path.display()));
+                    self.update_status(|s| s.unreadable += 1);
+                    Extracted::NameOnly
+                }
+            }
         };
 
         let (inputs, mut chunks) = plan_chunks(path, &name, kind, extracted);
@@ -506,6 +608,65 @@ impl Engine {
             out.extend(ollama.embed(&cfg.embed_model, batch, cfg.dimensions)?);
         }
         Ok(out)
+    }
+}
+
+/// Every job waiting, or None once the app is shutting down. With `block`,
+/// waits for at least one.
+fn next_jobs(rx: &Receiver<Job>, block: bool) -> Option<Vec<Job>> {
+    let mut jobs = Vec::new();
+    if block {
+        jobs.push(rx.recv().ok()?);
+    }
+    while let Ok(j) = rx.try_recv() {
+        jobs.push(j);
+        if jobs.len() >= 10_000 {
+            break;
+        }
+    }
+    Some(jobs)
+}
+
+/// Every file under `root` that isn't excluded.
+fn walk(root: &Path) -> Vec<PathBuf> {
+    let walker = walkdir::WalkDir::new(root).follow_links(false).into_iter();
+    walker
+        .filter_entry(|e| e.depth() == 0 || !is_excluded(e.path()))
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_file())
+        .map(|e| e.into_path())
+        .collect()
+}
+
+/// Send the status to the windows whenever it changes, but no more often
+/// than `every`, until the engine is dropped.
+fn publish_status(engine: Weak<Engine>, every: Duration) {
+    let mut seen = 0;
+    loop {
+        std::thread::sleep(every);
+        let Some(engine) = engine.upgrade() else { return };
+        engine.publish_status_if_changed(&mut seen);
+    }
+}
+
+/// Run `f` on its own thread and give up waiting after `limit`. A reader
+/// that panics or hangs on a malformed file then costs that one file, not
+/// the whole indexer. A thread that overruns is left to finish on its own.
+pub(crate) fn run_with_timeout<T: Send + 'static>(
+    limit: Duration,
+    f: impl FnOnce() -> T + Send + 'static,
+) -> Result<T, &'static str> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::Builder::new()
+        .name("winfynd-reader".into())
+        .spawn(move || {
+            let _ = tx.send(f());
+        })
+        .map_err(|_| "couldn't start a reader")?;
+    match rx.recv_timeout(limit) {
+        Ok(v) => Ok(v),
+        Err(mpsc::RecvTimeoutError::Timeout) => Err("took too long"),
+        Err(mpsc::RecvTimeoutError::Disconnected) => Err("crashed"),
     }
 }
 
