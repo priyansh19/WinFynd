@@ -10,8 +10,10 @@
   .steps, .hiw-hero { --h-watch: #a35f00; --h-read: #1f5fd6; --h-understand: #6d3fd8; --h-search: #2f6ce5; }
 }
 
-/* Product shots keep their shadows; JS zooms them to fit, so nothing spills. */
-.js .hiw-hero__shot .fit-frame, .js .match-shot .fit-frame { overflow: visible; }
+/* The product shots are never zoomed, so their text stays at 11 px or more (the receipt in the
+   hero is a picture of a page). Each is its design width where that fits, otherwise its
+   column's width, and reflows inside. Nothing spills, so they keep their shadows. */
+.hiw-hero__shot .fit-frame, .match-shot .fit-frame { overflow: visible; }
 
 /* ================================================================ Hero */
 .hiw-hero { position: relative; isolation: isolate; padding: clamp(40px, 6vw, 80px) 0 clamp(8px, 2vw, 24px); }
@@ -55,8 +57,10 @@
 .hero-step__d { font-size: 14px; line-height: 20px; color: var(--text2); }
 .hero-step__arrow { color: var(--text3); opacity: 0; transform: translateX(-4px); transition: opacity 150ms var(--ease), transform 150ms var(--ease); }
 
-.hero-wf { width: 880px; }
-.hero-launcher { width: 880px; height: 500px; }
+.hero-wf { width: 100%; max-width: 880px; }
+.hero-launcher { width: 100%; height: auto; min-height: 500px; }
+.hero-launcher .llist { width: clamp(272px, 40%, 352px); }
+.hero-launcher .paper { height: auto !important; min-height: 214px; } /* one more line when the preview is narrower */
 .hiw-hero__shot { min-width: 0; }
 
 /* Highlights sweep in and the match chips arrive once the shot is on screen. */
@@ -86,8 +90,7 @@
 
 /* Phones: the launcher becomes one column, list then preview, at full size. */
 @media (max-width: 699px) {
-  .hero-wf { width: auto !important; zoom: 1 !important; }
-  .hero-launcher { width: 100%; height: auto; }
+  .hero-launcher { min-height: 0; }
   .hero-launcher .lsearch { gap: 10px; padding: 0 10px 0 16px; }
   .hero-launcher .lsearch .q { font-size: 17px; }
   .hero-launcher .lsearch .lbtn:first-of-type { display: none; }
@@ -95,7 +98,7 @@
   .hero-launcher .llist { width: 100%; border-right: 0; border-bottom: 1px solid var(--stroke); }
   .hero-launcher .lg-docs, .hero-launcher .r-more { display: none; }
   .hero-launcher .lpreview { padding: 14px 16px 16px; }
-  .hero-launcher .paper { height: auto !important; font-size: 11px !important; line-height: 16px !important; }
+  .hero-launcher .paper { height: auto !important; min-height: 0; font-size: 11px !important; line-height: 16px !important; }
   .hero-launcher .paper { padding: 14px 14px !important; }
   .hero-launcher .paper > div:nth-of-type(2) { grid-template-columns: minmax(0, 1fr) 18px 62px !important; column-gap: 6px !important; }
   .hero-launcher .paper > div:nth-of-type(3) { grid-template-columns: minmax(0, 1fr) 62px !important; }
@@ -277,7 +280,7 @@
 .split .title { font-size: clamp(32px, 3.6vw, 48px); }
 .split .shot { min-width: 0; }
 
-.match-wf { width: 640px; }
+.match-wf { width: 100%; max-width: 640px; }
 .match-launcher { width: 100%; height: auto; }
 .mx-list { padding: 6px 0 8px; display: flex; flex-direction: column; }
 .mx-item { padding: 6px 0 12px; }
@@ -298,7 +301,6 @@
   .split-copy { max-width: 680px; }
 }
 @media (max-width: 699px) {
-  .match-wf { width: auto !important; zoom: 1 !important; }
   .match-launcher .lsearch { padding: 0 12px 0 16px; gap: 10px; }
   .match-launcher .lsearch .q { font-size: 17px; }
   .mx-chips { padding: 4px 12px 0 18px; }
@@ -320,8 +322,9 @@
 }
 .model--wide .model-copy { flex: 0 0 38%; }
 .model--wide .model-visual { flex: 1; min-width: 0; border-bottom: 0; border-left: 1px solid var(--stroke); padding: 32px; }
-.model-visual__inner { width: 632px; display: flex; flex-direction: column; gap: 14px; }
+.model-visual__inner { width: 100%; max-width: 632px; display: flex; flex-direction: column; gap: 14px; }
 .model-visual .sm-cards { --k: initial; } /* the copied setup cards use the accent, not the card's hue */
+.sm-cards .card > div:last-child { flex-wrap: wrap; row-gap: 6px; } /* the Recommended chip drops under the size when the card is narrow */
 .sm-lede { margin: 0; }
 .model-copy { padding: 24px 26px 28px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .model--wide .model-copy { padding: 32px; justify-content: center; }
@@ -382,7 +385,6 @@
   .model:not(.model--wide) { flex-direction: column; }
   .model:not(.model--wide) .model-visual { width: auto; border-right: 0; border-bottom: 1px solid var(--stroke); }
   .model-visual, .model--wide .model-visual { padding: 18px; }
-  .model-visual__inner { width: auto !important; zoom: 1 !important; }
   .model-visual__inner .sm-cards { grid-template-columns: minmax(0, 1fr) !important; }
   .model-visual__inner .sm-cards .s { min-height: 0 !important; }
   .model-copy, .model--wide .model-copy { padding: 20px 20px 24px; }
@@ -433,12 +435,15 @@
 .fr-pane[hidden] { display: none; }
 .js .fr-deck.is-tabs .fr-pane:not([hidden]) { animation: fr-in 300ms var(--ease) both; }
 @keyframes fr-in { from { opacity: 0; transform: translateY(8px); } }
-.fr-fit { width: 100%; overflow: hidden; border-radius: 8px; }
-.fr-wf { width: 960px; transform-origin: top left; }
-.fr-wf .setup-win { border-radius: 8px; }
+/* Each setup window is its design 960 px where that fits; narrower, it reflows (container
+   queries below), so its text is never scaled down. */
+.fr-fit { container: fr / inline-size; }
+.fr-wf { max-width: 960px; margin: 0 auto; }
+.fr-wf .setup-win { width: auto !important; height: auto !important; min-height: 620px; border-radius: 8px; }
 .fr-wf .feeditem.is-fresh { animation-name: wf-in2; }
 
-@media (max-width: 1099px) {
+/* Under 1280 px the steps go above the screen, so the window keeps its design width down to about 1080 px. */
+@media (max-width: 1279px) {
   .fr-grid { grid-template-columns: minmax(0, 1fr); }
   .fr-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .fr-deck { order: 2; }
@@ -458,9 +463,18 @@
   .fr-ready { flex-direction: column; align-items: stretch; }
   .fr-ready .fine, .fr-toast-wrap { flex: none; }
   .fr-deck { padding: 12px; }
-  /* Phones: the setup window reflows at full size instead of shrinking; the step list is above it. */
-  .fr-wf { width: auto !important; zoom: 1 !important; }
-  .fr-wf .setup-win { width: auto !important; height: auto !important; }
+}
+/* Narrower than 960 px: the sidebar, margins and Warm-up feed shrink with the window (cqi is 1% of its width). */
+@container fr (max-width: 959px) {
+  .fr-wf aside { width: clamp(200px, 25.8cqi, 248px) !important; padding: 22px clamp(18px, 2.5cqi, 24px) !important; }
+  .fr-wf .setup-main { padding: 4px clamp(28px, 4.2cqi, 40px) 0 !important; }
+  .fr-wf .setup-foot { padding: 0 clamp(28px, 4.2cqi, 40px) !important; }
+  .fr-wf .wl-legend { flex-wrap: wrap; row-gap: 6px; }
+  .fr-wf .wu-feed { width: clamp(164px, 21.5cqi, 236px) !important; }
+}
+/* Narrower than 720 px: the window reflows as one column at full size; the step list is above it. */
+@container fr (max-width: 719px) {
+  .fr-wf .setup-win { min-height: 0; }
   .fr-wf aside, .fr-wf .setup-caps { display: none !important; }
   .fr-wf .setup-main { padding: 18px 16px 4px !important; gap: 12px !important; }
   .fr-wf .setup-h1 { margin: 0 !important; font-size: 22px !important; line-height: 28px !important; }
@@ -495,19 +509,6 @@
 .cta-fine a { color: #0b0c21; font-weight: 600; text-underline-offset: 3px; }
 .cta-band :focus-visible { outline-color: #0b0c21; }
 @media (max-width: 560px) { .cta-actions { min-width: 0; width: 100%; } }
-
-/* ================================================================ Without JavaScript: fixed zoom steps instead of fitting
-   Each step is the largest zoom that fits the narrowest width of its band (checked from 700 to 1920 px).
-   Under 700 px the shots reflow at full size (see the phone rules above). */
-html:not(.js) .hero-wf { zoom: 0.87; }
-html:not(.js) .model-visual__inner { zoom: 1; }
-html:not(.js) .fr-wf { zoom: 0.8; }
-@media (max-width: 1279px) { html:not(.js) .hero-wf { zoom: 0.81; } html:not(.js) .match-wf { zoom: 0.96; } html:not(.js) .fr-wf { zoom: 0.71; } }
-@media (max-width: 1199px) { html:not(.js) .hero-wf { zoom: 0.73; } html:not(.js) .match-wf { zoom: 0.87; } html:not(.js) .model-visual__inner { zoom: 0.99; } html:not(.js) .fr-wf { zoom: 0.61; } }
-@media (max-width: 1099px) { html:not(.js) .hero-wf { zoom: 1; } html:not(.js) .match-wf { zoom: 1; } html:not(.js) .model-visual__inner { zoom: 1; } html:not(.js) .fr-wf { zoom: 0.93; } }
-@media (max-width: 1023px) { html:not(.js) .hero-wf { zoom: 0.94; } html:not(.js) .fr-wf { zoom: 0.81; } }
-@media (max-width: 899px) { html:not(.js) .hero-wf { zoom: 0.8; } html:not(.js) .fr-wf { zoom: 0.69; } }
-@media (max-width: 767px) { html:not(.js) .hero-wf { zoom: 0.73; } html:not(.js) .fr-wf { zoom: 0.62; } }
 
 /* ================================================================ Reduced motion */
 @media (prefers-reduced-motion: reduce) {

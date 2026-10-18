@@ -1,6 +1,6 @@
 /* WinFynd website: How it works page behaviour.
    1. Watch step: new files arrive in the feed and finish in their kind colour.
-   2. First run: the four setup screens become tabs; the window is zoomed to fit.
+   2. First run: the four setup screens become tabs.
    3. Welcome screen cycles its sample searches; Warm-up counts files up, as in the app.
    Demos run only while on screen and the tab is visible (WinFynd.whenActive).
    Without JavaScript every screen is shown, stacked, and nothing moves. */
@@ -63,20 +63,6 @@
     var panes = all(".fr-pane", deck);
     if (!tabs.length || tabs.length !== panes.length) return;
 
-    /* Fit each 960 px window; on phones CSS reflows it at full size instead. */
-    var phone = window.matchMedia("(max-width: 699px)");
-    function fit() {
-      var natural = 960;
-      panes.forEach(function (p) {
-        var frame = p.querySelector(".fr-fit");
-        var w = p.querySelector(".fr-wf");
-        if (!frame || !w || p.hidden) return;
-        if (phone.matches) { w.style.removeProperty("zoom"); return; }
-        var z = Math.min(1, frame.clientWidth / natural);
-        w.style.zoom = String(Math.floor(z * 1000) / 1000);
-      });
-    }
-
     list.setAttribute("role", "tablist");
     list.setAttribute("aria-label", "Setup steps");
     all("li", list).forEach(function (li) { li.setAttribute("role", "presentation"); });
@@ -99,7 +85,6 @@
         t.tabIndex = on ? 0 : -1;
         panes[n].hidden = !on;
       });
-      fit();
       if (focus) tabs[i].focus();
       root.dispatchEvent(new CustomEvent("fr-change", { detail: panes[i].getAttribute("data-pane") }));
     }
@@ -129,9 +114,6 @@
       var k = fromHash();
       if (k >= 0) { select(k, false); root.scrollIntoView({ block: "start" }); }
     });
-    if ("ResizeObserver" in window) new ResizeObserver(fit).observe(deck);
-    else window.addEventListener("resize", fit);
-    if (phone.addEventListener) phone.addEventListener("change", fit);
 
     initWelcome(root, deck.querySelector('[data-pane="welcome"]'));
     initWarmup(root, deck.querySelector('[data-pane="warmup"]'));
