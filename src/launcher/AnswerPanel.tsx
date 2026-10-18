@@ -1,3 +1,4 @@
+import { ProgressRing } from "../components/Progress";
 import type { Answer } from "../lib/search";
 
 export function AnswerPanel({
@@ -12,35 +13,37 @@ export function AnswerPanel({
   if (loading) {
     return (
       <div className="launcher-empty" role="status">
-        <span className="dot-ok pulse" aria-hidden="true" />
-        Reading your files…
+        <ProgressRing label="Reading your files" />
+        <span>Reading your files…</span>
       </div>
     );
   }
   if (!answer) {
-    return <div className="launcher-empty">Ask a question and press Enter. Answers cite the files they came from.</div>;
+    return (
+      <div className="launcher-empty">
+        <strong>Ask anything about your files</strong>
+        <span>Press Enter to ask. Answers are written on this PC and cite the files they came from.</span>
+      </div>
+    );
   }
   return (
     <div className="answer">
       <div className="answer-main">
-        <div className="answer-status">
-          <span className="dot-ok" aria-hidden="true" />
-          Read {answer.sources.length} passages on this PC · {answer.model}
-        </div>
-        <p className="answer-text">{answer.text}</p>
+        <span className="answer-meta">
+          From {answer.sources.length} {answer.sources.length === 1 ? "passage" : "passages"} on this PC · {answer.model}
+        </span>
+        <p className="answer-text selectable">{answer.text}</p>
       </div>
       {answer.sources.length > 0 && (
         <aside className="answer-sources" aria-label="Sources">
           <div className="result-group-label">Sources</div>
           {answer.sources.map((s) => (
-            <button key={s.n} type="button" className="answer-source" onClick={() => onOpen(s.path)}>
+            <button key={s.n} type="button" className="result-row answer-source" onClick={() => onOpen(s.path)}>
               <span className="cite">{s.n}</span>
-              <div className="result-text">
-                <span className="result-name">
-                  <span>{s.name}</span>
-                </span>
+              <span className="result-text">
+                <span className="result-name">{s.name}</span>
                 <span className="result-path">{s.location ?? "Open file"}</span>
-              </div>
+              </span>
             </button>
           ))}
         </aside>

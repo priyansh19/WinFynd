@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { InfoBar } from "../../components/InfoBar";
+import { SettingsCard } from "../../components/SettingsCard";
 import { getConfig, rescan, setConfig, type EngineConfig, type EngineStatus } from "../../lib/engine";
 import { inTauri } from "../../lib/tauri";
 
@@ -29,22 +31,24 @@ export function OverviewPage({ status, onOpenModels }: { status: EngineStatus | 
   };
 
   return (
-    <>
-      <header className="cc-header">
-        <h1>Overview</h1>
-        <p>WinFynd indexes new and changed files as they appear. Closing this window keeps it running in the tray.</p>
-      </header>
+    <div className="cc-page-inner">
+      <h1 className="cc-title">Overview</h1>
+      <p className="cc-lead">
+        WinFynd indexes new and changed files as they appear. Closing this window keeps it running in the notification area.
+      </p>
 
       {status && status.ollama !== "ok" && (
-        <div className="card notice" role="alert">
-          <div className="list-text">
-            <span className="list-title">Search by meaning is off</span>
-            <span className="cc-muted">{status.message ?? "WinFynd can't reach Ollama on this PC."} Exact-word and file-name search still work.</span>
-          </div>
-          <button type="button" className="btn btn-primary" onClick={onOpenModels}>
-            Set up models
-          </button>
-        </div>
+        <InfoBar
+          severity="warning"
+          title="Search by meaning is off"
+          action={
+            <button type="button" className="btn" onClick={onOpenModels}>
+              Set up models
+            </button>
+          }
+        >
+          {status.message ?? "WinFynd can't reach Ollama on this PC."} Exact words and file names still work.
+        </InfoBar>
       )}
 
       <div className="stat-grid">
@@ -57,30 +61,19 @@ export function OverviewPage({ status, onOpenModels }: { status: EngineStatus | 
         />
       </div>
 
-      <div className="section-head">
-        <h2 className="cc-subhead">Indexed folders</h2>
-        <div className="section-actions">
-          <button type="button" className="btn" onClick={() => rescan()}>
-            Rescan now
-          </button>
-          <button type="button" className="btn btn-primary" onClick={addFolder}>
+      <h2 className="cc-section">Indexed folders</h2>
+      <div className="cc-stack">
+        <SettingsCard
+          icon="folderAdd"
+          header="Add a folder"
+          description="WinFynd watches these folders and everything inside them."
+        >
+          <button type="button" className="btn btn-accent" onClick={addFolder}>
             Add folder
           </button>
-        </div>
-      </div>
-      {error && <span className="text-danger">{error}</span>}
-      <div className="card list">
-        {config?.roots.length === 0 && (
-          <div className="list-row">
-            <span className="cc-muted">No folders yet. Add one to start indexing.</span>
-          </div>
-        )}
+        </SettingsCard>
         {config?.roots.map((root) => (
-          <div key={root} className="list-row">
-            <div className="list-text">
-              <span className="list-title">{root.split(/[\\/]/).pop()}</span>
-              <span className="cc-muted">{root}</span>
-            </div>
+          <SettingsCard key={root} icon="folderOpen" header={root.split(/[\\/]/).pop() || root} description={root}>
             <button
               type="button"
               className="btn"
@@ -88,23 +81,40 @@ export function OverviewPage({ status, onOpenModels }: { status: EngineStatus | 
             >
               Remove
             </button>
-          </div>
+          </SettingsCard>
         ))}
+        {config?.roots.length === 0 && (
+          <SettingsCard icon="info" header="No folders yet" description="Add one to start indexing." />
+        )}
+        <SettingsCard
+          icon="sync"
+          header="Look for changes now"
+          description="Changes are picked up automatically. Use this after copying in lots of files while WinFynd was closed."
+        >
+          <button type="button" className="btn" onClick={() => rescan()}>
+            Rescan
+          </button>
+        </SettingsCard>
       </div>
-      <p className="cc-muted">
-        Hidden folders, app data, node_modules and build output are skipped. OneDrive files that are only in the cloud are
-        indexed by name until they're downloaded.
+      {error && <p className="cc-error">{error}</p>}
+      <p className="cc-note">
+        Hidden folders, app data, node_modules and build output are skipped. OneDrive files that are
+        only in the cloud are indexed by name until they're downloaded.
       </p>
-    </>
+    </div>
   );
 }
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <div className="card stat">
-      <span className="cc-muted">{label}</span>
+    <div className="stat">
+      <span className="stat-label">{label}</span>
       <span className="stat-value">{value}</span>
-      {note && <span className="cc-muted stat-note" title={note}>{note}</span>}
+      {note && (
+        <span className="stat-note" title={note}>
+          {note}
+        </span>
+      )}
     </div>
   );
 }

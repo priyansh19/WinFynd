@@ -41,17 +41,6 @@ export const GROUP_LABEL: Record<ResultKind, string> = {
   other: "Other files",
 };
 
-export const KIND_TINT: Record<ResultKind, string> = {
-  document: "#8db8ff",
-  slides: "#ff9e7a",
-  spreadsheet: "#8fe0aa",
-  code: "#c79bff",
-  image: "#d9c08e",
-  video: "#7fb6d8",
-  audio: "#c79bff",
-  other: "#bdb3ae",
-};
-
 export const search = (query: string) => invoke<SearchResponse>("search", { query, limit: 30 });
 export const ask = (question: string) => invoke<Answer>("ask", { question });
 export const openResult = (path: string) => invoke<void>("open_path", { path });
@@ -75,23 +64,15 @@ export function mediaUrl(r: SearchResult): string | null {
   return convertFileSrc(r.path) + (at ? `#t=${at}` : "");
 }
 
-export function extension(name: string): string {
-  const dot = name.lastIndexOf(".");
-  return dot > 0 ? name.slice(dot + 1).toUpperCase().slice(0, 4) : "FILE";
-}
-
 export function folderOf(path: string): string {
   const i = Math.max(path.lastIndexOf("\\"), path.lastIndexOf("/"));
   return i > 0 ? path.slice(0, i) : path;
 }
 
-export function describe(r: SearchResult): string {
-  const size =
-    r.size >= 1 << 30 ? `${(r.size / (1 << 30)).toFixed(1)} GB`
-    : r.size >= 1 << 20 ? `${(r.size / (1 << 20)).toFixed(1)} MB`
-    : `${Math.max(1, Math.round(r.size / 1024))} KB`;
-  const date = new Date(r.modified * 1000).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-  return `${GROUP_LABEL[r.kind].replace(/s$/, "")} · ${size} · Modified ${date}`;
+export function formatSize(bytes: number): string {
+  if (bytes >= 1 << 30) return `${(bytes / (1 << 30)).toFixed(1)} GB`;
+  if (bytes >= 1 << 20) return `${(bytes / (1 << 20)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 /** Group results by kind, keeping the order of first appearance. */

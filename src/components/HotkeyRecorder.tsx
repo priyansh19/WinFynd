@@ -53,8 +53,7 @@ export function HotkeyRecorder({
   return (
     <div className="recorder">
       <div className="recorder-field" aria-live="polite">
-        <span className="recorder-dot" aria-hidden="true" />
-        <span className="recorder-label">{shown.length ? "Recording" : "Press keys…"}</span>
+        {!shown.length && <span className="recorder-label">Press a key combination</span>}
         {shown.map((k) => (
           <Keycap key={k}>{k}</Keycap>
         ))}
@@ -64,7 +63,7 @@ export function HotkeyRecorder({
         <button type="button" className="btn" onClick={onCancel}>
           Cancel
         </button>
-        <button type="button" className="btn btn-primary" disabled={!combo} onClick={save}>
+        <button type="button" className="btn btn-accent" disabled={!combo} onClick={save}>
           Save
         </button>
       </div>
