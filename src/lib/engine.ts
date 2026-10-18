@@ -182,7 +182,7 @@ stubCommands({
   media_support: () => ({
     speechModels: [
       { id: "base", label: "Whisper Base", sizeMb: 148, note: "Fastest; fine for clear speech", installed: false },
-      { id: "small", label: "Whisper Small", sizeMb: 466, note: "Balanced speed and accuracy", installed: true },
+      { id: "small", label: "Whisper Small", sizeMb: 488, note: "Balanced speed and accuracy", installed: true },
       { id: "large-v3-turbo-q5_0", label: "Whisper Large v3 Turbo", sizeMb: 574, note: "Most accurate; slower on CPU", installed: false },
     ],
     ffmpeg: "C:\\ffmpeg\\bin\\ffmpeg.exe",

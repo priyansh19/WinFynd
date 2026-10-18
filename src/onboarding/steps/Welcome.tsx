@@ -27,7 +27,7 @@ const DEMOS: { query: string; rows: [name: string, why: string, kind: ResultKind
     query: "dog on the beach at sunset",
     rows: [
       ["PXL_20250812_191422.jpg", "Looks like dog, beach, sunset", "image"],
-      ["Cornwall day 3.mp4", "Shown at 03:42", "video"],
+      ["Cornwall day 3.mp4", "Shown at 3:42", "video"],
       ["Cornwall trip plan.docx", "Mentions beach walk with Biscuit", "document"],
     ],
   },
