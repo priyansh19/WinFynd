@@ -86,7 +86,7 @@ export function PrivacyPage() {
           icon="refresh"
           k="k-code"
           title="Update check"
-          sub="github.com/priyansh19/WinFynd releases"
+          sub="api.github.com · WinFynd releases"
           when={checksForUpdates() ? "Once a day, can be turned off" : "Off"}
         />
       </div>

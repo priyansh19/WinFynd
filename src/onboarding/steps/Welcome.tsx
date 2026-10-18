@@ -27,7 +27,7 @@ const DEMOS: { query: string; rows: [name: string, why: string, kind: ResultKind
     query: "dog on the beach at sunset",
     rows: [
       ["PXL_20250812_191422.jpg", "Looks like dog, beach, sunset", "image"],
-      ["Cornwall day 3.mp4", "Shown at 03:42", "video"],
+      ["Cornwall day 3.mp4", "Shown at 3:42", "video"],
       ["Cornwall trip plan.docx", "Mentions beach walk with Biscuit", "document"],
     ],
   },
@@ -49,6 +49,14 @@ export function WelcomeStep({ next }: StepProps) {
     return () => window.clearInterval(t);
   }, []);
   const demo = DEMOS[tick % DEMOS.length];
+  // Enter continues, as if Get started had focus. Focusing it on load would draw the keyboard ring.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Enter" && !e.repeat && (document.activeElement === document.body || !document.activeElement)) next();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [next]);
 
   return (
     <Page
@@ -56,7 +64,7 @@ export function WelcomeStep({ next }: StepProps) {
         <>
           <span className="small muted">Setup takes about two minutes.</span>
           <span className="push" />
-          <button type="button" className="btn accent big" onClick={next} autoFocus>
+          <button type="button" className="btn accent big" onClick={next}>
             Get started
           </button>
         </>

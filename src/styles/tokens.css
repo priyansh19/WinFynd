@@ -203,4 +203,12 @@ mark, .mark { background: color-mix(in srgb, var(--accent) 30%, transparent); co
     animation-timing-function: linear !important;
     transition-duration: 0ms !important;
   }
+  /* The moves become fades, ending at each element's own opacity. */
+  @keyframes wf-rise { from { opacity: 0; } }
+  @keyframes wf-in { from { opacity: 0; } }
+  @keyframes wf-page { from { opacity: 0; } }
+  @keyframes wf-toast { from { opacity: 0; } }
+  @keyframes wf-pop { from { opacity: 0; } }
+  /* A faded-in burst would stay on screen, so leave it out. */
+  .burst { display: none; }
 }

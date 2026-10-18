@@ -29,8 +29,6 @@ const EMBED = [
   { tag: "embeddinggemma-2:270m", label: "Smallest, text only (270M)", size: "0.3 GB", images: false },
 ];
 
-const SPEECH_CHOICE: Record<string, string> = { base: "Fastest", small: "Balanced", "large-v3-turbo-q5_0": "Most accurate" };
-
 const DIMENSIONS: { value: EngineConfig["dimensions"]; label: string }[] = [
   { value: 768, label: "Most accurate" },
   { value: 512, label: "Balanced" },
@@ -46,7 +44,7 @@ const REBUILD = "Changing this reads all your files again. Search keeps working 
 // A model picked before it was downloaded is switched to once the download
 // finishes. Settings shows one page at a time and a download can outlast
 // this one, so the switch is made here rather than in the page.
-const wanted: { embed?: string; speech?: string } = {};
+const wanted: { embed?: string } = {};
 let reportError: (error: string | null) => void = () => {};
 
 async function switchTo(change: (c: EngineConfig) => EngineConfig, rebuild = false) {
@@ -64,11 +62,6 @@ listen<PullProgress>("models://pull", (p) => {
   wanted.embed = undefined;
   const m = EMBED.find((e) => e.tag === p.model);
   if (!p.error) switchTo((c) => ({ ...c, embedModel: p.model, indexImages: !!m?.images && c.indexImages }), true);
-});
-listen<SpeechProgress>("models://speech", (p) => {
-  if (!p.done || wanted.speech !== p.id) return;
-  wanted.speech = undefined;
-  if (!p.error) switchTo((c) => ({ ...c, speechModel: p.id }));
 });
 
 function InUse({ label = "In use" }: { label?: string }) {
@@ -166,7 +159,6 @@ export function ModelsPage() {
     try {
       await downloadSpeechModel(id);
     } catch (e) {
-      if (wanted.speech === id) wanted.speech = undefined;
       setSpeechPull(null);
       setError(String(e));
     }
@@ -311,21 +303,6 @@ export function ModelsPage() {
                 Download
               </button>
             )}
-            <ComboBox
-              label="Speech model"
-              width={180}
-              value={speech.id}
-              disabled={!!speechPull && !speechPull.done}
-              options={speechModels.map((m) => ({ value: m.id, label: SPEECH_CHOICE[m.id] ?? m.label }))}
-              onChange={(id) => {
-                const m = speechModels.find((x) => x.id === id);
-                if (m?.installed) apply({ ...config, speechModel: id });
-                else {
-                  wanted.speech = id;
-                  downloadSpeech(id);
-                }
-              }}
-            />
           </div>
         )}
         {speechPull?.error && <p className="error-line">The download stopped: {speechPull.error}</p>}
@@ -345,7 +322,7 @@ export function ModelsPage() {
           </span>
           {media?.ffmpeg ? (
             <span title={media.ffmpeg}>
-              <InUse label="Found" />
+              <InUse label={media.ffmpegVersion ? `Found, version ${media.ffmpegVersion}` : "Found"} />
             </span>
           ) : (
             media && (

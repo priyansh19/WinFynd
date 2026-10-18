@@ -25,7 +25,7 @@ function Paragraph({ text, answer, onOpen }: { text: string; answer: Answer; onO
             <button
               key={i}
               type="button"
-              className={`tag cite ${kindClass(kindOfPath(source.path))}`}
+              className="tag cite k-doc"
               title={`Open ${source.name}`}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => onOpen(source.path)}

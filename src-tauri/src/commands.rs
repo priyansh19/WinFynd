@@ -166,16 +166,54 @@ pub struct MediaSnapshot {
     speech_models: Vec<SpeechModelInfo>,
     /// Where FFmpeg was found; null when it isn't installed.
     ffmpeg: Option<String>,
+    /// Its version, such as "7.1"; null when it couldn't be read.
+    ffmpeg_version: Option<String>,
 }
 
 fn media_snapshot(engine: &Engine) -> MediaSnapshot {
+    let ffmpeg = engine.ffmpeg_path();
     MediaSnapshot {
         speech_models: speech::CATALOG
             .iter()
             .map(|m| SpeechModelInfo { model: *m, installed: speech::is_installed(&engine.speech_dir, m.id) })
             .collect(),
-        ffmpeg: engine.ffmpeg_path().map(|p| p.display().to_string()),
+        ffmpeg: ffmpeg.as_ref().map(|p| p.display().to_string()),
+        ffmpeg_version: ffmpeg.as_deref().and_then(ffmpeg_version),
     }
+}
+
+/// Run `ffmpeg -version` (without flashing a console window) and take the
+/// version from its first line: "ffmpeg version 7.1 Copyright ..." -> "7.1".
+/// Remembered per path, so reopening the page doesn't start FFmpeg again.
+fn ffmpeg_version(ffmpeg: &std::path::Path) -> Option<String> {
+    static SEEN: std::sync::Mutex<Option<(PathBuf, Option<String>)>> = std::sync::Mutex::new(None);
+    let mut seen = SEEN.lock().unwrap();
+    if let Some((path, version)) = seen.as_ref() {
+        if path == ffmpeg {
+            return version.clone();
+        }
+    }
+    let version = read_ffmpeg_version(ffmpeg);
+    *seen = Some((ffmpeg.to_path_buf(), version.clone()));
+    version
+}
+
+fn read_ffmpeg_version(ffmpeg: &std::path::Path) -> Option<String> {
+    let mut cmd = std::process::Command::new(ffmpeg);
+    cmd.arg("-version").stdin(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    let out = cmd.output().ok()?;
+    let text = String::from_utf8_lossy(&out.stdout);
+    let version = text.lines().next()?.strip_prefix("ffmpeg version ")?.split_whitespace().next()?;
+    // Builds like "7.1-full_build-www.gyan.dev" or "n7.1" keep just the number.
+    let version = version.trim_start_matches('n').split(['-', '+']).next()?;
+    // Git and nightly builds ("N-115123-g…", "2024-05-13-git-…") show as plain "Found".
+    (version.starts_with(|c: char| c.is_ascii_digit()) && version.contains('.')).then(|| version.to_string())
 }
 
 /// Speech models on disk and whether FFmpeg is available. `recheck` looks

@@ -87,7 +87,7 @@ export function FoldersStep({ config, save, next, back }: StepProps) {
     </span>
   );
   const driveSub = (d: Drive) => {
-    const what = d.system ? (oneDrive ? "your user folders and OneDrive" : "your user folders") : mostly(counts[d.path]?.kinds ?? {});
+    const what = d.system ? (oneDrive ? "your user folders, OneDrive and apps" : "your user folders and apps") : mostly(counts[d.path]?.kinds ?? {});
     return what ? `${driveUsage(d)} · ${what}` : driveUsage(d);
   };
 
@@ -148,7 +148,7 @@ export function FoldersStep({ config, save, next, back }: StepProps) {
       {whole ? (
         <div className="small muted always-skipped">
           <Icon name="lock" size={14} strokeWidth={1.5} />
-          <span>Always skipped: Windows, Program Files, AppData, node_modules, build output and caches. Change the list in Settings.</span>
+          <span>Always skipped: Windows, Program Files, AppData, the Recycle Bin, folders that start with a dot, node_modules, build output and caches. Change the list in Settings.</span>
         </div>
       ) : (
         <div>

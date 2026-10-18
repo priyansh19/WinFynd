@@ -239,7 +239,7 @@ async function install() {
       { id: "register", label: fresh ? "Adding WinFynd to Start and Apps" : "Checking the new version", weight: 1 },
     ],
     fresh
-      ? "When this finishes, setup asks which folders to search. That takes about two minutes."
+      ? "When this finishes, setup asks what to search. That takes about two minutes."
       : "Your index, folders, shortcuts and models stay as they are.",
   );
   const run = invoke("install", {
@@ -255,7 +255,7 @@ async function install() {
   $("progress").classList.remove("live");
   if (fresh) {
     text("done-heading", "WinFynd is installed");
-    $("next-steps").textContent = "It lives in the tray, next to the clock. When it opens, it asks which folders to search and sets up the search model on this PC.";
+    $("next-steps").textContent = "It lives in the tray, next to the clock. When it opens, it asks what to search and sets up the search model on this PC.";
     $("open-row").hidden = false;
   } else {
     // Bring it back the way it was: running in the tray if it was running before.

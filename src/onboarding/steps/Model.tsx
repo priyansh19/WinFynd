@@ -141,7 +141,7 @@ export function ModelStep({ config, save, next, back, pulls, startPull, speech, 
         <Icon name="wave" size={20} className="k-audio kc" />
         <span className="grow">
           <span className="t">Also search speech in recordings and videos</span>
-          <span className="s">{whisper?.installed ? "Uses Whisper Small, already on this PC" : `Adds Whisper Small · ${whisper?.sizeMb ?? 466} MB`}</span>
+          <span className="s">{whisper?.installed ? "Uses Whisper Small, already on this PC" : `Adds Whisper Small · ${whisper?.sizeMb ?? 488} MB`}</span>
         </span>
       </label>
     </Page>
