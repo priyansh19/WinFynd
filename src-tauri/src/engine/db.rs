@@ -140,12 +140,30 @@ pub fn remove_file(conn: &Connection, path: &str) -> rusqlite::Result<Vec<i64>> 
     Ok(ids)
 }
 
-/// Remove every file under `prefix` (a folder that stopped being watched).
+/// Every stored file's path.
+pub fn all_paths(conn: &Connection) -> rusqlite::Result<Vec<String>> {
+    let mut stmt = conn.prepare("SELECT path FROM files")?;
+    let paths = stmt.query_map([], |r| r.get(0))?.collect();
+    paths
+}
+
+/// Remove these files in one transaction; returns their chunk ids.
+pub fn remove_files(conn: &Connection, paths: &[String]) -> rusqlite::Result<Vec<i64>> {
+    let tx = conn.unchecked_transaction()?;
+    let mut ids = Vec::new();
+    for p in paths {
+        ids.extend(remove_file(&tx, p)?);
+    }
+    tx.commit()?;
+    Ok(ids)
+}
+
+/// Remove every file under `prefix` (a deleted folder). Compared as text,
+/// not with LIKE, whose escapes clash with Windows' backslashes.
 pub fn remove_prefix(conn: &Connection, prefix: &str) -> rusqlite::Result<Vec<i64>> {
-    let pattern = format!("{}%", prefix.replace('%', "\\%").replace('_', "\\_"));
     let paths: Vec<String> = {
-        let mut stmt = conn.prepare("SELECT path FROM files WHERE path LIKE ?1 ESCAPE '\\'")?;
-        let rows = stmt.query_map([pattern], |r| r.get(0))?;
+        let mut stmt = conn.prepare("SELECT path FROM files WHERE substr(path, 1, length(?1)) = ?1")?;
+        let rows = stmt.query_map([prefix], |r| r.get(0))?;
         rows.collect::<Result<_, _>>()?
     };
     let mut ids = Vec::new();
@@ -379,4 +397,22 @@ fn to_blob(v: &[f32]) -> Vec<u8> {
 
 fn from_blob(b: &[u8]) -> Vec<f32> {
     b.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn removes_a_windows_folder_and_nothing_beside_it() {
+        let dir = std::env::temp_dir().join(format!("winfynd-db-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut conn = open(&dir.join("index.sqlite3")).unwrap();
+        for p in [r"C:\Users\gupta\Old_Stuff\a.txt", r"C:\Users\gupta\Old_Stuff\sub\b.txt", r"C:\Users\gupta\Old_Stuff2\c.txt"] {
+            upsert_file(&mut conn, p, "x", "document", 1, 1, "m", Vec::new()).unwrap();
+        }
+        remove_prefix(&conn, r"C:\Users\gupta\Old_Stuff\").unwrap();
+        assert_eq!(all_paths(&conn).unwrap(), [r"C:\Users\gupta\Old_Stuff2\c.txt"]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

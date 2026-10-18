@@ -9,8 +9,14 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct EngineConfig {
-    /// Folders that are scanned and watched.
+    /// Search every fixed drive ("Allow full OS context", on by default).
+    /// Off, only `roots` is searched.
+    pub whole_pc: bool,
+    /// The folders to search when `whole_pc` is off. When it's on, any of
+    /// them that isn't on a fixed drive (a network folder) is searched too.
     pub roots: Vec<PathBuf>,
+    /// Folders never read, on top of what's always skipped (`is_excluded`).
+    pub skip: Vec<PathBuf>,
     /// Local Ollama server. Only loopback is ever contacted.
     pub ollama_url: String,
     /// EmbeddingGemma 2 by default: text and images share one vector space.
@@ -25,12 +31,17 @@ pub struct EngineConfig {
     pub speech_model: String,
     /// Embed sampled video frames (needs FFmpeg and `index_images`).
     pub index_video_frames: bool,
+    /// Read OneDrive files that are only online, which downloads each one.
+    /// Off: they're found by name until they're on this PC.
+    pub read_online_files: bool,
 }
 
 impl Default for EngineConfig {
     fn default() -> Self {
         Self {
+            whole_pc: true,
             roots: Vec::new(),
+            skip: Vec::new(),
             ollama_url: "http://127.0.0.1:11434".into(),
             embed_model: "embeddinggemma-2".into(),
             dimensions: 768,
@@ -38,6 +49,7 @@ impl Default for EngineConfig {
             index_images: true,
             speech_model: String::new(),
             index_video_frames: true,
+            read_online_files: false,
         }
     }
 }

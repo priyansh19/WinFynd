@@ -6,8 +6,10 @@ Find anything on your Windows PC by typing or speaking. Files are indexed as the
 
 A Tauri 2 app with a Rust backend and a React + TypeScript UI:
 
-- **Launcher** (`launcher.html`, `src/launcher/`): a frameless, always-on-top glass window. Results are grouped by type, and the preview jumps to the matching moment (a video timestamp, a slide, a line in a recording). Tab switches to Ask mode, which answers from your files with numbered sources.
-- **Control Center** (`index.html`, `src/control/`): the background window for on-device models and hotkeys. Closing it keeps WinFynd running in the tray.
+- **Launcher** (`launcher.html`, `src/launcher/`): a PowerToys Run–style search box on Acrylic that opens on the monitor you're using and grows as results arrive. Results show Explorer's own icons and thumbnails, grouped by type, with a details pane that jumps to the matching moment (a video timestamp, a slide, a line in a recording). Enter opens, Ctrl+Shift+E opens the file location, Ctrl+Shift+C copies the path, Ctrl+K lists every action. Type `?` (or press Ask) to ask a question, answered from your files with numbered sources.
+- **Settings** (`index.html`, `src/control/`): laid out like Windows Settings, on Mica, for folders, on-device models and hotkeys. Closing it keeps WinFynd running in the notification area.
+
+Both windows follow the Windows light/dark theme and your accent colour, and use Fluent (WinUI 3) controls, type and icons.
 - **Global hotkeys** (`src-tauri/src/hotkeys.rs`): configurable, saved to the app config folder, and released while you record a new combo.
 
 | Action | Default |
@@ -54,8 +56,21 @@ Prerequisites: Node 20+, Rust stable, the [Tauri prerequisites for Windows](http
 npm install
 npm run tauri dev     # run the desktop app
 npm run dev           # UI only, in a browser at http://localhost:1420 (launcher at /launcher.html)
-npm run tauri build   # installer in src-tauri/target/release/bundle
+npm run tauri build   # the app and its plain NSIS installer, in src-tauri/target/release/bundle
+npm run build:installer   # WinFynd Setup, in dist-installer (Windows only)
 ```
+
+### Installer
+
+`npm run build:installer` makes `dist-installer/WinFynd-Setup-<version>.exe`, a small Windows 11 style setup window (`setup/`) with the NSIS installer from `tauri build` inside it.
+
+- It installs per user to `%LOCALAPPDATA%\WinFynd`, so there's no admin prompt. The folder can be changed on a fresh install.
+- It offers "Start WinFynd when I sign in" (on by default) and a desktop shortcut (off). Starting at sign-in passes `--background`, so WinFynd stays in the tray.
+- Run over an older version, it updates in place: it keeps the index and settings, and restarts WinFynd if it was running.
+- The same window, built without the installer inside, ships as `uninstall-ui.exe` and is what Settings > Apps opens. Deleting the index and settings is an opt-in checkbox.
+- NSIS still does the actual install and the Apps entry, run silently (`/S`). If WebView2 is missing, setup opens the stock NSIS wizard instead, which installs WebView2 first.
+
+Open `setup/ui/index.html` in a browser to preview the screens on sample data, for example `?mode=update` or `?mode=uninstall`.
 
 `cargo test` in `src-tauri` runs the engine end to end against a fake Ollama server.
 

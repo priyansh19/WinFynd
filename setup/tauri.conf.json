@@ -1,0 +1,34 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "WinFynd Setup",
+  "mainBinaryName": "winfynd-setup",
+  "version": "0.1.0",
+  "identifier": "app.winfynd.setup",
+  "build": {
+    "frontendDist": "ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "setup",
+        "title": "WinFynd Setup",
+        "width": 600,
+        "height": 440,
+        "center": true,
+        "resizable": false,
+        "maximizable": false,
+        "decorations": false,
+        "shadow": true,
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": ["../src-tauri/icons/icon.ico", "../src-tauri/icons/128x128.png"]
+  }
+}

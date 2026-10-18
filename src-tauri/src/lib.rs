@@ -2,6 +2,9 @@ mod commands;
 mod diag;
 mod engine;
 mod hotkeys;
+mod native;
+mod onboarding;
+mod stats;
 mod windows;
 
 use std::sync::Arc;
@@ -14,6 +17,17 @@ use hotkeys::HotkeyState;
 
 pub fn run() {
     tauri::Builder::default()
+        // Opening WinFynd while it already runs in the tray (Start menu,
+        // desktop shortcut) shows the running copy instead of starting a
+        // second one with its own tray icon, hotkeys and indexer. It goes
+        // first so the second copy exits before anything else starts.
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if !onboarding::is_complete(app) {
+                onboarding::show(app);
+            } else if !args.iter().any(|arg| arg == "--background") {
+                windows::show_launcher(app);
+            }
+        }))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(hotkeys::handle)
@@ -21,6 +35,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(HotkeyState::default())
         .invoke_handler(tauri::generate_handler![
             hotkeys::get_hotkeys,
@@ -29,8 +44,15 @@ pub fn run() {
             hotkeys::suspend_hotkeys,
             windows::hide_launcher_cmd,
             windows::open_control_center,
+            native::appearance,
+            native::shell_image,
+            native::online_only,
             commands::search,
             commands::ask,
+            commands::transcribe_voice,
+            commands::open_link,
+            commands::latest_release,
+            commands::run_setup,
             commands::engine_status,
             commands::get_engine_config,
             commands::set_engine_config,
@@ -41,9 +63,20 @@ pub fn run() {
             commands::download_speech_model,
             commands::open_path,
             commands::reveal_path,
+            onboarding::finish_onboarding,
+            onboarding::open_ollama_download,
+            onboarding::try_launcher,
+            onboarding::watch_first_index,
+            stats::index_stats,
+            stats::estimate_folders,
+            stats::list_drives,
+            stats::ollama_info,
+            stats::pause_indexing,
+            stats::delete_index,
         ])
         .setup(|app| {
             let handle = app.handle();
+            native::apply(handle);
 
             let config = hotkeys::load(handle);
             hotkeys::register_all(handle, &config);
@@ -67,10 +100,11 @@ pub fn run() {
             });
 
             let open = MenuItem::with_id(app, "open", "Open WinFynd", true, None::<&str>)?;
-            let control = MenuItem::with_id(app, "control", "Control Center", true, None::<&str>)?;
+            let control = MenuItem::with_id(app, "control", "Settings", true, None::<&str>)?;
+            let setup = MenuItem::with_id(app, "setup", "Run setup again", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit WinFynd", true, None::<&str>)?;
             let sep = PredefinedMenuItem::separator(app)?;
-            let menu = Menu::with_items(app, &[&open, &control, &sep, &quit])?;
+            let menu = Menu::with_items(app, &[&open, &control, &setup, &sep, &quit])?;
 
             let mut tray = TrayIconBuilder::with_id("main")
                 .tooltip("WinFynd")
@@ -79,6 +113,7 @@ pub fn run() {
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "open" => windows::show_launcher(app),
                     "control" => windows::show_control_center(app),
+                    "setup" => onboarding::show(app),
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -97,6 +132,13 @@ pub fn run() {
             }
             tray.build(app)?;
 
+            // Started at sign-in (setup adds --background to the Run key): stay
+            // in the tray, unless first-run setup still needs finishing.
+            let background = std::env::args().any(|arg| arg == "--background");
+            if !background || !onboarding::is_complete(handle) {
+                onboarding::show_first_window(handle);
+            }
+
             Ok(())
         })
         .on_window_event(|window, event| match (window.label(), event) {
@@ -104,11 +146,14 @@ pub fn run() {
             ("launcher", WindowEvent::Focused(false)) => {
                 let _ = window.hide();
             }
-            // Closing the Control Center keeps WinFynd running in the tray.
-            ("control", WindowEvent::CloseRequested { api, .. }) => {
+            // Closing Settings keeps WinFynd running in the tray.
+            // Closing setup early keeps it for next launch; the tray can reopen it.
+            ("control" | "onboarding", WindowEvent::CloseRequested { api, .. }) => {
                 api.prevent_close();
                 let _ = window.hide();
             }
+            // Light/dark switches also change the accent shades the page uses.
+            (_, WindowEvent::ThemeChanged(_)) => native::theme_changed(window),
             _ => {}
         })
         .run(tauri::generate_context!())

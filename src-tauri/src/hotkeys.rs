@@ -159,8 +159,17 @@ pub fn handle<R: Runtime>(app: &AppHandle<R>, shortcut: &Shortcut, event: Shortc
             let _ = app.emit_to("launcher", "launcher://ask", ());
         }
         (Action::Selection, ShortcutState::Pressed) => {
-            windows::show_launcher(app);
-            let _ = app.emit_to("launcher", "launcher://selection", ());
+            // Read the selection while the app it's in still has focus, off
+            // this thread, then open search with it typed in.
+            let app = app.clone();
+            std::thread::spawn(move || {
+                let launcher_focused = app
+                    .get_webview_window("launcher")
+                    .is_some_and(|w| w.is_focused().unwrap_or(false));
+                let text = if launcher_focused { None } else { crate::native::selected_text() };
+                windows::show_launcher(&app);
+                let _ = app.emit_to("launcher", "launcher://selection", text);
+            });
         }
         _ => {}
     }
@@ -243,7 +252,7 @@ pub fn set_voice_options<R: Runtime>(
     Ok(config.clone())
 }
 
-/// While the Control Center records a new combo, release every hotkey so the
+/// While Settings records a new combo, release every hotkey so the
 /// OS passes key presses through to the recorder instead of firing actions.
 #[tauri::command]
 pub fn suspend_hotkeys<R: Runtime>(

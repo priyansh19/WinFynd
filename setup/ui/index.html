@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WinFynd Setup</title>
+  <link rel="stylesheet" href="setup.css">
+</head>
+<body>
+  <main class="window">
+    <!-- Coloured band. The window has no system title bar, so the band is the drag area. -->
+    <header class="band" data-tauri-drag-region>
+      <div class="caps">
+        <button type="button" class="cap" id="cap-min" aria-label="Minimize" tabindex="-1">
+          <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10"/></svg>
+        </button>
+        <button type="button" class="cap" id="cap-max" aria-label="Maximize" tabindex="-1" disabled>
+          <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><rect x="5.5" y="5.5" width="9" height="9" rx="1.5"/></svg>
+        </button>
+        <button type="button" class="cap close" id="cap-close" aria-label="Close" tabindex="-1">
+          <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9"/></svg>
+        </button>
+      </div>
+      <svg class="app-icon" width="48" height="48" viewBox="0 0 48 48" aria-hidden="true">
+        <defs>
+          <linearGradient id="wfgb" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#5b9bff"/><stop offset=".45" stop-color="#9a7bff"/>
+            <stop offset=".75" stop-color="#ff6fb5"/><stop offset="1" stop-color="#ff9548"/>
+          </linearGradient>
+        </defs>
+        <rect width="48" height="48" rx="12" fill="#ffffff"/>
+        <circle cx="21" cy="21" r="10" fill="none" stroke="url(#wfgb)" stroke-width="4"/>
+        <path d="M28.5 28.5l8 8" stroke="url(#wfgb)" stroke-width="4.5" stroke-linecap="round"/>
+        <path d="M21 15.5l1.4 3.8 3.8 1.4-3.8 1.4L21 26l-1.4-3.9-3.8-1.4 3.8-1.4z" fill="url(#wfgb)"/>
+      </svg>
+      <div class="band-text">
+        <h1 id="title">WinFynd</h1>
+        <p id="subtitle">Find anything on your PC by describing it.</p>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- Install, update and reinstall -->
+      <section data-screen="install">
+        <h2 id="install-heading" hidden></h2>
+        <p class="muted" id="install-lede" hidden></p>
+        <div class="card" id="location-row">
+          <svg class="icon folder" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 5.5a1 1 0 0 1 1-1h4l2 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"/></svg>
+          <div class="grow">
+            <span class="t" id="location-label">Install for me</span>
+            <span class="s ellip" id="location"></span>
+          </div>
+          <button type="button" id="change" class="btn">Change</button>
+        </div>
+        <label class="checkrow" id="autostart-row">
+          <input type="checkbox" id="autostart" checked>
+          <span class="check" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 20 20"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg></span>
+          <span>Start WinFynd when I sign in, so Alt + Space always works</span>
+        </label>
+        <label class="checkrow" id="shortcut-row">
+          <input type="checkbox" id="shortcut">
+          <span class="check" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 20 20"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg></span>
+          <span>Add a desktop shortcut</span>
+        </label>
+        <div class="infobar info" id="running-row" hidden>
+          <svg class="icon accent" width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M10 9v5M10 6.2v.1"/></svg>
+          <span class="small">WinFynd is running. Setup closes it, updates it and starts it again.</span>
+        </div>
+      </section>
+
+      <!-- Uninstall -->
+      <section data-screen="uninstall">
+        <h2>Remove WinFynd from this PC?</h2>
+        <label class="checkrow">
+          <input type="checkbox" id="delete-data">
+          <span class="check" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 20 20"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg></span>
+          <span id="delete-data-label">Also delete my search index and settings</span>
+        </label>
+        <p class="small muted">Your own files are never touched. Models you downloaded with Ollama stay in Ollama.</p>
+      </section>
+
+      <!-- Progress, for both directions -->
+      <section data-screen="progress">
+        <h2 id="progress-heading"></h2>
+        <div class="bar live" id="progress" role="progressbar" aria-labelledby="progress-heading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <i id="progress-fill"></i>
+        </div>
+        <span class="small muted num" id="progress-label" aria-live="polite"></span>
+        <div class="panel tip" id="progress-tip" hidden>
+          <svg class="icon accent" width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M11 2.5L4.5 11h5l-1 6.5L15.5 9h-5z"/></svg>
+          <span class="small muted" id="progress-tip-text"></span>
+        </div>
+      </section>
+
+      <!-- Installed -->
+      <section data-screen="done">
+        <h2 id="done-heading"></h2>
+        <p class="muted" id="next-steps">When WinFynd opens, it asks which folders to search and sets up the search model on this PC.</p>
+        <div class="card hotkey">
+          <span class="keys"><kbd>Alt</kbd><kbd>Space</kbd></span>
+          <div class="grow">
+            <span class="t">Search from anywhere</span>
+            <span class="s">Press it in any app. You can change it later in Settings.</span>
+          </div>
+        </div>
+        <label class="checkrow" id="open-row">
+          <input type="checkbox" id="open-now" checked>
+          <span class="check" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 20 20"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg></span>
+          <span>Open WinFynd now</span>
+        </label>
+      </section>
+
+      <!-- Messages: uninstalled, errors, nothing to do -->
+      <section data-screen="message">
+        <h2 id="message-heading"></h2>
+        <div class="infobar" id="message-card">
+          <svg class="icon" id="message-icon" width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"></svg>
+          <span class="message-text">
+            <span id="message"></span>
+            <span class="small muted" id="message-detail"></span>
+          </span>
+        </div>
+      </section>
+    </div>
+
+    <footer class="footer">
+      <span class="small muted footer-note" id="footer-note"></span>
+      <div class="actions">
+        <button type="button" class="btn big" id="secondary"></button>
+        <button type="button" class="btn big accent" id="primary"></button>
+      </div>
+    </footer>
+  </main>
+  <script src="setup.js"></script>
+</body>
+</html>

@@ -1,91 +1,161 @@
 import { useCallback, useEffect, useState } from "react";
+import { Icon } from "../../components/Icon";
+import { Bar } from "../../components/Progress";
+import { ComboBox } from "../../components/Toggle";
 import {
   downloadSpeechModel,
   formatBytes,
-  mediaSupport,
   getConfig,
   listModels,
+  mediaSupport,
   pullModel,
   setConfig,
+  useEngineConfig,
   type EngineConfig,
   type InstalledModel,
   type MediaSupport,
   type PullProgress,
   type SpeechProgress,
 } from "../../lib/engine";
+import { confirmNative } from "../../lib/native";
+import { modelLabel } from "../../lib/search";
+import { ollamaInfo, useIndexStats } from "../../lib/stats";
 import { listen } from "../../lib/tauri";
 
-// EmbeddingGemma 2 sizes available in Ollama. Only the vision-capable ones
-// can embed photos; the others index images by file name.
-const EMBED_TAGS = [
-  { tag: "embeddinggemma-2", label: "EmbeddingGemma 2 · 740M", note: "Text and images · 1.3 GB", images: true },
-  { tag: "embeddinggemma-2:440m", label: "EmbeddingGemma 2 · 440M", note: "Text and images · 0.7 GB", images: true },
-  { tag: "embeddinggemma-2:270m", label: "EmbeddingGemma 2 · 270M", note: "Text only · 0.3 GB", images: false },
+// EmbeddingGemma 2 sizes in Ollama. Only the larger two can read photos.
+const EMBED = [
+  { tag: "embeddinggemma-2", label: "Most accurate (740M)", size: "1.3 GB", images: true },
+  { tag: "embeddinggemma-2:440m", label: "Balanced (440M)", size: "0.7 GB", images: true },
+  { tag: "embeddinggemma-2:270m", label: "Smallest, text only (270M)", size: "0.3 GB", images: false },
 ];
 
-const DIMENSIONS = [
-  { value: 768, label: "768 · best quality" },
-  { value: 512, label: "512 · balanced" },
-  { value: 256, label: "256 · smallest for images" },
-] as const;
+const SPEECH_CHOICE: Record<string, string> = { base: "Fastest", small: "Balanced", "large-v3-turbo-q5_0": "Most accurate" };
 
-const installedHas = (installed: InstalledModel[], name: string) =>
-  installed.some((m) => m.name === name || m.name === `${name}:latest`);
+const DIMENSIONS: { value: EngineConfig["dimensions"]; label: string }[] = [
+  { value: 768, label: "Most accurate" },
+  { value: 512, label: "Balanced" },
+  { value: 256, label: "Smaller" },
+  { value: 128, label: "Smallest" },
+];
+
+const has = (installed: InstalledModel[] | null, name: string) =>
+  installed?.find((m) => m.name === name || m.name === `${name}:latest`);
+
+const REBUILD = "Changing this reads all your files again. Search keeps working meanwhile, with some results missing until it finishes.";
+
+// A model picked before it was downloaded is switched to once the download
+// finishes. Settings shows one page at a time and a download can outlast
+// this one, so the switch is made here rather than in the page.
+const wanted: { embed?: string; speech?: string } = {};
+let reportError: (error: string | null) => void = () => {};
+
+async function switchTo(change: (c: EngineConfig) => EngineConfig, rebuild = false) {
+  if (rebuild && !(await confirmNative(REBUILD, "Read your files again?", "Read again"))) return;
+  try {
+    await setConfig(change(await getConfig()));
+    reportError(null);
+  } catch (e) {
+    reportError(String(e));
+  }
+}
+
+listen<PullProgress>("models://pull", (p) => {
+  if (!p.done || wanted.embed !== p.model) return;
+  wanted.embed = undefined;
+  const m = EMBED.find((e) => e.tag === p.model);
+  if (!p.error) switchTo((c) => ({ ...c, embedModel: p.model, indexImages: !!m?.images && c.indexImages }), true);
+});
+listen<SpeechProgress>("models://speech", (p) => {
+  if (!p.done || wanted.speech !== p.id) return;
+  wanted.speech = undefined;
+  if (!p.error) switchTo((c) => ({ ...c, speechModel: p.id }));
+});
+
+function InUse({ label = "In use" }: { label?: string }) {
+  return (
+    <span className="status small muted">
+      <span className="dot" style={{ background: "var(--ok)" }} />
+      {label}
+    </span>
+  );
+}
+
+function Downloading({ completed, total }: { completed: number; total: number }) {
+  return (
+    <div className="downloading">
+      <span className="small muted num">{total ? `Downloading · ${formatBytes(completed)} of ${formatBytes(total)}` : "Starting the download…"}</span>
+      <Bar label="Download" live value={total ? (completed / total) * 100 : undefined} />
+    </div>
+  );
+}
 
 export function ModelsPage() {
-  const [config, setLocal] = useState<EngineConfig | null>(null);
+  const [config, save] = useEngineConfig();
+  const stats = useIndexStats(false);
   const [installed, setInstalled] = useState<InstalledModel[] | null>(null);
-  const [ollamaError, setOllamaError] = useState<string | null>(null);
-  const [pull, setPull] = useState<PullProgress | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [ollama, setOllama] = useState<{ checked: boolean; version: string | null; error: string | null }>({ checked: false, version: null, error: null });
   const [media, setMedia] = useState<MediaSupport | null>(null);
+  const [pull, setPull] = useState<PullProgress | null>(null);
   const [speechPull, setSpeechPull] = useState<SpeechProgress | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
-    listModels().then((m) => {
-      setInstalled(m.installed);
-      setOllamaError(m.error);
-    });
+    listModels()
+      .then((m) => {
+        setInstalled(m.installed);
+        setOllama((o) => ({ ...o, checked: true, error: m.error }));
+      })
+      .catch(() => {});
+    ollamaInfo()
+      .then((i) => setOllama((o) => ({ ...o, version: i.version })))
+      .catch(() => {});
   }, []);
 
+  const apply = useCallback(
+    async (next: EngineConfig, rebuild = false) => {
+      if (rebuild && !(await confirmNative(REBUILD, "Read your files again?", "Read again"))) return;
+      try {
+        await save(next);
+        setError(null);
+      } catch (e) {
+        setError(String(e));
+      }
+    },
+    [save],
+  );
+
   useEffect(() => {
-    getConfig().then(setLocal);
+    reportError = setError;
     refresh();
-    mediaSupport().then(setMedia);
-    const off = listen<PullProgress>("models://pull", (p) => {
+    mediaSupport()
+      .then(setMedia)
+      .catch(() => {});
+    const offPull = listen<PullProgress>("models://pull", (p) => {
       setPull(p.done && !p.error ? null : p);
       if (p.done) refresh();
     });
     const offSpeech = listen<SpeechProgress>("models://speech", (p) => {
       setSpeechPull(p.done && !p.error ? null : p);
-      if (p.done) {
-        mediaSupport().then(setMedia);
-        getConfig().then(setLocal);
-      }
+      if (!p.done) return;
+      mediaSupport()
+        .then(setMedia)
+        .catch(() => {});
     });
     return () => {
-      off.then((f) => f());
+      reportError = () => {};
+      offPull.then((f) => f());
       offSpeech.then((f) => f());
     };
   }, [refresh]);
 
   if (!config) return null;
 
-  const save = async (next: EngineConfig, confirmRebuild = false) => {
-    if (confirmRebuild && !window.confirm("Changing this re-indexes all your files with the new setting. Continue?")) return;
-    try {
-      setLocal(await setConfig(next));
-      setError(null);
-    } catch (e) {
-      setError(String(e));
-    }
-  };
-
   const download = async (model: string) => {
     setPull({ model, status: "starting", completed: 0, total: 0, done: false, error: null });
     try {
       await pullModel(model);
     } catch (e) {
+      if (wanted.embed === model) wanted.embed = undefined;
       setPull(null);
       setError(String(e));
     }
@@ -96,231 +166,222 @@ export function ModelsPage() {
     try {
       await downloadSpeechModel(id);
     } catch (e) {
+      if (wanted.speech === id) wanted.speech = undefined;
       setSpeechPull(null);
       setError(String(e));
     }
   };
 
+  const embed = EMBED.find((e) => e.tag === config.embedModel) ?? EMBED[0];
+  const embedHave = has(installed, config.embedModel);
+  const pullingEmbed = pull && !pull.done && EMBED.some((e) => e.tag === pull.model) ? pull : null;
   const chatModels = (installed ?? []).filter((m) => !m.name.includes("embed"));
+  const chat = has(installed, config.chatModel);
+  const speechModels = media?.speechModels ?? [];
+  const speech = speechModels.find((m) => m.id === config.speechModel) ?? speechModels.find((m) => m.installed) ?? speechModels.find((m) => m.id === "small");
+  const speechActive = !!config.speechModel && !!speech?.installed && speech.id === config.speechModel;
+  const modelBytes = (embedHave?.size ?? 0) + (chat?.size ?? chatModels[0]?.size ?? 0) + (speech?.installed ? speech.sizeMb * 1024 * 1024 : 0);
+  const offline = ollama.checked && !!ollama.error;
 
   return (
     <>
-      <header className="cc-header">
-        <h1>On-device models</h1>
-        <p>Every model runs on this PC. Nothing you search, say or index is sent anywhere.</p>
-      </header>
+      <h1 className="h1">Models</h1>
+      <p className="lede">Every model runs on this PC. Nothing you search, say or index leaves it.</p>
 
-      {ollamaError && (
-        <div className="card notice" role="alert">
-          <div className="list-text">
-            <span className="list-title">Ollama isn't running</span>
-            <span className="cc-muted">
-              Install Ollama from ollama.com and start it, then come back here. Until then WinFynd searches exact words and
-              file names.
-            </span>
-          </div>
+      {offline ? (
+        <div className="infobar error">
+          <Icon name="error" size={16} />
+          <span className="grow">
+            <strong>Ollama isn't running.</strong>{" "}
+            <span className="muted">Install it from ollama.com and start it. Until then WinFynd finds files by name and exact words.</span>
+          </span>
           <button type="button" className="btn" onClick={refresh}>
             Check again
           </button>
         </div>
+      ) : (
+        ollama.checked && (
+          <div className="infobar">
+            <Icon name="check" size={16} strokeWidth={2} style={{ color: "var(--ok)" }} />
+            <span>
+              <strong>Ollama is running</strong> <span className="muted">on this PC{ollama.version ? `, version ${ollama.version}` : ""}</span>
+            </span>
+          </div>
+        )
+      )}
+      {error && (
+        <div className="infobar error" role="alert" style={{ marginTop: 8 }}>
+          <Icon name="error" size={16} />
+          <span className="grow selectable">{error}</span>
+        </div>
       )}
 
-      <h2 className="cc-subhead">Embedding model</h2>
-      <p className="cc-muted section-lead">
-        EmbeddingGemma 2 places text and images in one space, so a typed description finds matching photos as well as documents.
-      </p>
-      <div className="card list">
-        {EMBED_TAGS.map((m) => {
-          const active = config.embedModel === m.tag;
-          const have = installed ? installedHas(installed, m.tag) : false;
-          const pulling = pull && pull.model === m.tag && !pull.done;
-          return (
-            <div key={m.tag} className="list-row">
-              <div className="model-tag" style={{ color: m.images ? "#8fe0aa" : "#8db8ff" }}>
-                {m.images ? "IMG" : "TXT"}
-              </div>
-              <div className="list-text">
-                <span className="list-title">{m.label}</span>
-                <span className="cc-muted">{m.note}</span>
-              </div>
-              {pulling ? (
-                <div className="pull-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100}
-                  aria-valuenow={pull.total ? Math.round((pull.completed / pull.total) * 100) : 0}>
-                  <div className="meter">
-                    <div className="meter-fill meter-accent" style={{ width: `${pull.total ? (pull.completed / pull.total) * 100 : 3}%` }} />
-                  </div>
-                  <span className="cc-muted">
-                    {pull.total ? `${formatBytes(pull.completed)} of ${formatBytes(pull.total)}` : pull.status}
-                  </span>
-                </div>
-              ) : (
-                <span className={`pill ${active && have ? "pill-active" : have ? "pill-ready" : "pill-missing"}`}>
-                  {active && have ? "In use" : have ? "Downloaded" : "Not downloaded"}
-                </span>
-              )}
-              {!have ? (
-                <button type="button" className="btn btn-primary model-action" disabled={!!ollamaError || !!pulling} onClick={() => download(m.tag)}>
-                  Download
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn model-action"
-                  disabled={active}
-                  onClick={() => save({ ...config, embedModel: m.tag, indexImages: m.images && config.indexImages }, true)}
-                >
-                  {active ? "In use" : "Use"}
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {pull?.error && <span className="text-danger">Download failed: {pull.error}</span>}
-
-      <div className="card list">
-        <div className="list-row">
-          <div className="list-text">
-            <span className="list-title">Vector size</span>
-            <span className="cc-muted">Smaller vectors use less memory and disk, with a little less accuracy.</span>
-          </div>
-          <label className="field">
-            <span className="sr-only">Vector size</span>
-            <select
-              value={config.dimensions}
-              onChange={(e) => save({ ...config, dimensions: Number(e.target.value) as EngineConfig["dimensions"] }, true)}
-            >
-              {DIMENSIONS.map((d) => (
-                <option key={d.value} value={d.value}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className="list-row">
-          <div className="list-text">
-            <span className="list-title">Understand photos</span>
-            <span className="cc-muted">Embed what's in your images. Off means photos are found by name only.</span>
-          </div>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={config.indexImages}
-              disabled={!EMBED_TAGS.find((m) => m.tag === config.embedModel)?.images}
-              onChange={(e) => save({ ...config, indexImages: e.target.checked }, true)}
-            />
-            <span>Index image content</span>
-          </label>
-        </div>
-      </div>
-
-      <h2 className="cc-subhead">Audio and video</h2>
-      <p className="cc-muted section-lead">
-        Whisper turns what's said in recordings and videos into searchable text, and video frames are embedded like photos,
-        so results open at the moment that matches.
-      </p>
-      <div className="card list">
-        {media?.speechModels.map((m) => {
-          const active = config.speechModel === m.id && m.installed;
-          const pulling = speechPull && speechPull.id === m.id && !speechPull.done;
-          return (
-            <div key={m.id} className="list-row">
-              <div className="model-tag" style={{ color: "#f0c080" }}>
-                ASR
-              </div>
-              <div className="list-text">
-                <span className="list-title">{m.label}</span>
-                <span className="cc-muted">
-                  {m.note} · {m.sizeMb} MB
-                </span>
-              </div>
-              {pulling ? (
-                <div className="pull-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100}
-                  aria-valuenow={speechPull.total ? Math.round((speechPull.completed / speechPull.total) * 100) : 0}>
-                  <div className="meter">
-                    <div className="meter-fill meter-accent"
-                      style={{ width: `${speechPull.total ? (speechPull.completed / speechPull.total) * 100 : 3}%` }} />
-                  </div>
-                  <span className="cc-muted">
-                    {speechPull.total ? `${formatBytes(speechPull.completed)} of ${formatBytes(speechPull.total)}` : "Starting"}
-                  </span>
-                </div>
-              ) : (
-                <span className={`pill ${active ? "pill-active" : m.installed ? "pill-ready" : "pill-missing"}`}>
-                  {active ? "In use" : m.installed ? "Downloaded" : "Not downloaded"}
-                </span>
-              )}
-              {!m.installed ? (
-                <button type="button" className="btn btn-primary model-action" disabled={!!speechPull && !speechPull.done}
-                  onClick={() => downloadSpeech(m.id)}>
-                  Download
-                </button>
-              ) : (
-                <button type="button" className="btn model-action" onClick={() => save({ ...config, speechModel: active ? "" : m.id })}>
-                  {active ? "Turn off" : "Use"}
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {speechPull?.error && <span className="text-danger">Download failed: {speechPull.error}</span>}
-
-      <div className="card list">
-        <div className="list-row">
-          <div className="list-text">
-            <span className="list-title">Search what's shown in videos</span>
-            <span className="cc-muted">
-              {media?.ffmpeg ? (
-                `Uses FFmpeg (${media.ffmpeg}) to sample frames.`
-              ) : (
-                <>
-                  Needs FFmpeg. Install it with <code>winget install Gyan.FFmpeg</code>, then press Check again.
-                </>
-              )}
-            </span>
-          </div>
-          {!media?.ffmpeg && (
-            <button type="button" className="btn" onClick={() => mediaSupport(true).then(setMedia)}>
-              Check again
+      <h2 className="h2">Search</h2>
+      <div className="card" data-setting="Search model">
+        <Icon name="cube" size={20} className="k-audio kc" />
+        <span className="grow">
+          <span className="t">EmbeddingGemma 2</span>
+          <span className="s">
+            {embed.images ? "Understands text and photos so you can search by meaning" : "Understands text so you can search by meaning"} · {embed.size}
+          </span>
+        </span>
+        {pullingEmbed ? (
+          <Downloading completed={pullingEmbed.completed} total={pullingEmbed.total} />
+        ) : embedHave ? (
+          <InUse />
+        ) : (
+          installed && (
+            <button type="button" className="btn accent" disabled={offline} onClick={() => download(config.embedModel)}>
+              <Icon name="download" />
+              Download
             </button>
-          )}
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={config.indexVideoFrames && !!media?.ffmpeg && config.indexImages}
-              disabled={!media?.ffmpeg || !config.indexImages}
-              onChange={(e) => save({ ...config, indexVideoFrames: e.target.checked })}
+          )
+        )}
+        <ComboBox
+          label="Search model size"
+          width={220}
+          value={wanted.embed ?? config.embedModel}
+          disabled={!!pullingEmbed}
+          options={EMBED.map((e) => ({ value: e.tag, label: e.label }))}
+          onChange={(tag) => {
+            const m = EMBED.find((e) => e.tag === tag)!;
+            if (has(installed, tag)) {
+              wanted.embed = undefined;
+              apply({ ...config, embedModel: tag, indexImages: m.images && config.indexImages }, true);
+            } else {
+              wanted.embed = tag;
+              download(tag);
+            }
+          }}
+        />
+      </div>
+      {pull?.error && <p className="error-line">The download stopped: {pull.error}</p>}
+
+      <h2 className="h2">Answers</h2>
+      <div className="card" data-setting="Ask model">
+        <Icon name="sparkle" size={20} className="k-doc kc" />
+        <span className="grow">
+          <span className="t">Ask model</span>
+          <span className="s">{chatModels.length || !installed ? "Writes answers from your files, with sources" : "No chat model on this PC yet. Llama 3.2 3B is a good start at 2.0 GB."}</span>
+        </span>
+        {pull && !pull.done && pull.model === "llama3.2:3b" ? (
+          <Downloading completed={pull.completed} total={pull.total} />
+        ) : chatModels.length ? (
+          <ComboBox
+            label="Ask model"
+            width={220}
+            value={config.chatModel}
+            options={[
+              ...(chat || !config.chatModel ? [] : [{ value: config.chatModel, label: `${modelLabel(config.chatModel)} · not downloaded` }]),
+              { value: "", label: "First one installed" },
+              ...chatModels.map((m) => ({ value: m.name, label: `${modelLabel(m.name)} · ${formatBytes(m.size)}` })),
+            ]}
+            onChange={(v) => apply({ ...config, chatModel: v })}
+          />
+        ) : (
+          installed && (
+            <button type="button" className="btn accent" disabled={offline} onClick={() => download("llama3.2:3b")}>
+              <Icon name="download" />
+              Download llama3.2 3B
+            </button>
+          )
+        )}
+      </div>
+
+      <h2 className="h2">Speech</h2>
+      <div className="stack">
+        {speech && (
+          <div className="card k-audio" data-setting="Whisper">
+            <Icon name="wave" size={20} className="k-audio kc" />
+            <span className="grow">
+              <span className="t">{speech.label}</span>
+              <span className="s num">Recordings, videos and voice search · {speech.sizeMb} MB</span>
+            </span>
+            {speechPull && !speechPull.done ? (
+              <Downloading completed={speechPull.completed} total={speechPull.total} />
+            ) : speechActive ? (
+              <InUse />
+            ) : speech.installed ? (
+              <button type="button" className="btn" onClick={() => apply({ ...config, speechModel: speech.id })}>
+                Use
+              </button>
+            ) : (
+              <button type="button" className="btn accent" onClick={() => downloadSpeech(speech.id)}>
+                <Icon name="download" />
+                Download
+              </button>
+            )}
+            <ComboBox
+              label="Speech model"
+              width={180}
+              value={speech.id}
+              disabled={!!speechPull && !speechPull.done}
+              options={speechModels.map((m) => ({ value: m.id, label: SPEECH_CHOICE[m.id] ?? m.label }))}
+              onChange={(id) => {
+                const m = speechModels.find((x) => x.id === id);
+                if (m?.installed) apply({ ...config, speechModel: id });
+                else {
+                  wanted.speech = id;
+                  downloadSpeech(id);
+                }
+              }}
             />
-            <span>Index video frames</span>
-          </label>
+          </div>
+        )}
+        {speechPull?.error && <p className="error-line">The download stopped: {speechPull.error}</p>}
+        <div className="card" data-setting="FFmpeg">
+          <Icon name="video" size={20} className="k-video kc" />
+          <span className="grow">
+            <span className="t">FFmpeg</span>
+            <span className="s">
+              {media && !media.ffmpeg ? (
+                <>
+                  Reads frames from videos. Install it with <code className="selectable">winget install Gyan.FFmpeg</code>, then check again.
+                </>
+              ) : (
+                "Reads frames from videos and less common audio formats"
+              )}
+            </span>
+          </span>
+          {media?.ffmpeg ? (
+            <span title={media.ffmpeg}>
+              <InUse label="Found" />
+            </span>
+          ) : (
+            media && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() =>
+                  mediaSupport(true)
+                    .then(setMedia)
+                    .catch(() => {})
+                }
+              >
+                Check again
+              </button>
+            )
+          )}
         </div>
       </div>
 
-      <h2 className="cc-subhead">Answer model</h2>
-      <div className="card list">
-        <div className="list-row">
-          <div className="list-text">
-            <span className="list-title">Model for Ask mode</span>
-            <span className="cc-muted">
-              Any chat model you've pulled in Ollama. It only sees the passages WinFynd finds for your question.
-            </span>
-          </div>
-          <label className="field">
-            <span className="sr-only">Model for Ask mode</span>
-            <select value={config.chatModel} onChange={(e) => save({ ...config, chatModel: e.target.value })}>
-              <option value="">Automatic (first installed)</option>
-              {chatModels.map((m) => (
-                <option key={m.name} value={m.name}>
-                  {m.name} · {formatBytes(m.size)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+      <h2 className="h2">Storage</h2>
+      <div className="card" data-setting="Index size">
+        <Icon name="tray" size={20} className="k-other kc" />
+        <span className="grow">
+          <span className="t">Index size</span>
+          <span className="s num">
+            The index uses {formatBytes(stats?.indexBytes ?? 0)}
+            {modelBytes ? ` and models use ${formatBytes(modelBytes)}` : ""}. Smaller is faster and a little less accurate.
+          </span>
+        </span>
+        <ComboBox
+          label="Index size"
+          value={config.dimensions}
+          options={DIMENSIONS}
+          onChange={(v) => apply({ ...config, dimensions: v }, true)}
+        />
       </div>
-      {error && <span className="text-danger">{error}</span>}
     </>
   );
 }

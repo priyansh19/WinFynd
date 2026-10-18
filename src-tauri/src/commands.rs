@@ -36,6 +36,16 @@ pub async fn ask(engine: EngineState<'_>, question: String) -> Result<Answer, St
         .map_err(|e| e.to_string())?
 }
 
+/// Text for a spoken search: 16 kHz mono samples from the microphone,
+/// transcribed on this PC by the speech model.
+#[tauri::command]
+pub async fn transcribe_voice(engine: EngineState<'_>, samples: Vec<f32>) -> Result<String, String> {
+    let engine = engine.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || engine.transcribe_query(&samples))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 /// Run blocking work off the window thread.
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> Result<T, String> {
     tauri::async_runtime::spawn_blocking(f).await.map_err(|e| e.to_string())
@@ -59,8 +69,11 @@ pub async fn set_engine_config<R: Runtime>(
 ) -> Result<EngineConfig, String> {
     let engine = engine.inner().clone();
     blocking(move || {
-        // A disconnected network drive can take a long time to answer.
-        if config.roots.iter().any(|r| !r.is_dir()) {
+        // A disconnected network drive can take a long time to answer. Only
+        // folders just added are checked, so one that's gone since can't
+        // block every other setting.
+        let old = engine.config();
+        if config.roots.iter().filter(|r| !old.roots.contains(r)).any(|r| !r.is_dir()) {
             return Err("One of the folders doesn't exist".into());
         }
         if ![768, 512, 256, 128].contains(&config.dimensions) {
@@ -69,7 +82,10 @@ pub async fn set_engine_config<R: Runtime>(
         if !config.speech_model.is_empty() && !speech::is_installed(&engine.speech_dir, &config.speech_model) {
             return Err("Download that speech model first".into());
         }
-        engine.set_config(&app, config)
+        let saved = engine.set_config(config)?;
+        // Every window shows folders and models; tell them all.
+        let _ = app.emit("engine://config", &saved);
+        Ok(saved)
     })
     .await?
 }
@@ -209,7 +225,10 @@ pub async fn download_speech_model<R: Runtime>(app: AppHandle<R>, engine: Engine
             let mut cfg = engine.config();
             if !speech::is_installed(&engine.speech_dir, &cfg.speech_model) {
                 cfg.speech_model = id.clone();
-                let _ = engine.set_config(&app, cfg);
+                // Windows showing the old config would turn speech off again on their next save.
+                if let Ok(saved) = engine.set_config(cfg) {
+                    let _ = app.emit("engine://config", &saved);
+                }
             }
         }
         emit(SpeechProgress { id: id.clone(), completed: 0, total: 0, done: true, error: result.err() });
@@ -217,11 +236,10 @@ pub async fn download_speech_model<R: Runtime>(app: AppHandle<R>, engine: Engine
     Ok(())
 }
 
-/// Only paths inside the index can be opened, so a page can't open arbitrary files.
+/// Only paths the index covers can be opened, so a page can't open arbitrary files.
 fn indexed_path(engine: &Engine, path: &str) -> Result<PathBuf, String> {
     let p = PathBuf::from(path);
-    let roots = engine.config().roots;
-    if roots.iter().any(|r| p.starts_with(r)) && p.exists() {
+    if engine.covers(&p) && p.exists() {
         Ok(p)
     } else {
         Err("That file isn't in an indexed folder".into())
@@ -250,23 +268,95 @@ pub async fn reveal_path<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>,
     .await?
 }
 
+const REPO: &str = "https://github.com/priyansh19/WinFynd";
+
+/// Open one of WinFynd's own pages (the repository, its releases or issues)
+/// in the browser. Nothing else can be opened this way.
+#[tauri::command]
+pub async fn open_link<R: Runtime>(app: AppHandle<R>, url: String) -> Result<(), String> {
+    if url != REPO && !url.starts_with(&format!("{REPO}/")) {
+        return Err("Only WinFynd's own pages open from here".into());
+    }
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Release {
+    /// The newest release's version, without the leading "v".
+    version: String,
+    url: String,
+    /// True when it's newer than the running app.
+    newer: bool,
+}
+
+/// The newest WinFynd release on GitHub. Settings calls this at most once a
+/// day, and not at all when update checks are turned off.
+#[tauri::command]
+pub async fn latest_release<R: Runtime>(app: AppHandle<R>) -> Result<Release, String> {
+    let running = app.package_info().version.to_string();
+    blocking(move || {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .user_agent(concat!("WinFynd/", env!("CARGO_PKG_VERSION")))
+            .build()
+            .map_err(|e| e.to_string())?;
+        let body: serde_json::Value = client
+            .get("https://api.github.com/repos/priyansh19/WinFynd/releases/latest")
+            .send()
+            .and_then(|r| r.error_for_status())
+            .map_err(|e| e.to_string())?
+            .json()
+            .map_err(|e| e.to_string())?;
+        let version = body["tag_name"].as_str().unwrap_or_default().trim_start_matches('v').to_string();
+        let url = body["html_url"].as_str().unwrap_or(REPO).to_string();
+        Ok(Release { newer: is_newer(&version, &running), version, url })
+    })
+    .await?
+}
+
+/// "0.10.0" is newer than "0.9.2"; anything unparsable isn't newer.
+fn is_newer(candidate: &str, running: &str) -> bool {
+    let parse = |v: &str| v.split('.').map(|p| p.parse::<u64>().ok()).collect::<Option<Vec<_>>>();
+    match (parse(candidate), parse(running)) {
+        (Some(a), Some(b)) => a > b,
+        _ => false,
+    }
+}
+
+/// Open setup again from Settings, as the tray's "Run setup again" does.
+#[tauri::command]
+pub async fn run_setup<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
+    crate::onboarding::show(&app);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn newer_releases_compare_by_number() {
+        assert!(super::is_newer("0.10.0", "0.9.2"));
+        assert!(super::is_newer("1.0.0", "0.1.0"));
+        assert!(!super::is_newer("0.1.0", "0.1.0"));
+        assert!(!super::is_newer("0.1.0-beta", "0.0.1"));
+    }
+
     /// Eval: a plain `fn` command runs on the window thread, where anything
     /// slow shows up as "Not Responding". Every command in this file must
     /// be `async`.
     #[test]
     fn no_command_runs_on_the_window_thread() {
-        let src = include_str!("commands.rs");
-        let mut lines = src.lines();
         let mut checked = 0;
-        while let Some(line) = lines.next() {
-            if line.trim() == "#[tauri::command]" {
-                let sig = lines.next().unwrap_or_default();
-                assert!(sig.contains("async fn"), "command must be async: {sig}");
-                checked += 1;
+        for src in [include_str!("commands.rs"), include_str!("stats.rs")] {
+            let mut lines = src.lines();
+            while let Some(line) = lines.next() {
+                if line.trim() == "#[tauri::command]" {
+                    let sig = lines.next().unwrap_or_default();
+                    assert!(sig.contains("async fn"), "command must be async: {sig}");
+                    checked += 1;
+                }
             }
         }
-        assert!(checked >= 10, "found only {checked} commands");
+        assert!(checked >= 15, "found only {checked} commands");
     }
 }

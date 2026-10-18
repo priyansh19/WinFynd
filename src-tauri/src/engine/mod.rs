@@ -12,6 +12,7 @@ mod extract;
 mod media;
 pub mod ollama;
 mod queue;
+pub mod scope;
 pub mod search;
 pub mod speech;
 mod vectors;
@@ -64,6 +65,9 @@ pub struct Status {
     pub chunks: i64,
     /// Files waiting to be (re)indexed in the current pass.
     pub queued: usize,
+    /// Files read so far in the current pass; with `queued`, how far along
+    /// it is. Back to 0 once everything is read.
+    pub done: u64,
     pub current: Option<String>,
     /// ok, offline or modelMissing.
     pub ollama: String,
@@ -71,6 +75,8 @@ pub struct Status {
     /// Files that couldn't be read (too slow, or the reader crashed) and
     /// were indexed by name only, since the app started.
     pub unreadable: u64,
+    /// Unix seconds when a pause the user asked for ends, while paused.
+    pub paused_until: Option<i64>,
 }
 
 /// One file moving through the indexer. They're sent as `engine://activity`
@@ -93,9 +99,19 @@ pub struct Activity {
 }
 
 type ActivitySink = Box<dyn Fn(&[Activity]) + Send + Sync>;
+type RootsSink = Box<dyn Fn(&[PathBuf]) + Send + Sync>;
 /// Most files reported between two sends; later ones wait for a rescan to
 /// show up (they're still indexed).
 const ACTIVITY_BATCH: usize = 100;
+
+/// A file as it would be stored: unchanged files match what's in the index.
+struct Stamp {
+    size: i64,
+    mtime: i64,
+    kind: Kind,
+    cloud_only: bool,
+    model_key: String,
+}
 
 pub(crate) enum Job {
     Scan,
@@ -103,7 +119,9 @@ pub(crate) enum Job {
     ScanDir(PathBuf),
     Upsert(PathBuf),
     Remove(PathBuf),
-    RemovePrefix(PathBuf),
+    /// Forget files the settings no longer cover (a folder left out, a
+    /// folder skipped, full OS context turned off).
+    Prune,
     Rebuild,
 }
 
@@ -121,6 +139,13 @@ pub struct Engine {
     /// The folder watcher and how many times it has been (re)started, so a
     /// slow start can't replace a newer one.
     watcher: Mutex<(u64, Option<watch::Watcher>)>,
+    /// The folders being watched, to notice a drive being added.
+    watched: Mutex<Vec<PathBuf>>,
+    /// Told the folders whenever they change (the launcher's thumbnails).
+    on_roots: RwLock<Option<RootsSink>>,
+    /// Stand-ins for the fixed drives, so tests never walk the real disk.
+    #[cfg(test)]
+    pub(crate) test_drives: Mutex<Vec<PathBuf>>,
     emit: Box<dyn Fn(&Status) + Send + Sync>,
     activity: RwLock<Option<ActivitySink>>,
     /// File updates waiting for the next send.
@@ -131,6 +156,8 @@ pub struct Engine {
     speech: Mutex<Option<(String, Arc<dyn Transcribe>)>>,
     /// FFmpeg, when installed; needed for video frames.
     ffmpeg: RwLock<Option<PathBuf>>,
+    /// Unix seconds until which reading new files waits; 0 when not paused.
+    paused_until: std::sync::atomic::AtomicI64,
 }
 
 impl Engine {
@@ -205,12 +232,17 @@ impl Engine {
             status_version: AtomicU64::new(1),
             jobs: tx,
             watcher: Mutex::new((0, None)),
+            watched: Mutex::new(Vec::new()),
+            on_roots: RwLock::new(None),
+            #[cfg(test)]
+            test_drives: Mutex::new(Vec::new()),
             emit: Box::new(emit),
             activity: RwLock::new(None),
             pending_activity: Mutex::new(Vec::new()),
             speech_dir,
             speech: Mutex::new(None),
             ffmpeg: RwLock::new(media::find_ffmpeg()),
+            paused_until: std::sync::atomic::AtomicI64::new(0),
         });
         Ok((engine, rx))
     }
@@ -219,12 +251,51 @@ impl Engine {
         let _ = self.jobs.send(job);
     }
 
+    /// Stop reading files for `minutes` (0 resumes now). Searches keep working.
+    pub fn pause(&self, minutes: u64) {
+        let until = if minutes == 0 { 0 } else { unix_now() + minutes as i64 * 60 };
+        self.paused_until.store(until, Ordering::Release);
+        self.update_status(|s| s.paused_until = (until > 0).then_some(until));
+    }
+
+    fn is_paused(&self) -> bool {
+        let until = self.paused_until.load(Ordering::Acquire);
+        if until == 0 {
+            return false;
+        }
+        if unix_now() < until {
+            return true;
+        }
+        self.paused_until.store(0, Ordering::Release);
+        self.update_status(|s| s.paused_until = None);
+        false
+    }
+
     pub fn status(&self) -> Status {
         self.status.lock().unwrap().clone()
     }
 
     pub fn config(&self) -> EngineConfig {
         self.config.read().unwrap().clone()
+    }
+
+    /// The folders searched right now: every fixed drive with full OS
+    /// context on, otherwise the chosen folders (see `scope`).
+    pub fn roots(&self) -> Vec<PathBuf> {
+        scope::roots(&self.config.read().unwrap(), &self.drives())
+    }
+
+    fn drives(&self) -> Vec<PathBuf> {
+        #[cfg(test)]
+        return self.test_drives.lock().unwrap().clone();
+        #[cfg(not(test))]
+        scope::fixed_drives()
+    }
+
+    /// Whether a file may be opened from a page: it's somewhere the index
+    /// covers, or it's one of the searched folders themselves.
+    pub fn covers(&self, path: &Path) -> bool {
+        scope::covers(&self.config.read().unwrap(), path) || self.roots().iter().any(|r| r == path)
     }
 
     pub(crate) fn ollama(&self) -> Result<Ollama, String> {
@@ -301,42 +372,55 @@ impl Engine {
 
     /// Apply a new configuration. Changing the model or vector size makes old
     /// vectors useless, so the index is rebuilt.
-    pub fn set_config<R: Runtime>(&self, app: &AppHandle<R>, new: EngineConfig) -> Result<EngineConfig, String> {
+    pub fn set_config(&self, new: EngineConfig) -> Result<EngineConfig, String> {
         let old = self.config();
         new.save(&self.config_path)?;
         *self.config.write().unwrap() = new.clone();
 
-        for removed in old.roots.iter().filter(|r| !new.roots.contains(r)) {
-            self.enqueue(Job::RemovePrefix(removed.clone()));
+        let scope_changed = old.whole_pc != new.whole_pc || old.roots != new.roots || old.skip != new.skip;
+        if scope_changed {
+            self.enqueue(Job::Prune);
         }
         if old.embed_model != new.embed_model || old.dimensions != new.dimensions || old.index_images != new.index_images {
             self.enqueue(Job::Rebuild);
-        } else if old.roots != new.roots
+        } else if scope_changed
             || old.speech_model != new.speech_model
             || old.index_video_frames != new.index_video_frames
+            || old.read_online_files != new.read_online_files
         {
             // Media files carry these settings in their stamp, so a scan
             // re-reads just those.
             self.enqueue(Job::Scan);
         }
-        self.allow_thumbnails(app);
         self.restart_watcher();
         Ok(new)
     }
 
-    /// Let the launcher show image thumbnails from the indexed folders.
+    /// Let the launcher show image thumbnails from the searched folders,
+    /// but never from the folders apps keep their secrets in.
     fn allow_thumbnails<R: Runtime>(&self, app: &AppHandle<R>) {
         let scope = app.asset_protocol_scope();
-        for root in &self.config.read().unwrap().roots {
-            let _ = scope.allow_directory(root, true);
-        }
+        let home = app.path().home_dir().ok();
+        *self.on_roots.write().unwrap() = Some(Box::new(move |roots: &[PathBuf]| {
+            for root in roots {
+                let _ = scope.allow_directory(root, true);
+            }
+            for d in home.iter().flat_map(|h| ["AppData", ".ssh", ".aws", ".azure", ".gnupg", ".kube", ".docker"].map(|d| h.join(d))) {
+                let _ = scope.forbid_directory(d, true);
+            }
+        }));
     }
 
     /// Watch the roots for changes. Starting a watcher can take a while on
     /// big folders, so it happens in the background and never holds up a
     /// window or the indexer.
     fn restart_watcher(&self) {
-        let roots = self.config.read().unwrap().roots.clone();
+        let roots = self.roots();
+        let skip = self.config.read().unwrap().skip.clone();
+        if let Some(f) = self.on_roots.read().unwrap().as_ref() {
+            f(&roots);
+        }
+        *self.watched.lock().unwrap() = roots.clone();
         let jobs = self.jobs.clone();
         let generation = {
             let mut slot = self.watcher.lock().unwrap();
@@ -347,7 +431,7 @@ impl Engine {
         let me = self.weak_self();
         std::thread::spawn(move || {
             let started = Instant::now();
-            let w = watch::Watcher::start(&roots, jobs);
+            let w = watch::Watcher::start(&roots, skip, jobs);
             if started.elapsed() > Duration::from_secs(2) {
                 crate::diag::warn(&format!("folder watcher took {:?} to start", started.elapsed()));
             }
@@ -368,6 +452,7 @@ impl Engine {
     fn run(self: Arc<Self>, rx: Receiver<Job>) {
         self.load_index();
         let mut pending = Pending::default();
+        let mut counted = Instant::now();
         loop {
             // Block for the next jobs only when there's nothing left to index.
             let jobs = if pending.is_empty() { next_jobs(&rx, true) } else { next_jobs(&rx, false) };
@@ -380,8 +465,9 @@ impl Engine {
                 match job {
                     Job::Scan => {}
                     Job::ScanDir(dir) => {
-                        if !full_scan {
-                            self.queue_files(&mut pending, walk(&dir));
+                        if !full_scan && !self.skips(&dir) {
+                            let skip = self.config.read().unwrap().skip.clone();
+                            self.queue_files(&mut pending, walk(&dir, &skip));
                         }
                     }
                     Job::Upsert(p) => pending.push_front(p),
@@ -389,9 +475,10 @@ impl Engine {
                         pending.remove(&p);
                         self.remove_path(&p);
                     }
-                    Job::RemovePrefix(p) => {
-                        pending.remove_prefix(&p);
-                        self.remove_prefix(&p);
+                    Job::Prune => {
+                        let cfg = self.config();
+                        pending.retain(|p| scope::covers(&cfg, p));
+                        self.prune(&cfg);
                     }
                     Job::Rebuild => {
                         pending.clear();
@@ -408,8 +495,28 @@ impl Engine {
                     s.message = None;
                 });
                 self.refresh_ffmpeg();
-                self.queue_files(&mut pending, self.walk_roots());
+                // A drive plugged in since the last scan is watched from now on.
+                if self.roots() != *self.watched.lock().unwrap() {
+                    self.restart_watcher();
+                }
+                let roots = self.roots();
+                let skip = self.config.read().unwrap().skip.clone();
+                let found: Vec<_> = roots.iter().flat_map(|r| walk(r, &skip)).collect();
+                self.forget_missing(&roots, &found);
+                // Ollama's state decides which files stored without vectors need reading again.
                 self.refresh_ollama_state();
+                self.queue_files(&mut pending, found);
+            }
+
+            // While paused, keep handling removals and new jobs but read nothing.
+            if !pending.is_empty() && self.is_paused() {
+                self.update_status(|s| {
+                    s.state = "paused".into();
+                    s.queued = pending.len();
+                    s.current = None;
+                });
+                std::thread::sleep(Duration::from_millis(500));
+                continue;
             }
 
             // Index a few files between checks for new jobs, so removals and
@@ -422,9 +529,16 @@ impl Engine {
                     s.current = Some(p.display().to_string());
                 });
                 self.index_file_guarded(&p);
+                self.update_status(|s| s.done += 1);
                 if started.elapsed() > Duration::from_millis(500) {
                     break;
                 }
+            }
+            // Keep the count of searchable files moving during a long pass.
+            if !pending.is_empty() && counted.elapsed() > Duration::from_secs(2) {
+                counted = Instant::now();
+                let (files, chunks) = db::counts(&self.db.lock().unwrap());
+                self.update_status(|s| (s.files, s.chunks) = (files, chunks));
             }
 
             if pending.is_empty() {
@@ -434,6 +548,7 @@ impl Engine {
                         s.state = "idle".into();
                     }
                     s.queued = 0;
+                    s.done = 0;
                     s.current = None;
                     s.files = files;
                     s.chunks = chunks;
@@ -442,11 +557,35 @@ impl Engine {
         }
     }
 
-    /// Queue files found by a walk; media is slow to transcribe, so it goes
-    /// after everything else.
-    fn queue_files(&self, pending: &mut Pending, files: Vec<PathBuf>) {
-        let (media, other): (Vec<_>, Vec<_>) = files.into_iter().partition(|p| is_media(extract::kind_of(p)));
+    /// Queue the files a walk found that need reading: new, changed, or read
+    /// under different settings. A rescan of an unchanged PC queues nothing.
+    /// Media is slow to transcribe, so it goes after everything else.
+    fn queue_files(&self, pending: &mut Pending, files: Vec<(PathBuf, std::fs::Metadata)>) {
+        let cfg = self.config();
+        let stale = files.into_iter().filter(|(p, m)| !self.is_current(&cfg, p, m)).map(|(p, _)| p);
+        let (media, other): (Vec<_>, Vec<_>) = stale.partition(|p| is_media(extract::kind_of(p)));
         other.into_iter().chain(media).for_each(|p| pending.push_back(p));
+    }
+
+    /// Forget files under the searched folders that a full scan no longer
+    /// finds, like ones deleted while WinFynd wasn't running. Folders that
+    /// aren't there right now (an unplugged drive) keep their files.
+    fn forget_missing(&self, roots: &[PathBuf], found: &[(PathBuf, std::fs::Metadata)]) {
+        let present: Vec<&PathBuf> = roots.iter().filter(|r| r.is_dir()).collect();
+        let found: std::collections::HashSet<&Path> = found.iter().map(|(p, _)| p.as_path()).collect();
+        let paths = db::all_paths(&self.db.lock().unwrap()).unwrap_or_default();
+        let gone: Vec<String> = paths
+            .into_iter()
+            .filter(|p| {
+                let p = Path::new(p);
+                present.iter().any(|r| p.starts_with(r)) && !found.contains(p) && std::fs::symlink_metadata(p).is_err()
+            })
+            .collect();
+        for batch in gone.chunks(500) {
+            let ids = db::remove_files(&self.db.lock().unwrap(), batch).unwrap_or_default();
+            let mut v = self.vectors.write().unwrap();
+            ids.into_iter().for_each(|id| v.remove(id));
+        }
     }
 
     /// Index one file without letting it take the indexer down: if reading
@@ -473,9 +612,30 @@ impl Engine {
         });
     }
 
+    #[cfg(test)]
     fn walk_roots(&self) -> Vec<PathBuf> {
-        let roots = self.config.read().unwrap().roots.clone();
-        roots.iter().flat_map(|r| walk(r)).collect()
+        let skip = self.config.read().unwrap().skip.clone();
+        self.roots().iter().flat_map(|r| walk(r, &skip)).map(|(p, _)| p).collect()
+    }
+
+    /// Whether a path is never read: always skipped, hidden, or skipped by the user.
+    fn skips(&self, path: &Path) -> bool {
+        is_excluded(path) || scope::skipped(&self.config.read().unwrap(), path) || std::fs::metadata(path).is_ok_and(|m| is_hidden(&m))
+    }
+
+    /// Forget every stored file `cfg` doesn't cover. A few hundred at a time,
+    /// so searches aren't held up when full OS context is turned off.
+    fn prune(&self, cfg: &EngineConfig) {
+        let paths = db::all_paths(&self.db.lock().unwrap()).unwrap_or_default();
+        let gone: Vec<String> = paths.into_iter().filter(|p| !scope::covers(cfg, Path::new(p))).collect();
+        for batch in gone.chunks(500) {
+            let ids = db::remove_files(&self.db.lock().unwrap(), batch).unwrap_or_default();
+            let mut v = self.vectors.write().unwrap();
+            ids.into_iter().for_each(|id| v.remove(id));
+        }
+        if !gone.is_empty() {
+            crate::diag::log("INFO", &format!("forgot {} files the settings no longer cover", gone.len()));
+        }
     }
 
     fn remove_path(&self, path: &Path) {
@@ -492,13 +652,6 @@ impl Engine {
         ids.into_iter().for_each(|id| v.remove(id));
     }
 
-    fn remove_prefix(&self, root: &Path) {
-        let prefix = root.to_string_lossy().to_string();
-        let ids = db::remove_prefix(&self.db.lock().unwrap(), &prefix).unwrap_or_default();
-        let mut v = self.vectors.write().unwrap();
-        ids.into_iter().for_each(|id| v.remove(id));
-    }
-
     fn index_file(&self, path: &Path) {
         self.index_path(path, false)
     }
@@ -509,32 +662,15 @@ impl Engine {
             self.remove_path(path);
             return;
         };
-        if !meta.is_file() || is_excluded(path) {
+        if !meta.is_file() || is_excluded(path) || is_hidden(&meta) || scope::skipped(&self.config.read().unwrap(), path) {
             return;
         }
-        let size = meta.len() as i64;
-        let mtime = meta
-            .modified()
-            .ok()
-            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
-
         let cfg = self.config();
-        let kind = extract::kind_of(path);
-        // A cloud-only OneDrive file is stamped as such, so it's read again
-        // once it's downloaded (which keeps its size and modified time).
-        let cloud_only = is_cloud_placeholder(&meta);
-        let model_key = self.model_key(&cfg, kind) + if cloud_only { "+cloud" } else { "" };
-        let key = path.to_string_lossy().to_string();
-        if let Ok(Some((s, m, model))) = db::file_stamp(&self.db.lock().unwrap(), &key) {
-            // Files stored without vectors are only worth re-reading once
-            // Ollama is back; otherwise every rescan re-reads them all.
-            let waiting_for_ollama = model == NOT_EMBEDDED && self.status.lock().unwrap().ollama != "ok";
-            if s == size && m == mtime && (model == model_key || waiting_for_ollama) && !name_only {
-                return;
-            }
+        if !name_only && self.is_current(&cfg, path, &meta) {
+            return;
         }
+        let Stamp { size, mtime, kind, cloud_only, model_key } = self.stamp(&cfg, path, &meta);
+        let key = path.to_string_lossy().to_string();
 
         let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
         self.report(&key, &name, kind, "reading", None);
@@ -571,10 +707,15 @@ impl Engine {
                 model_key
             }
             Err(e) => {
+                // A model that's still downloading stays "modelMissing", so
+                // setup's notification waits for it instead of saying Ollama
+                // isn't installed.
                 let msg = e.clone();
                 self.update_status(|s| {
-                    s.ollama = "offline".into();
-                    s.message = Some(msg);
+                    if s.ollama == "ok" {
+                        s.ollama = "offline".into();
+                        s.message = Some(msg);
+                    }
                 });
                 NOT_EMBEDDED.to_string()
             }
@@ -594,6 +735,30 @@ impl Engine {
     /// What a file's stored vectors depend on. Media also depends on the
     /// speech model and on whether frames could be read, so installing
     /// either re-reads audio and video on the next scan.
+    /// What a file would be stored with if it were read now.
+    fn stamp(&self, cfg: &EngineConfig, path: &Path, meta: &std::fs::Metadata) -> Stamp {
+        let mtime = meta.modified().ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_secs() as i64).unwrap_or(0);
+        let kind = extract::kind_of(path);
+        // A cloud-only OneDrive file is stamped as such, so it's read again
+        // once it's downloaded (which keeps its size and modified time), or
+        // once reading online files is turned on.
+        let cloud_only = is_cloud_placeholder(meta) && !cfg.read_online_files;
+        let model_key = self.model_key(cfg, kind) + if cloud_only { "+cloud" } else { "" };
+        Stamp { size: meta.len() as i64, mtime, kind, cloud_only, model_key }
+    }
+
+    /// Whether the index already holds this file as it is now.
+    fn is_current(&self, cfg: &EngineConfig, path: &Path, meta: &std::fs::Metadata) -> bool {
+        let now = self.stamp(cfg, path, meta);
+        let Ok(Some((size, mtime, model))) = db::file_stamp(&self.db.lock().unwrap(), &path.to_string_lossy()) else {
+            return false;
+        };
+        // Files stored without vectors are only worth re-reading once
+        // Ollama is back; otherwise every rescan re-reads them all.
+        let waiting_for_ollama = model == NOT_EMBEDDED && self.status.lock().unwrap().ollama != "ok";
+        size == now.size && mtime == now.mtime && (model == now.model_key || waiting_for_ollama)
+    }
+
     fn model_key(&self, cfg: &EngineConfig, kind: Kind) -> String {
         let mut key = format!(
             "{}@{}{}+{CHUNKING_VERSION}",
@@ -625,6 +790,23 @@ impl Engine {
         let found = media::find_ffmpeg();
         *self.ffmpeg.write().unwrap() = found.clone();
         found
+    }
+
+    /// Turn a spoken search (16 kHz mono samples) into text with the
+    /// configured speech model, on this PC.
+    pub fn transcribe_query(&self, samples: &[f32]) -> Result<String, String> {
+        let cfg = self.config();
+        if cfg.speech_model.is_empty() {
+            return Err("Turn on speech on the Models page to talk to search.".into());
+        }
+        let t = self.transcriber(&cfg).ok_or("The speech model isn't downloaded yet.")?;
+        // Whisper needs at least a second; pad a short phrase with silence.
+        let mut audio = samples.to_vec();
+        if audio.len() < media::SAMPLE_RATE * 11 / 10 {
+            audio.resize(media::SAMPLE_RATE * 11 / 10, 0.0);
+        }
+        let text = t.transcribe(&audio)?.iter().map(|s| s.text.trim()).collect::<Vec<_>>().join(" ");
+        Ok(text.trim().trim_end_matches(['.', '!', '?', '。']).to_string())
     }
 
     /// The speech model named in the config, loaded once and reused.
@@ -742,14 +924,28 @@ fn next_jobs(rx: &Receiver<Job>, block: bool) -> Option<Vec<Job>> {
     Some(jobs)
 }
 
+/// The kind name ("document", "image", …) the index would give this file.
+pub(crate) fn kind_name(path: &Path) -> &'static str {
+    extract::kind_of(path).as_str()
+}
+
+fn unix_now() -> i64 {
+    std::time::SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+}
+
 /// Every file under `root` that isn't excluded.
-fn walk(root: &Path) -> Vec<PathBuf> {
+/// Every file under `root` that isn't skipped. The root itself is never
+/// checked: a drive's root folder counts as hidden.
+fn walk(root: &Path, skip: &[PathBuf]) -> Vec<(PathBuf, std::fs::Metadata)> {
     let walker = walkdir::WalkDir::new(root).follow_links(false).into_iter();
     walker
-        .filter_entry(|e| e.depth() == 0 || !is_excluded(e.path()))
+        .filter_entry(|e| e.depth() == 0 || !walk_skips(e, skip))
         .filter_map(Result::ok)
         .filter(|e| e.file_type().is_file())
-        .map(|e| e.into_path())
+        .filter_map(|e| {
+            let meta = e.metadata().ok()?;
+            Some((e.into_path(), meta))
+        })
         .collect()
 }
 
@@ -907,18 +1103,67 @@ fn default_roots<R: Runtime>(app: &AppHandle<R>) -> Vec<PathBuf> {
         .collect()
 }
 
-/// Folders and files that are never indexed: hidden, system, build output,
-/// dependency caches and Office lock files.
+/// Folders and files that are never indexed, by name: Windows and apps,
+/// other people's profiles, build output, dependency caches, game libraries,
+/// dot-folders and Office lock files.
 pub(crate) fn is_excluded(path: &Path) -> bool {
+    // Anywhere in a path.
     const SKIP: &[&str] = &[
         "node_modules", "target", "__pycache__", "venv", "AppData", "$RECYCLE.BIN", "System Volume Information",
-        "Windows", "Program Files", "Program Files (x86)", "site-packages", "bin", "obj", "dist", "build",
-        "vendor", "bower_components", "Pods", "DerivedData", "coverage", "$WinREAgent", "OneDriveTemp",
+        "Program Files", "Program Files (x86)", "WindowsApps", "site-packages", "bin", "obj", "dist", "build", "vendor",
+        "bower_components", "Pods", "DerivedData", "coverage", "$WinREAgent", "OneDriveTemp", "steamapps", "SteamLibrary",
+        "Epic Games",
     ];
-    path.components().any(|c| {
-        let s = c.as_os_str().to_string_lossy();
-        (s.starts_with('.') && s.len() > 1 && s != "..") || s.starts_with("~$") || SKIP.iter().any(|k| s.eq_ignore_ascii_case(k))
+    // Right under a drive: C:\Windows, C:\ProgramData, D:\XboxGames, …
+    const DRIVE_SKIP: &[&str] = &[
+        "Windows", "Windows.old", "ProgramData", "Recovery", "PerfLogs", "$WINDOWS.~BT", "$Windows.~WS", "$SysReset",
+        "$GetCurrent", "Config.Msi", "MSOCache", "Intel", "AMD", "NVIDIA", "inetpub", "ESD", "Drivers", "SWSetup",
+        "XboxGames", "WpSystem", "WUDownloadCache", "pagefile.sys", "hiberfil.sys", "swapfile.sys", "DumpStack.log",
+        "DumpStack.log.tmp",
+    ];
+    // Right under C:\Users: the profiles nobody signs in to.
+    const PROFILE_SKIP: &[&str] = &["Default", "Default User", "All Users", "defaultuser0"];
+    let is = |s: &str, list: &[&str]| list.iter().any(|k| s.eq_ignore_ascii_case(k));
+    let mut names = path.components().filter_map(|c| match c {
+        std::path::Component::Normal(n) => Some(n.to_string_lossy()),
+        _ => None,
+    });
+    let first = names.next();
+    let second = names.next();
+    if path.has_root() {
+        if let Some(f) = &first {
+            if is(f, DRIVE_SKIP) || (f.eq_ignore_ascii_case("Users") && second.as_deref().is_some_and(|s| is(s, PROFILE_SKIP))) {
+                return true;
+            }
+        }
+    }
+    first.into_iter().chain(second).chain(names).any(|s| {
+        (s.starts_with('.') && s.len() > 1 && s != "..") || s.starts_with("~$") || is(&s, SKIP)
     })
+}
+
+/// Hidden in File Explorer: AppData, ProgramData, desktop.ini, the page
+/// file and the like. WinFynd finds what you can see.
+#[cfg(windows)]
+pub(crate) fn is_hidden(meta: &std::fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
+    meta.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0
+}
+
+#[cfg(not(windows))]
+pub(crate) fn is_hidden(_meta: &std::fs::Metadata) -> bool {
+    false
+}
+
+/// Whether a walk leaves an entry (and everything under it) out. On Windows
+/// the entry already carries its attributes, so checking costs nothing.
+pub(crate) fn walk_skips(e: &walkdir::DirEntry, skip: &[PathBuf]) -> bool {
+    #[cfg(windows)]
+    let hidden = e.metadata().is_ok_and(|m| is_hidden(&m));
+    #[cfg(not(windows))]
+    let hidden = false;
+    hidden || is_excluded(e.path()) || skip.iter().any(|s| e.path().starts_with(s))
 }
 
 #[cfg(windows)]
@@ -946,11 +1191,46 @@ mod tests {
         assert_eq!(name_words("Screenshot 2026-10-12 101500"), "Screenshot 2026 10 12 101500");
     }
 
+    /// An absolute path on this platform: `C:\a\b` on Windows, `/a/b` elsewhere.
+    fn abs(rel: &str) -> PathBuf {
+        let base = if cfg!(windows) { "C:\\" } else { "/" };
+        rel.split('/').fold(PathBuf::from(base), |p, part| p.join(part))
+    }
+
     #[test]
     fn exclusions() {
         assert!(is_excluded(Path::new("/home/u/proj/node_modules/x.js")));
         assert!(is_excluded(Path::new("/home/u/.git/config")));
         assert!(is_excluded(Path::new("/home/u/Docs/~$report.docx")));
         assert!(!is_excluded(Path::new("/home/u/Documents/report.docx")));
+    }
+
+    #[test]
+    fn whole_drive_exclusions() {
+        for skipped in [
+            "Windows/System32/drivers/etc/hosts",
+            "ProgramData/Microsoft/Windows/Start Menu/x.lnk",
+            "Program Files/Adobe/readme.txt",
+            "Users/gupta/AppData/Local/Temp/x.tmp",
+            "Users/Default/NTUSER.DAT",
+            "Windows.old/Users/gupta/Documents/old.docx",
+            "$Recycle.Bin/S-1-5-21/report.docx",
+            "pagefile.sys",
+            "SteamLibrary/steamapps/common/Game/data.pak",
+            "XboxGames/Halo/Content/x.bin",
+        ] {
+            assert!(is_excluded(&abs(skipped)), "{skipped} should be skipped");
+        }
+        for kept in [
+            "Users/gupta/Documents/Windows notes.docx",
+            "Users/gupta/Documents/Windows/setup guide.pdf",
+            "Users/gupta/OneDrive/Pictures/Intel/benchmark.png",
+            "Users/gupta/Downloads/lease.pdf",
+            "Photos/2024/IMG_2041.jpg",
+            "Users/Public/Documents/family budget.xlsx",
+            "Users/gupta/Documents/Drivers licence.pdf",
+        ] {
+            assert!(!is_excluded(&abs(kept)), "{kept} should be searched");
+        }
     }
 }

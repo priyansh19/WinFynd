@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { captureCombo, displayKeys, knownConflict, suspendHotkeys } from "../lib/hotkeys";
-import { Keycap } from "./Keycap";
 import "./controls.css";
 
 /**
- * Captures the next key combo the user presses. Global hotkeys are released
+ * Captures the next key combo, inline in its card: "Press the new shortcut",
+ * the keys held so far, then Cancel or Save. Global hotkeys are released
  * while recording so pressing an existing combo reaches this field.
  */
 export function HotkeyRecorder({
@@ -17,25 +17,51 @@ export function HotkeyRecorder({
   const [parts, setParts] = useState<string[]>([]);
   const [combo, setCombo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const saveRef = useRef<() => void>(() => {});
+  const comboRef = useRef(combo);
+  comboRef.current = combo;
+
+  // Hotkeys stay released only while this window has focus. Closing the window
+  // just hides it, so recording would otherwise leave them off everywhere.
+  useEffect(() => {
+    const suspend = () => suspendHotkeys(true).catch(() => {});
+    const resume = () => suspendHotkeys(false).catch(() => {});
+    suspend();
+    window.addEventListener("focus", suspend);
+    window.addEventListener("blur", resume);
+    return () => {
+      window.removeEventListener("focus", suspend);
+      window.removeEventListener("blur", resume);
+      resume();
+    };
+  }, []);
 
   useEffect(() => {
-    suspendHotkeys(true).catch(() => {});
     const onKey = (e: KeyboardEvent) => {
+      const plain = !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey;
+      const onButton = e.target instanceof HTMLButtonElement;
+      // Either Enter key, the main one or the keypad's.
+      const enter = e.key === "Enter";
+      // Tab and Shift+Tab move between Save and Cancel.
+      const tab = e.code === "Tab" && !e.ctrlKey && !e.altKey && !e.metaKey;
+      // Tab, Space and Enter can't be shortcuts. Space and Enter press a
+      // focused button, and Enter anywhere else saves.
+      if (tab || (plain && onButton && (e.code === "Space" || enter))) return;
+      // Shift on its own, on the way to Shift+Tab, keeps what's recorded.
+      if (comboRef.current && e.key === "Shift" && !e.ctrlKey && !e.altKey && !e.metaKey) return;
       e.preventDefault();
-      if (e.code === "Escape" && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
-        onCancel();
-        return;
+      e.stopPropagation();
+      if (plain && e.code === "Escape") onCancel();
+      else if (plain && enter) saveRef.current();
+      else if (!(plain && e.code === "Space")) {
+        const captured = captureCombo(e);
+        setParts(captured.parts);
+        setError(null);
+        setCombo(captured.accelerator);
       }
-      const captured = captureCombo(e);
-      setParts(captured.parts);
-      setError(null);
-      if (captured.accelerator) setCombo(captured.accelerator);
     };
     window.addEventListener("keydown", onKey, true);
-    return () => {
-      window.removeEventListener("keydown", onKey, true);
-      suspendHotkeys(false).catch(() => {});
-    };
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [onCancel]);
 
   const shown = combo ? displayKeys(combo) : parts.map((p) => (p === "Super" ? "Win" : p));
@@ -49,25 +75,31 @@ export function HotkeyRecorder({
       setError(String(e));
     }
   };
+  saveRef.current = save;
 
   return (
-    <div className="recorder">
-      <div className="recorder-field" aria-live="polite">
-        <span className="recorder-dot" aria-hidden="true" />
-        <span className="recorder-label">{shown.length ? "Recording" : "Press keys…"}</span>
+    <div className="recorder" aria-live="polite">
+      {warning ? (
+        <span className={error ? "recorder-note error" : "recorder-note"}>{warning}</span>
+      ) : (
+        <span className="recorder-label">{combo ? "Save to use it" : "Press the new shortcut"}</span>
+      )}
+      <span className="keys">
         {shown.map((k) => (
-          <Keycap key={k}>{k}</Keycap>
+          <kbd key={k} className="kbd live">
+            {k}
+          </kbd>
         ))}
-      </div>
-      <div className="recorder-actions">
-        {warning && <span className={error ? "recorder-error" : "recorder-warning"}>{warning}</span>}
-        <button type="button" className="btn" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="button" className="btn btn-primary" disabled={!combo} onClick={save}>
+        {!combo && <kbd className="kbd">…</kbd>}
+      </span>
+      {combo && (
+        <button type="button" className="btn accent" onClick={save}>
           Save
         </button>
-      </div>
+      )}
+      <button type="button" className="btn" onClick={onCancel}>
+        Cancel
+      </button>
     </div>
   );
 }

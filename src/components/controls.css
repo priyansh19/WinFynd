@@ -1,51 +1,290 @@
-.keycap {
-  font: 500 13px var(--font-mono);
+/* WinFynd Fluent controls, shared by the launcher, Settings and setup:
+   WinUI sizes (32 px buttons, 40 px toggles, 20 px keycaps) in the theme's colours. */
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 4px;
+  border: 1px solid var(--stroke);
+  border-bottom-color: var(--stroke-strong);
+  background: var(--fill);
   color: var(--text);
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-bottom-width: 3px;
-  border-radius: 6px;
-  padding: 3px 9px;
+  font: 400 14px/20px var(--font);
+  white-space: nowrap;
+  transition: background-color 83ms linear;
+}
+.btn:hover { background-color: var(--fill-hover); }
+.btn:active { background-color: var(--fill-pressed); color: var(--text2); }
+.btn:disabled { background-color: var(--fill-pressed); color: var(--text-disabled); border-color: var(--stroke); }
+.btn.accent { background: var(--accent); color: var(--on-accent); border-color: rgba(255, 255, 255, 0.08); font-weight: 600; }
+.btn.accent:hover { background: color-mix(in srgb, var(--accent) 90%, var(--text)); }
+.btn.accent:active { background: color-mix(in srgb, var(--accent) 82%, transparent); color: var(--on-accent); }
+.btn.accent:disabled { background: var(--fill-strong); color: var(--text-disabled); border-color: transparent; }
+.btn.subtle { background: transparent; border-color: transparent; }
+.btn.subtle:hover { background: var(--fill); }
+.btn.subtle:active { background: var(--fill-pressed); }
+.btn.big { height: 40px; padding: 0 20px; }
+.btn.icon { width: 32px; padding: 0; }
+.btn.danger:hover { color: var(--danger); }
+
+.link { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; cursor: pointer; }
+.link:hover { text-decoration: underline; }
+
+/* ToggleSwitch with its On/Off label on the left, like Windows Settings. */
+.toggle { display: inline-flex; align-items: center; gap: 12px; border: 0; background: none; padding: 0; color: var(--text2); font-size: 12px; line-height: 16px; }
+.toggle-state { min-width: 22px; text-align: right; }
+.toggle-track {
+  position: relative;
+  width: 40px;
+  height: 20px;
+  border-radius: 10px;
+  border: 1px solid var(--text2);
+  flex: none;
+  transition: background-color 83ms linear, border-color 83ms linear;
+}
+.toggle-knob {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text2);
+  transition: left 167ms var(--ease-decel), width 83ms, height 83ms, top 83ms;
+}
+.toggle:hover .toggle-knob { width: 12px; height: 12px; top: 3px; left: 3px; }
+.toggle[aria-checked="true"] .toggle-track { background: var(--accent); border-color: var(--accent); }
+.toggle[aria-checked="true"] .toggle-knob { left: 23px; top: 3px; width: 12px; height: 12px; background: var(--on-accent); }
+.toggle[aria-checked="true"]:hover .toggle-knob { left: 22px; width: 14px; height: 14px; top: 2px; }
+.toggle:disabled { color: var(--text-disabled); }
+.toggle:disabled .toggle-track { border-color: var(--text-disabled); background: transparent; }
+.toggle:disabled .toggle-knob { background: var(--text-disabled); }
+.toggle[aria-checked="true"]:disabled .toggle-track { background: var(--fill-strong); border-color: transparent; }
+.toggle:focus-visible { outline: none; }
+.toggle:focus-visible .toggle-track { outline: 2px solid var(--text); outline-offset: 2px; }
+
+/* ComboBox over a native select */
+.combo { position: relative; display: inline-flex; min-width: 200px; }
+.combo select {
+  appearance: none;
+  width: 100%;
+  height: 32px;
+  padding: 0 34px 0 12px;
+  border-radius: 4px;
+  border: 1px solid var(--stroke);
+  border-bottom-color: var(--stroke-strong);
+  background: var(--fill);
+  color: var(--text);
+  font: 400 14px/20px var(--font);
+}
+.combo select:hover { background: var(--fill-hover); }
+.combo select:disabled { color: var(--text-disabled); background: var(--fill-pressed); }
+.combo option { background: var(--flyout); color: var(--text); }
+.combo svg { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text2); }
+
+/* Keycaps */
+.keys { display: inline-flex; gap: 4px; align-items: center; vertical-align: middle; }
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--fill);
+  border: 1px solid var(--stroke);
+  border-bottom-width: 2px;
+  font: 600 11px/1 var(--font);
+  color: var(--text2);
   white-space: nowrap;
 }
-.key-combo { display: inline-flex; gap: 6px; align-items: center; }
+.kbd.big { min-width: 64px; height: 56px; padding: 0 18px; border-radius: 8px; font: 600 20px/1 var(--font); color: var(--text); border-bottom-width: 3px; background: var(--card); }
+.kbd.live { border-color: var(--accent); color: var(--accent); }
 
-.btn {
-  height: 36px;
-  padding: 0 14px;
-  border-radius: var(--radius-s);
+/* RadioButton and CheckBox */
+.radio, .check {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border: 1px solid var(--text2);
+  background: var(--fill-pressed);
+  display: inline-grid;
+  place-items: center;
+  transition: border-width 83ms var(--ease-decel), background-color 83ms linear;
+}
+.radio { border-radius: 50%; }
+.radio:checked { border: 6px solid var(--accent); background: var(--on-accent); }
+.radio:hover:not(:checked) { background: var(--fill-hover); }
+.check { border-radius: 4px; }
+.check:checked {
+  background: var(--accent) no-repeat center / 12px 12px;
+  border-color: var(--accent);
+  /* The tick is drawn in --on-accent: dark on the dark theme's light blue. */
+  background-image: var(--tick-image);
+}
+:root { --tick-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2308142e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 10.5l3.5 3.5 7.5-8'/%3E%3C/svg%3E"); }
+@media (prefers-color-scheme: light) {
+  :root { --tick-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 10.5l3.5 3.5 7.5-8'/%3E%3C/svg%3E"); }
+}
+.radio:focus-visible, .check:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.radio:disabled, .check:disabled { opacity: 0.4; }
+
+/* InfoBar */
+.infobar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--stroke);
+  background: var(--ok-bg);
+}
+.infobar > svg { color: var(--ok); }
+.infobar.info { background: var(--info-bg); }
+.infobar.info > svg { color: var(--accent); }
+.infobar.warning { background: var(--warn-bg); }
+.infobar.warning > svg { color: var(--warn); }
+.infobar.error { background: var(--danger-bg); }
+.infobar.error > svg { color: var(--danger); }
+.infobar .grow { flex: 1; min-width: 0; }
+.infobar .btn { margin: -4px 0; }
+
+/* Colour pieces */
+.bar { height: 4px; border-radius: 2px; background: var(--track); overflow: hidden; }
+.bar > i { display: block; height: 100%; border-radius: 2px; background: var(--spectrum); background-size: 200% 100%; transition: width 250ms var(--ease-decel); }
+.bar.live > i { animation: wf-sheen 2.4s linear infinite; }
+.bar.k > i { background: var(--k); }
+.bar.indeterminate > i { width: 40%; animation: wf-slide 1.6s var(--ease-std) infinite; }
+@keyframes wf-slide { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+.kindbar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; }
+.kindbar > i { display: block; height: 100%; background: var(--k); min-width: 2px; transition: flex-grow 600ms var(--ease-decel); }
+.kindbar.empty { background: var(--track); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--k, var(--accent)); flex: none; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 16px;
+  background: color-mix(in srgb, var(--k, var(--accent)) 16%, transparent);
+  color: var(--k, var(--accent));
+  white-space: nowrap;
   border: 0;
-  background: var(--raised);
+}
+button.chip:hover { background: color-mix(in srgb, var(--k, var(--accent)) 24%, transparent); }
+.tag { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 4px; font: 600 11px/1 var(--font); background: color-mix(in srgb, var(--k) 18%, transparent); color: var(--k); }
+.pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--k, var(--accent)); position: relative; flex: none; }
+.pulse::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: inherit; animation: wf-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite; }
+.pulse.still::after { display: none; }
+
+/* Settings cards */
+.stack { display: flex; flex-direction: column; gap: 4px; }
+.panel { background: var(--card); border: 1px solid var(--stroke); border-radius: 8px; }
+.card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 68px;
+  padding: 14px 20px;
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  border-radius: 6px;
+}
+.card.tight { min-height: 52px; padding: 10px 20px; }
+.card .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.card .t { font-size: 14px; line-height: 20px; }
+.card .s { font-size: 12px; line-height: 16px; color: var(--text2); }
+.card.recording { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.card > svg { flex: none; }
+
+/* MenuFlyout */
+.menu {
+  position: absolute;
+  z-index: 10;
+  min-width: 220px;
+  padding: 4px 0;
+  border-radius: 8px;
+  border: 1px solid var(--stroke-strong);
+  background: var(--flyout);
+  box-shadow: var(--shadow-flyout);
+  animation: wf-in 167ms var(--ease-decel);
+}
+.menu:focus-visible { outline: none; }
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: calc(100% - 8px);
+  margin: 2px 4px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
   color: var(--text);
-  font-weight: 500;
-  font-size: 13px;
+  text-align: left;
 }
-.btn:hover { background: var(--raised-hover); }
-.btn-primary { background: var(--primary); color: #fff; font-weight: 600; }
-.btn-primary:hover { background: #2f78ea; }
-.btn:disabled { opacity: 0.45; cursor: default; }
+.menu-item:hover, .menu-item[data-active="true"] { background: var(--fill); }
+.menu-item svg { color: var(--text2); }
+.menu-item-label { flex: 1; }
+.menu-item-key { color: var(--text3); font-size: 12px; line-height: 16px; }
+.menu-separator { height: 1px; margin: 2px 0; background: var(--stroke); }
 
-.toggle {
-  width: 48px; height: 28px; padding: 3px; border-radius: 999px; border: 0;
-  background: var(--border-strong); display: flex; justify-content: flex-start;
-}
-.toggle[aria-checked="true"] { background: var(--primary); justify-content: flex-end; }
-.toggle-knob { width: 22px; height: 22px; border-radius: 50%; background: #fff; }
+/* Shortcut recorder, inline in its card */
+.recorder { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.recorder-label { color: var(--accent); font-size: 12px; line-height: 16px; }
+.recorder-note { font-size: 12px; line-height: 16px; color: var(--warn); max-width: 260px; text-align: right; }
+.recorder-note.error { color: var(--danger); }
 
-.segmented { display: flex; padding: 3px; border-radius: 10px; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-strong); }
-.segmented-option { height: 36px; padding: 0 14px; border-radius: var(--radius-s); border: 0; background: transparent; color: var(--text-2); font-size: 13px; font-weight: 500; }
-.segmented-option[aria-checked="true"] { background: var(--primary); color: #fff; }
+/* Caption buttons for windows that draw their own title bar */
+.titlebar { height: 48px; flex: none; display: flex; align-items: center; gap: 12px; padding-left: 16px; font-size: 12px; color: var(--text2); position: relative; z-index: 5; }
+.caps { margin-left: auto; display: flex; align-self: stretch; }
+.cap { width: 46px; border: 0; background: transparent; color: var(--text); display: flex; align-items: center; justify-content: center; padding: 0; transition: background-color 83ms linear; }
+.cap:hover { background: var(--fill); }
+.cap:active { background: var(--fill-pressed); }
+.cap.close:hover { background: #c42b1c; color: #fff; }
+.cap.close:active { background: rgba(196, 43, 28, 0.9); color: rgba(255, 255, 255, 0.8); }
+.cap:disabled { color: var(--text-disabled); background: transparent; }
 
-.recorder { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
-.recorder-field {
-  display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 240px; min-height: 40px;
-  padding: 6px 10px; border-radius: 10px; border: 1px dashed var(--accent); background: rgba(240, 160, 64, 0.08);
-}
-.recorder-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); animation: pulse 1.2s infinite; }
-.recorder-label { font-size: 12px; color: var(--text-2); margin-right: 4px; }
-.recorder-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.recorder-warning { font-size: 12px; color: var(--warn); }
-.recorder-error { font-size: 12px; color: var(--danger); }
+/* The live corner: files slide in at the top, older ones fade, and a file's
+   dot fills with its kind colour and pops when it finishes. */
+.feed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+.feeditem { display: flex; align-items: center; gap: 10px; height: 28px; min-width: 0; font-size: 12px; line-height: 16px; color: var(--text2); animation: wf-in 220ms var(--ease-decel) both; transition: opacity 250ms linear; }
+.feeditem:nth-child(2) { opacity: 0.72; }
+.feeditem:nth-child(3) { opacity: 0.48; }
+.feeditem:nth-child(4) { opacity: 0.28; }
+.feeditem:nth-child(n + 5) { opacity: 0.14; }
+.feeditem .ellip { flex: 1; min-width: 0; }
+.feeditem.reading { color: var(--text); }
+.state { width: 16px; height: 16px; flex: none; display: flex; align-items: center; justify-content: center; position: relative; }
+.state.reading::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--k); animation: wf-pulse 1.4s ease-in-out infinite; }
+.state.done::before { content: ""; width: 14px; height: 14px; border-radius: 50%; background: var(--k); animation: wf-pop 260ms var(--ease-over) both; }
+.state.done::after { content: ""; position: absolute; width: 6px; height: 3px; border-left: 2px solid var(--tick); border-bottom: 2px solid var(--tick); transform: translate(0, -1px) rotate(-45deg); }
+.state.skipped::before { content: ""; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--k); }
 
-@keyframes pulse { 50% { opacity: 0.3; } }
-@media (prefers-reduced-motion: reduce) { .recorder-dot { animation: none; } }
+/* Spectrum ring */
+.ring { border-radius: 50%; background: var(--spectrum-ring); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px)); mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px)); }
+.ring.live { animation: wf-spin 2.8s linear infinite; }
+.spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid transparent; border-top-color: var(--accent); border-right-color: var(--accent); animation: wf-spin 1s linear infinite; flex: none; }
+
+/* Equaliser bars for voice */
+.eq { display: flex; align-items: center; gap: 3px; height: 28px; }
+.eq i { width: 4px; height: 100%; border-radius: 2px; background: var(--k, var(--accent)); transform-origin: center; transition: transform 80ms linear; }
+.eq.idle i { animation: wf-eq 900ms ease-in-out infinite; }
+
+/* A photo or video shown as its own icon */
+.file-thumb { display: block; flex: none; border-radius: 6px; overflow: hidden; background: var(--fill); }
+.file-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }

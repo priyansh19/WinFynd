@@ -180,7 +180,7 @@ fn watcher_starts_quickly_on_a_big_tree() {
     write_tree(&root, 200, 100);
     let (tx, _rx) = mpsc::channel();
     let started = Instant::now();
-    let w = watch::Watcher::start(&[root.clone()], tx);
+    let w = watch::Watcher::start(&[root.clone()], Vec::new(), tx);
     let took = started.elapsed();
     assert!(w.is_some());
     assert!(took < Duration::from_secs(3), "watching 20,000 files took {took:?} to start");
