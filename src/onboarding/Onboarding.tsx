@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../components/Icon";
-import { getConfig, type EngineConfig } from "../lib/engine";
-import { DoneStep } from "./steps/Done";
+import { getConfig, pullModel, type EngineConfig, type PullProgress } from "../lib/engine";
+import { listen } from "../lib/tauri";
+import { WarmUpStep } from "./steps/WarmUp";
 import { FoldersStep } from "./steps/Folders";
 import { ModelsStep } from "./steps/Models";
 import { ShortcutsStep } from "./steps/Shortcuts";
@@ -12,7 +13,7 @@ const STEPS = [
   { id: "folders", label: "What to search" },
   { id: "models", label: "Search by meaning" },
   { id: "shortcuts", label: "Shortcuts" },
-  { id: "done", label: "Ready" },
+  { id: "warmup", label: "Warm-up" },
 ] as const;
 
 /** Every step shares the engine config and moves the flow itself. */
@@ -21,19 +22,38 @@ export interface StepProps {
   setConfig: (c: EngineConfig) => void;
   next: () => void;
   back?: () => void;
+  /** The search model download, shared so it carries on across steps. */
+  pull: PullProgress | null;
+  startPull: (model: string) => Promise<void>;
 }
 
 export function Onboarding() {
   const [index, setIndex] = useState(0);
   const [config, setConfig] = useState<EngineConfig | null>(null);
 
+  const [pull, setPull] = useState<PullProgress | null>(null);
+
   useEffect(() => {
     getConfig().then(setConfig);
+    const off = listen<PullProgress>("models://pull", setPull);
+    return () => {
+      off.then((f) => f());
+    };
   }, []);
+
+  const startPull = async (model: string) => {
+    setPull({ model, status: "starting", completed: 0, total: 0, done: false, error: null });
+    try {
+      await pullModel(model);
+    } catch (e) {
+      setPull({ model, status: "failed", completed: 0, total: 0, done: true, error: String(e) });
+    }
+  };
 
   const next = () => setIndex((i) => Math.min(i + 1, STEPS.length - 1));
   const back = () => setIndex((i) => Math.max(i - 1, 0));
   const step = STEPS[index];
+  const shared = { setConfig, next, pull, startPull };
 
   return (
     <div className="ob">
@@ -68,11 +88,11 @@ export function Onboarding() {
       <main className="ob-main" key={step.id}>
         {config && (
           <>
-            {step.id === "welcome" && <WelcomeStep config={config} setConfig={setConfig} next={next} />}
-            {step.id === "folders" && <FoldersStep config={config} setConfig={setConfig} next={next} back={back} />}
-            {step.id === "models" && <ModelsStep config={config} setConfig={setConfig} next={next} back={back} />}
-            {step.id === "shortcuts" && <ShortcutsStep config={config} setConfig={setConfig} next={next} back={back} />}
-            {step.id === "done" && <DoneStep config={config} setConfig={setConfig} next={next} back={back} />}
+            {step.id === "welcome" && <WelcomeStep {...shared} config={config} />}
+            {step.id === "folders" && <FoldersStep {...shared} config={config} back={back} />}
+            {step.id === "models" && <ModelsStep {...shared} config={config} back={back} />}
+            {step.id === "shortcuts" && <ShortcutsStep {...shared} config={config} back={back} />}
+            {step.id === "warmup" && <WarmUpStep {...shared} config={config} back={back} />}
           </>
         )}
       </main>

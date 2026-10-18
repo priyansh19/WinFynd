@@ -3,11 +3,15 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, Runtime};
+use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_opener::OpenerExt;
 
+use crate::engine::Engine;
 use crate::windows;
 
 /// Bump to show the flow again after an update that adds a setup step.
@@ -67,6 +71,7 @@ pub fn show_first_window<R: Runtime>(app: &AppHandle<R>) {
 #[tauri::command]
 pub fn finish_onboarding<R: Runtime>(app: AppHandle<R>, then: String) -> Result<(), String> {
     mark_complete(&app)?;
+    watch_warm_up(app.clone());
     if let Some(w) = app.get_webview_window("onboarding") {
         let _ = w.hide();
     }
@@ -76,6 +81,48 @@ pub fn finish_onboarding<R: Runtime>(app: AppHandle<R>, then: String) -> Result<
         _ => {}
     }
     Ok(())
+}
+
+/// After setup closes, keep the tray tooltip showing indexing progress and
+/// send one notification when the first full index is done.
+fn watch_warm_up<R: Runtime>(app: AppHandle<R>) {
+    std::thread::spawn(move || {
+        let started = Instant::now();
+        let mut was_busy = false;
+        loop {
+            std::thread::sleep(Duration::from_secs(2));
+            let Some(engine) = app.try_state::<Arc<Engine>>() else { return };
+            let s = engine.status();
+            let tray = app.tray_by_id("main");
+            // While the search model downloads, files are indexed by words
+            // and re-read once it arrives, so that doesn't count as done.
+            let busy = s.state != "idle" || s.queued > 0 || s.ollama == "modelMissing";
+            if busy {
+                was_busy = true;
+                if let Some(t) = &tray {
+                    let total = s.files.max(0) as usize + s.queued;
+                    let _ = t.set_tooltip(Some(format!("WinFynd · indexing {} of {} files", s.files, total)));
+                }
+                // Give up quietly if it never finishes (for example, the model is never downloaded).
+                if started.elapsed() > Duration::from_secs(12 * 3600) {
+                    return;
+                }
+                continue;
+            }
+            if let Some(t) = &tray {
+                let _ = t.set_tooltip(Some("WinFynd"));
+            }
+            if was_busy {
+                let body = if s.ollama == "ok" {
+                    format!("{} files are indexed. Press your search shortcut to find anything.", s.files)
+                } else {
+                    format!("{} files are indexed by words and names. Install Ollama to search by meaning.", s.files)
+                };
+                let _ = app.notification().builder().title("WinFynd is ready").body(body).show();
+            }
+            return;
+        }
+    });
 }
 
 #[tauri::command]

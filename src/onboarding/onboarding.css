@@ -230,6 +230,28 @@ body:has(.ob) { background: var(--ob-bg, #202020); }
 .ob-idea svg { color: var(--ob-accent); flex: none; }
 .ob-tray { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; }
 
+/* Warm-up: checklist with a quiet feed of files in the corner. */
+.ob-warm-icon { width: 24px; height: 24px; flex: none; display: grid; place-items: center; border-radius: 50%; color: var(--ob-on-accent); }
+.ob-warm-row[data-state="done"] .ob-warm-icon { background: var(--ob-ok); }
+.ob-warm-row[data-state="wait"] .ob-row-title { color: var(--ob-text-2); }
+.ob-ring { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ob-stroke-strong); border-top-color: var(--ob-accent); animation: ob-spin 0.9s linear infinite; }
+.ob-wait { width: 14px; height: 14px; border-radius: 50%; border: 1.5px dashed var(--ob-text-3); }
+@keyframes ob-spin { to { transform: rotate(1turn); } }
+.ob-inline { margin-top: 8px; align-self: flex-start; }
+.ob-warm-row .ob-muted { display: flex; flex-direction: column; }
+.ob-drops { flex: none; width: 210px; display: flex; flex-direction: column; gap: 3px; align-self: center; }
+.ob-drop {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  padding: 3px 8px; border-radius: 4px; font-size: 11px; color: var(--ob-text-2);
+  background: var(--ob-control); border: 1px solid var(--ob-stroke);
+  animation: ob-drop-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: opacity 0.4s;
+}
+.ob-drop:first-child { color: var(--ob-text); }
+.ob-drop-kind { flex: none; font: 600 9px var(--font-mono); color: var(--ob-accent); }
+@keyframes ob-drop-in { from { opacity: 0; transform: translateY(-10px); } }
+@media (prefers-reduced-motion: reduce) { .ob-ring, .ob-drop { animation: none; } }
+
 .ob-footer {
   position: sticky;
   bottom: 0;

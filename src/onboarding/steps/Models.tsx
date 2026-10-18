@@ -4,11 +4,9 @@ import {
   downloadSpeechModel,
   listModels,
   mediaSupport,
-  pullModel,
   setConfig as saveConfig,
   type InstalledModel,
   type MediaSupport,
-  type PullProgress,
   type SpeechProgress,
 } from "../../lib/engine";
 import { openOllamaDownload } from "../../lib/onboarding";
@@ -29,10 +27,9 @@ const has = (installed: InstalledModel[], name: string) =>
 
 const percent = (p: { completed: number; total: number }) => (p.total ? Math.round((p.completed / p.total) * 100) : 0);
 
-export function ModelsStep({ config, setConfig, next, back }: StepProps) {
+export function ModelsStep({ config, setConfig, next, back, pull, startPull }: StepProps) {
   const [installed, setInstalled] = useState<InstalledModel[] | null>(null);
   const [offline, setOffline] = useState(false);
-  const [pull, setPull] = useState<PullProgress | null>(null);
   const [media, setMedia] = useState<MediaSupport | null>(null);
   const [speech, setSpeech] = useState<SpeechProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,11 +46,6 @@ export function ModelsStep({ config, setConfig, next, back }: StepProps) {
   useEffect(() => {
     refresh();
     mediaSupport().then(setMedia);
-    const offPull = listen<PullProgress>("models://pull", (p) => {
-      setPull(p.done && !p.error ? null : p);
-      if (p.error) setError(p.error);
-      if (p.done) refresh();
-    });
     const offSpeech = listen<SpeechProgress>("models://speech", (p) => {
       setSpeech(p.done && !p.error ? null : p);
       if (p.error) setError(p.error);
@@ -63,12 +55,18 @@ export function ModelsStep({ config, setConfig, next, back }: StepProps) {
       }
     });
     return () => {
-      offPull.then((f) => f());
       offSpeech.then((f) => f());
     };
     // Subscribe once; `config` is only read for the speech model hand-off.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
+
+  // A finished download changes what's installed.
+  useEffect(() => {
+    if (!pull?.done) return;
+    if (pull.error) setError(pull.error);
+    refresh();
+  }, [pull?.done, pull?.error, refresh]);
 
   // While Ollama is missing, keep checking so the step moves on by itself once it starts.
   useEffect(() => {
@@ -86,15 +84,9 @@ export function ModelsStep({ config, setConfig, next, back }: StepProps) {
     }
   };
 
-  const download = async (model: string) => {
+  const download = (model: string) => {
     setError(null);
-    setPull({ model, status: "starting", completed: 0, total: 0, done: false, error: null });
-    try {
-      await pullModel(model);
-    } catch (e) {
-      setPull(null);
-      setError(String(e));
-    }
+    startPull(model);
   };
 
   const downloadSpeech = async () => {
