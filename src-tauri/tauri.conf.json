@@ -40,7 +40,18 @@
         "minWidth": 720,
         "minHeight": 520,
         "center": true,
-        "visible": true
+        "visible": false
+      },
+      {
+        "label": "onboarding",
+        "title": "Welcome to WinFynd",
+        "url": "onboarding.html",
+        "width": 960,
+        "height": 640,
+        "resizable": false,
+        "maximizable": false,
+        "center": true,
+        "visible": false
       }
     ],
     "security": {

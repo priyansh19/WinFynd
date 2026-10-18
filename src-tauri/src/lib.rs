@@ -1,6 +1,7 @@
 mod commands;
 mod engine;
 mod hotkeys;
+mod onboarding;
 mod windows;
 
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -38,6 +39,9 @@ pub fn run() {
             commands::download_speech_model,
             commands::open_path,
             commands::reveal_path,
+            onboarding::finish_onboarding,
+            onboarding::open_ollama_download,
+            onboarding::try_launcher,
         ])
         .setup(|app| {
             let handle = app.handle();
@@ -51,9 +55,10 @@ pub fn run() {
 
             let open = MenuItem::with_id(app, "open", "Open WinFynd", true, None::<&str>)?;
             let control = MenuItem::with_id(app, "control", "Control Center", true, None::<&str>)?;
+            let setup = MenuItem::with_id(app, "setup", "Run setup again", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit WinFynd", true, None::<&str>)?;
             let sep = PredefinedMenuItem::separator(app)?;
-            let menu = Menu::with_items(app, &[&open, &control, &sep, &quit])?;
+            let menu = Menu::with_items(app, &[&open, &control, &setup, &sep, &quit])?;
 
             let mut tray = TrayIconBuilder::with_id("main")
                 .tooltip("WinFynd")
@@ -62,6 +67,7 @@ pub fn run() {
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "open" => windows::show_launcher(app),
                     "control" => windows::show_control_center(app),
+                    "setup" => onboarding::show(app),
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -80,6 +86,8 @@ pub fn run() {
             }
             tray.build(app)?;
 
+            onboarding::show_first_window(handle);
+
             Ok(())
         })
         .on_window_event(|window, event| match (window.label(), event) {
@@ -88,7 +96,8 @@ pub fn run() {
                 let _ = window.hide();
             }
             // Closing the Control Center keeps WinFynd running in the tray.
-            ("control", WindowEvent::CloseRequested { api, .. }) => {
+            // Closing setup early keeps it for next launch; the tray can reopen it.
+            ("control" | "onboarding", WindowEvent::CloseRequested { api, .. }) => {
                 api.prevent_close();
                 let _ = window.hide();
             }
