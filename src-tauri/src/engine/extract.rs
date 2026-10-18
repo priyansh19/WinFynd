@@ -10,17 +10,22 @@ use base64::Engine as _;
 /// Biggest text-ish file read whole; larger ones are indexed by name only.
 const MAX_TEXT_BYTES: u64 = 20 * 1024 * 1024;
 const MAX_IMAGE_BYTES: u64 = 40 * 1024 * 1024;
-/// Chunks aim for about 100 tokens: small enough that one chunk is about one
-/// thing, so its vector isn't an average of several topics. They end on a
-/// sentence (or line, for code and tables) and never run past the hard limit.
-pub(crate) const TARGET_CHARS: usize = 450;
-const MAX_CHARS: usize = 700;
-/// A chunk ends early at a paragraph break once it's at least this long.
-const MIN_CHARS: usize = 100;
+/// Chunks aim for about 250 tokens: big enough to hold a whole idea with its
+/// context, small enough that one chunk is about one thing. Much smaller
+/// chunks double the index and give long files more chances to win a
+/// search on volume alone. They end on a sentence (or line, for code and
+/// tables) and never run past the hard limit.
+pub(crate) const TARGET_CHARS: usize = 1000;
+const MAX_CHARS: usize = 1500;
+/// A chunk ends early at a paragraph break or heading once it's this long.
+const MIN_CHARS: usize = 300;
 /// The last sentence of a chunk is repeated at the start of the next when
 /// it's this short or shorter, so an idea split across a boundary still matches.
-const OVERLAP_CHARS: usize = 160;
-const MAX_CHUNKS_PER_FILE: usize = 600;
+const OVERLAP_CHARS: usize = 200;
+/// Longer files are sampled evenly across their length rather than cut off.
+const MAX_CHUNKS_PER_FILE: usize = 300;
+/// Code lines longer than this on average mean minified or generated output.
+const MINIFIED_LINE_CHARS: usize = 400;
 /// Long side of images sent to the embedder.
 const IMAGE_MAX_SIDE: u32 = 896;
 
@@ -109,8 +114,9 @@ fn text_chunks(path: &Path, kind: Kind) -> Option<Vec<TextChunk>> {
             .enumerate()
             .map(|(i, t)| (Some(format!("Page {}", i + 1)), t))
             .collect(),
-        "docx" => vec![(None, office_text(path, |n| n == "word/document.xml", "w:p")?.join("\n"))],
-        "odt" => vec![(None, office_text(path, |n| n == "content.xml", "text:p")?.join("\n"))],
+        // Blank lines between paragraphs, so chunks can end where they do.
+        "docx" => vec![(None, office_text(path, |n| n == "word/document.xml", "w:p")?.join("\n\n"))],
+        "odt" => vec![(None, office_text(path, |n| n == "content.xml", "text:p")?.join("\n\n"))],
         "pptx" => pptx_slides(path)?,
         "xlsx" | "xlsm" | "xls" | "ods" => spreadsheet(path)?,
         "html" | "htm" => vec![(None, strip_tags(&read_lossy(path)?))],
@@ -118,17 +124,43 @@ fn text_chunks(path: &Path, kind: Kind) -> Option<Vec<TextChunk>> {
         _ => return None,
     };
 
+    if kind == Kind::Code && is_minified(path, &sections) {
+        return None;
+    }
     let prose = matches!(kind, Kind::Document | Kind::Slides);
     let mut out = Vec::new();
     for (label, text) in sections {
         for window in chunk_text(&text, prose) {
             out.push(TextChunk { label: label.clone(), text: window });
-            if out.len() >= MAX_CHUNKS_PER_FILE {
-                return Some(out);
-            }
         }
     }
-    Some(out)
+    Some(sample_evenly(out, MAX_CHUNKS_PER_FILE))
+}
+
+/// At most `max` items, spread evenly from first to last.
+fn sample_evenly<T>(items: Vec<T>, max: usize) -> Vec<T> {
+    let n = items.len();
+    if n <= max {
+        return items;
+    }
+    items.into_iter().enumerate().filter(|(i, _)| (i * max) % n < max).map(|(_, c)| c).take(max).collect()
+}
+
+fn is_minified(path: &Path, sections: &[(Option<String>, String)]) -> bool {
+    let name = path.file_name().map(|n| n.to_string_lossy().to_lowercase()).unwrap_or_default();
+    if name.contains(".min.") || name.ends_with(".map") || name.ends_with(".lock") || name.ends_with("-lock.json") {
+        return true;
+    }
+    let (chars, lines) = sections.iter().fold((0, 0), |(c, l), (_, t)| (c + t.len(), l + t.lines().count().max(1)));
+    lines > 0 && chars / lines > MINIFIED_LINE_CHARS
+}
+
+/// Files whose text is worth finding by exact words but whose chunks say
+/// little to an embedding model (logs, data and config); they get a file
+/// card vector only, which keeps them from crowding out real documents.
+pub fn keyword_only(path: &Path) -> bool {
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+    matches!(ext.as_str(), "log" | "json" | "csv" | "tsv" | "xml" | "yaml" | "yml" | "toml" | "ini" | "sql" | "ipynb")
 }
 
 fn read_lossy(path: &Path) -> Option<String> {
@@ -167,6 +199,11 @@ pub(crate) fn chunk_text(text: &str, prose: bool) -> Vec<String> {
         }
     };
     for (unit, para_end) in &units {
+        // No overlap carried into a new section.
+        if unit.starts_with('#') && fresh == 0 {
+            cur.clear();
+            len = 0;
+        }
         let n = unit.chars().count();
         if len > 0 && len + 1 + n > TARGET_CHARS {
             flush(&mut cur, &mut len, &mut fresh, &mut out);
@@ -187,7 +224,7 @@ pub(crate) fn chunk_text(text: &str, prose: bool) -> Vec<String> {
         let tail = cur.join(sep);
         // A scrap of a few words is folded into the previous chunk.
         match out.last_mut() {
-            Some(prev) if tail.chars().count() < 80 && fresh == cur.len() && prev.chars().count() + 1 + tail.chars().count() <= MAX_CHARS => {
+            Some(prev) if tail.chars().count() < 80 && fresh == cur.len() && !tail.starts_with('#') && prev.chars().count() + 1 + tail.chars().count() <= MAX_CHARS => {
                 prev.push_str(sep);
                 prev.push_str(&tail);
             }
@@ -205,6 +242,8 @@ fn units(text: &str, prose: bool) -> Vec<(String, bool)> {
     // Paragraphs are separated by blank lines; in prose a single newline
     // (one paragraph per line from docx, slides, PDFs) also ends one when
     // the line ends a sentence.
+    // Markdown headings start a paragraph of their own.
+    let text = if prose { text.replace("\r\n", "\n").replace("\n#", "\n\n#") } else { text.to_string() };
     for para in text.split("\n\n").flat_map(|p| p.split("\r\n\r\n")) {
         let pieces: Vec<String> = if prose {
             sentences(&para.split_whitespace().collect::<Vec<_>>().join(" "))
@@ -218,6 +257,12 @@ fn units(text: &str, prose: bool) -> Vec<(String, bool)> {
         }
         if let Some(last) = out.last_mut() {
             last.1 = true;
+        }
+    }
+    // A chunk may end before a heading, so a new section starts a new chunk.
+    for i in 1..out.len() {
+        if out[i].0.starts_with('#') {
+            out[i - 1].1 = true;
         }
     }
     out
@@ -407,7 +452,7 @@ mod tests {
 
     #[test]
     fn chunks_are_small_and_cover_everything() {
-        let text = "The quarterly budget was approved by finance. ".repeat(60);
+        let text = "The quarterly budget was approved by finance. ".repeat(150);
         let c = chunk_text(&text, true);
         assert!(c.len() >= 5, "{}", c.len());
         assert!(c.iter().all(|s| s.chars().count() <= MAX_CHARS));
@@ -423,8 +468,8 @@ mod tests {
 
     #[test]
     fn paragraphs_split_topics() {
-        let a = "Our trip to Lisbon was booked for March. We stayed near the river and ate pastel de nata every morning. The tram up the hill was packed.";
-        let b = "The car insurance renewal is due in May. The premium went up by twelve percent compared to last year. Call the broker before then.";
+        let a = "Our trip to Lisbon was booked for March. We stayed near the river and ate pastel de nata every morning. The tram up the hill was packed. ".repeat(3);
+        let b = "The car insurance renewal is due in May. The premium went up by twelve percent compared to last year. Call the broker before then. ".repeat(3);
         let c = chunk_text(&format!("{a}\n\n{b}"), true);
         assert_eq!(c.len(), 2, "{c:?}");
         assert!(c[0].contains("Lisbon") && !c[0].contains("insurance"));
@@ -433,7 +478,7 @@ mod tests {
 
     #[test]
     fn short_last_sentence_overlaps() {
-        let long = "word ".repeat(70);
+        let long = "word ".repeat(180);
         let text = format!("{}. Short bridge. {}.", long.trim(), long.trim());
         let c = chunk_text(&text, true);
         assert!(c.len() >= 2);
@@ -442,12 +487,39 @@ mod tests {
 
     #[test]
     fn code_splits_on_lines_and_long_runs_are_cut() {
-        let code = (0..200).map(|i| format!("let value_{i} = compute({i});")).collect::<Vec<_>>().join("\n");
+        let code = (0..400).map(|i| format!("let value_{i} = compute({i});")).collect::<Vec<_>>().join("\n");
         let c = chunk_text(&code, false);
         assert!(c.len() > 5);
         assert!(c.iter().all(|s| s.lines().all(|l| l.starts_with("let value_"))));
         let blob = "x".repeat(5000);
         assert!(chunk_text(&blob, false).iter().all(|s| s.chars().count() <= MAX_CHARS));
+    }
+
+    #[test]
+    fn long_files_are_sampled_across_their_length() {
+        let s = sample_evenly((0..1000).collect::<Vec<_>>(), 300);
+        assert_eq!(s.len(), 300);
+        assert_eq!(s[0], 0);
+        assert!(*s.last().unwrap() > 990);
+    }
+
+    #[test]
+    fn minified_and_data_files() {
+        let one_line = vec![(None, "a".repeat(5000))];
+        assert!(is_minified(Path::new("app.js"), &one_line));
+        assert!(is_minified(Path::new("vendor.min.js"), &[(None, "x\ny".into())]));
+        assert!(!is_minified(Path::new("main.rs"), &[(None, "fn main() {\n    run();\n}".into())]));
+        assert!(keyword_only(Path::new("server.LOG")) && keyword_only(Path::new("data.csv")));
+        assert!(!keyword_only(Path::new("notes.md")));
+    }
+
+    #[test]
+    fn headings_start_a_new_chunk() {
+        let intro = "Intro sentence about the project and its goals. ".repeat(8);
+        for prose in [true, false] {
+            let c = chunk_text(&format!("{intro}\n# Budget\nThe budget is 4,210 euros."), prose);
+            assert!(c.last().unwrap().starts_with("# Budget"), "{c:?}");
+        }
     }
 
     #[test]

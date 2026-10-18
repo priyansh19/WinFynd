@@ -16,12 +16,22 @@ export interface SearchResult {
   location: string | null;
   snippet: string | null;
   reason: string;
+  /** False for weaker matches, listed after the confident ones. */
+  confident: boolean;
+}
+
+/** A filter the engine read from the query, like "Photos" from "photo of". */
+export interface FilterChip {
+  label: string;
+  /** The words in the query that set it; removing them drops the filter. */
+  phrase: string;
 }
 
 export interface SearchResponse {
   hits: SearchResult[];
   /** False when only exact-word search ran (Ollama offline). */
   semantic: boolean;
+  filters: FilterChip[];
 }
 
 export interface Answer {
@@ -94,26 +104,44 @@ export function describe(r: SearchResult): string {
   return `${GROUP_LABEL[r.kind].replace(/s$/, "")} · ${size} · Modified ${date}`;
 }
 
-/** Group results by kind, keeping the order of first appearance. */
-export function groupResults(results: SearchResult[]): { kind: ResultKind; items: SearchResult[] }[] {
+export interface ResultGroup {
+  key: string;
+  label: string;
+  items: SearchResult[];
+}
+
+/** Confident results grouped by kind in order of first appearance, then the
+ *  weaker matches in one group of their own. */
+export function groupResults(results: SearchResult[]): ResultGroup[] {
   const groups = new Map<ResultKind, SearchResult[]>();
-  for (const r of results) groups.set(r.kind, [...(groups.get(r.kind) ?? []), r]);
-  return [...groups].map(([kind, items]) => ({ kind, items }));
+  for (const r of results) if (r.confident) groups.set(r.kind, [...(groups.get(r.kind) ?? []), r]);
+  const out: ResultGroup[] = [...groups].map(([kind, items]) => ({ key: kind, label: GROUP_LABEL[kind], items }));
+  const weak = results.filter((r) => !r.confident);
+  if (weak.length) out.push({ key: "weak", label: "Weaker matches", items: weak });
+  return out;
+}
+
+/** The query with a filter's words taken out. */
+export function withoutPhrase(query: string, phrase: string): string {
+  const i = query.toLowerCase().indexOf(phrase.toLowerCase());
+  if (i < 0) return query;
+  return (query.slice(0, i) + query.slice(i + phrase.length)).replace(/\s+/g, " ").trim();
 }
 
 // Browser preview (`npm run dev`): sample results so the UI can be worked on
 // without the Rust side.
 const SAMPLE: SearchResult[] = [
-  { id: 1, kind: "document", name: "Invoice_2026-03_Acme.pdf", path: "C:\\Users\\you\\Documents\\Finance\\Invoice_2026-03_Acme.pdf", size: 188_000, modified: 1773446400, location: "Page 1", snippet: "Acme Studio Invoice #0342, issued March 14. Total due within 30 days.", reason: "Exact words on page 1" },
-  { id: 2, kind: "slides", name: "Board update, Q3.pptx", path: "C:\\Users\\you\\OneDrive\\Work\\Board update, Q3.pptx", size: 6_500_000, modified: 1789000000, location: "Slide 7", snippet: "FY26 revenue by region: North, South, East, West, International", reason: "Matches the meaning on slide 7" },
-  { id: 3, kind: "image", name: "IMG_4410.jpg", path: "C:\\Users\\you\\Pictures\\Goa 2026\\IMG_4410.jpg", size: 3_100_000, modified: 1771718400, location: null, snippet: null, reason: "Image matches your search" },
-  { id: 4, kind: "video", name: "Goa trip, beach day.mp4", path: "C:\\Users\\you\\Videos\\Goa 2026\\Goa trip, beach day.mp4", size: 412_000_000, modified: 1771718400, location: null, snippet: null, reason: "Name is a close match" },
+  { id: 1, kind: "document", name: "Invoice_2026-03_Acme.pdf", path: "C:\\Users\\you\\Documents\\Finance\\Invoice_2026-03_Acme.pdf", size: 188_000, modified: 1773446400, location: "Page 1", snippet: "Acme Studio Invoice #0342, issued March 14. Total due within 30 days.", reason: "Exact words on page 1", confident: true },
+  { id: 2, kind: "slides", name: "Board update, Q3.pptx", path: "C:\\Users\\you\\OneDrive\\Work\\Board update, Q3.pptx", size: 6_500_000, modified: 1789000000, location: "Slide 7", snippet: "FY26 revenue by region: North, South, East, West, International", reason: "Matches the meaning on slide 7", confident: true },
+  { id: 3, kind: "image", name: "IMG_4410.jpg", path: "C:\\Users\\you\\Pictures\\Goa 2026\\IMG_4410.jpg", size: 3_100_000, modified: 1771718400, location: null, snippet: null, reason: "Image matches your search", confident: true },
+  { id: 4, kind: "video", name: "Goa trip, beach day.mp4", path: "C:\\Users\\you\\Videos\\Goa 2026\\Goa trip, beach day.mp4", size: 412_000_000, modified: 1771718400, location: null, snippet: null, reason: "Name is a close match", confident: false },
 ];
 stubCommands({
   search: ({ query }) => {
     const q = String(query).toLowerCase();
     const hits = SAMPLE.filter((r) => q.split(/\s+/).some((w) => w && `${r.name} ${r.snippet ?? ""}`.toLowerCase().includes(w)));
-    return { hits: hits.length ? hits : SAMPLE, semantic: true };
+    const filters = /\bphotos?\b/.test(q) ? [{ label: "Photos", phrase: q.match(/\bphotos?\b/)![0] }] : [];
+    return { hits: hits.length ? hits : SAMPLE, semantic: true, filters };
   },
   ask: ({ question }) => ({
     text: `In the desktop app, answers to "${question}" are written by your local Ollama model from the passages below [1].`,

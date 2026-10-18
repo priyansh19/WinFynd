@@ -1,4 +1,4 @@
-import { extension, folderOf, GROUP_LABEL, groupResults, KIND_TINT, thumbnailUrl, type SearchResult } from "../lib/search";
+import { extension, folderOf, groupResults, KIND_TINT, thumbnailUrl, type SearchResult } from "../lib/search";
 
 export function ResultList({
   results,
@@ -14,8 +14,8 @@ export function ResultList({
   return (
     <div className="result-list" role="listbox" aria-label="Results">
       {groupResults(results).map((g) => (
-        <div key={g.kind} role="group" aria-label={GROUP_LABEL[g.kind]}>
-          <div className="result-group-label">{GROUP_LABEL[g.kind]}</div>
+        <div key={g.key} role="group" aria-label={g.label}>
+          <div className="result-group-label">{g.label}</div>
           {g.items.map((r) => {
             const index = results.indexOf(r);
             const thumb = thumbnailUrl(r);

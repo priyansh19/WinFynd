@@ -20,8 +20,8 @@ A Tauri 2 app with a Rust backend and a React + TypeScript UI:
 ## How search works
 
 - **Embeddings: EmbeddingGemma 2**, open weights, run locally through [Ollama](https://ollama.com) on `127.0.0.1` only. Text and photos land in one vector space, so "zebra on a beach" finds the photo as well as the notes about it.
-- **Indexer** (`src-tauri/src/engine/`): watches your Documents, Desktop, Downloads and Pictures (change them on the Overview page), extracts text from PDF, Word, PowerPoint, Excel/CSV, OpenDocument, HTML, Markdown and code, chunks it with page and slide labels, and stores everything in SQLite next to the app config. Unchanged files are skipped on rescan; OneDrive files that aren't downloaded are indexed by name only.
-- **Hybrid search**: vector similarity and SQLite full-text search, fused by rank, one result per file with the reason it matched ("Exact words on page 3").
+- **Indexer** (`src-tauri/src/engine/`): watches your Documents, Desktop, Downloads and Pictures (change them on the Overview page), extracts text from PDF, Word, PowerPoint, Excel/CSV, OpenDocument, HTML, Markdown and code, and stores everything in SQLite next to the app config. Text is cut into chunks of about 1,000 characters (roughly 250 tokens) along sentences, paragraphs and headings, with page and slide labels; each chunk is embedded with its folder and section, and every file also gets a short card (name, folders, kind, year, opening lines) so it can be found as a whole. Logs, data files (JSON, CSV, XML, YAML and similar) and minified code are searched by their words only, and build folders like `node_modules`, `dist` and `.git` are skipped. Unchanged files are skipped on rescan; OneDrive files that aren't downloaded are indexed by name only, and indexed again in full once they are.
+- **Hybrid search**: up to six ranked lists, fused by rank (reciprocal rank fusion) with one vote per file per list: text meaning, picture meaning, chunks with all your words (stemmed, so "invoices" finds "invoice"), chunks with some of them, and file names and paths (partial words work). Filler words ("find the file about") are dropped. Words like "photo of", "pdf", "last week" or "in Downloads" become filters, shown as chips you can click to remove. Results that clearly match come first; the rest are listed under "Weaker matches", at most 8 of them, so a search for one thing doesn't fill up with things that aren't it.
 - **Ask mode**: sends the top passages to an Ollama chat model you have installed (pick one on the Models page) and answers with numbered sources.
 - If Ollama isn't running, search falls back to exact words and files are re-embedded once it's back.
 
@@ -58,3 +58,12 @@ npm run tauri build   # installer in src-tauri/target/release/bundle
 ```
 
 `cargo test` in `src-tauri` runs the engine end to end against a fake Ollama server.
+
+To measure search on a real index, write queries with the file each should find (see `src-tauri/eval/cases.example.json`; an empty `expect` means nothing should match) and run:
+
+```sh
+cd src-tauri
+WINFYND_EVAL=eval/cases.json cargo test --release --lib eval_real_index -- --ignored --nocapture
+```
+
+It reads the index the app built (`%APPDATA%\app.winfynd.desktop`, or `WINFYND_DATA`) and prints how often the right file is first, in the top 5, and which queries missed.

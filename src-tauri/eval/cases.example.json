@@ -1,0 +1,7 @@
+[
+  { "query": "car insurance renewal", "expect": ["car-insurance-2026.pdf"] },
+  { "query": "screenshot of the flight booking", "expect": ["Screenshot 2026-09-12 101500.png"] },
+  { "query": "that pdf from last week about the lease", "expect": ["Documents/Housing/lease-renewal.pdf"] },
+  { "query": "Rahul's notes on the launch date", "expect": ["product-sync-notes.docx"] },
+  { "query": "zebra stripes quantum toaster", "expect": [] }
+]

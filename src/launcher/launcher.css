@@ -98,6 +98,25 @@ html:has(.launcher), body:has(.launcher) { background: transparent; }
   color: var(--glass-label);
   padding: 10px 10px 6px;
 }
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 8px;
+}
+.filter-chip {
+  font: inherit;
+  font-size: 12px;
+  color: var(--glass-label);
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+.filter-chip:hover {
+  color: inherit;
+}
 .result-row {
   display: flex;
   align-items: center;

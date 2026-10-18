@@ -9,7 +9,8 @@ use serde_json::{json, Value};
 use super::config::EngineConfig;
 use super::*;
 
-const DIMS: usize = 64;
+/// Wide enough that unrelated words rarely share a slot in the fake model.
+const DIMS: usize = 512;
 
 /// Bag-of-words vector, so texts sharing words land close together.
 fn fake_embedding(text: &str) -> Vec<f32> {
@@ -326,20 +327,29 @@ fn returns_only_relevant_files_among_many() {
     engine.refresh_ollama_state();
     engine.walk_roots().iter().for_each(|p| engine.index_file(p));
 
+    let confident = |q: &str| -> Vec<String> {
+        engine.search(q, 30).hits.into_iter().filter(|h| h.confident).map(|h| h.name).collect()
+    };
     let r = engine.search("car insurance premium", 30);
-    assert_eq!(r.hits.len(), 1, "{:?}", r.hits.iter().map(|h| (&h.name, h.score, &h.reason)).collect::<Vec<_>>());
+    assert_eq!(confident("car insurance premium"), vec!["car-insurance.txt"], "{:?}", r.hits);
     assert_eq!(r.hits[0].name, "car-insurance.txt");
-    // Small chunks: the snippet is the insurance paragraph, not the garden.
-    assert!(!r.hits[0].snippet.as_deref().unwrap().contains("tomatoes"));
+    assert!(r.hits[0].snippet.as_deref().unwrap().contains("insurance"));
+    // Weaker matches are capped and come after.
+    assert!(r.hits.len() <= 1 + 8 && r.hits[1..].iter().all(|h| !h.confident));
 
-    // A photo still surfaces among a hundred text files.
+    // A photo surfaces among a hundred text files, and "photo" filters to photos.
     let r = engine.search("photo of the beach", 30);
-    assert_eq!(r.hits[0].name, "IMG_0001.jpg");
+    assert_eq!(r.hits.iter().map(|h| h.name.as_str()).collect::<Vec<_>>(), vec!["IMG_0001.jpg"]);
     assert_eq!(r.hits[0].reason, "Image matches your search");
-    assert!(r.hits.len() <= 2, "{:?}", r.hits.iter().map(|h| &h.name).collect::<Vec<_>>());
+    assert_eq!(r.filters[0].label, "Photos");
 
-    // Filler words alone ("find the file") pull in nothing.
-    assert!(engine.search("find the file about", 30).hits.len() <= 1);
+    // A query that is only a filter lists the newest matching files.
+    let r = engine.search("photos", 30);
+    assert_eq!(r.hits.len(), 1);
+    assert!(r.hits[0].confident);
+
+    // Filler words alone ("find the file about") match nothing confidently.
+    assert!(confident("find the file about").is_empty());
     let _ = std::fs::remove_dir_all(&root);
 }
 
@@ -354,5 +364,25 @@ fn text_still_indexes_when_the_model_rejects_images() {
     assert_eq!(engine.status().ollama, "ok", "an image error must not mark Ollama offline");
     assert_eq!(engine.search("roadmap", 10).hits[0].name, "plan.txt");
     assert_eq!(engine.search("receipt", 10).hits[0].name, "receipt scan.png");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn eval_reports_rank_and_empty_answers() {
+    let root = temp_dir("eval");
+    std::fs::write(root.join("lease-renewal.txt"), "The apartment lease renewal is due in January.").unwrap();
+    std::fs::write(root.join("groceries.md"), "Shopping list: apples, bananas, oat milk.").unwrap();
+    let engine = engine_for(&root, fake_ollama());
+    engine.refresh_ollama_state();
+    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+    let cases = vec![
+        eval::Case { query: "lease renewal".into(), expect: vec!["lease-renewal.txt".into()] },
+        eval::Case { query: "zebra quantum toaster".into(), expect: vec![] },
+    ];
+    let r = eval::evaluate(&engine, &cases);
+    assert_eq!((r.cases, r.empty_cases), (1, 1));
+    assert_eq!(r.top1, 1.0);
+    assert_eq!(r.mrr, 1.0);
+    assert_eq!(r.empty_correct, 1.0, "{:?}", r.misses);
     let _ = std::fs::remove_dir_all(&root);
 }
