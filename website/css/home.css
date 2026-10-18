@@ -209,6 +209,11 @@ html:not(.js) .demo-controls { display: none; }
   .demo-launcher .ask-answer { font-size: 14px !important; line-height: 21px !important; }
   .demo-launcher .ask-sources .src { min-height: 48px !important; padding: 6px 12px !important; }
 }
+/* The narrowest phones: a smaller query and tighter box, so "receipt for the blue sofa" shows whole. */
+@media (max-width: 359px) {
+  .demo-launcher .lsearch { gap: 8px; padding: 0 4px 0 12px; }
+  .demo-launcher .lsearch .q { font-size: 15px; }
+}
 /* Phones: the launcher fills the stage, and the taskbar and long chip labels go. */
 @media (max-width: 699px) {
   .demo-stage { padding: 12px; }

@@ -225,6 +225,8 @@ html:not(.js) .help-jump { margin-top: 36px; }
   .help-lshot .lsearch { padding-left: 16px; }
   .help-lshot .lsearch .q { font-size: 17px; text-overflow: ellipsis; }
 }
+/* The narrowest phones: a smaller query, so it shows whole. */
+@media (max-width: 340px) { .help-lshot .lsearch .q { font-size: 15px; } }
 
 /* ---------- Keys in the search window ---------- */
 
@@ -295,6 +297,9 @@ html:not(.js) .help-jump { margin-top: 36px; }
 }
 .help-set__keys, .help-rec__keys { display: inline-flex; gap: 4px; }
 .help-rec__keys { gap: 12px; }
+/* The keys pressed so far, in the accent colour; a step deeper in light mode for 4.5:1. */
+.help-rec__k { color: var(--accent); }
+@media (prefers-color-scheme: light) { .help-rec__k { color: #1f55c4; } }
 /* Recording a new combo: the keys arrive one by one (js/help.js). Static without JS. */
 .help-rec__k, .help-rec__wait { transition: opacity 200ms var(--ease), transform 200ms var(--ease); }
 .help-rec[data-step="0"] .help-rec__k { opacity: 0; transform: scale(0.7); }

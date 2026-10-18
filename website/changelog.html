@@ -110,7 +110,7 @@
                 <ul class="area-list">
                   <li>Press Alt&nbsp;+&nbsp;Space from any app and describe the file: <q class="cl-q">receipt for the blue sofa</q>. WinFynd matches the words and the meaning at the same time.</li>
                   <li>The preview shows the page, slide or sheet that matched, with the passage, and plays recordings and videos from the matched second.</li>
-                  <li>Every result says why it matched, so you can tell exact words from meaning:<span class="cl-reasons"><span class="cl-why">Exact words on page 3</span><span class="cl-why">Matches the meaning on slide 7</span><span class="cl-why">Talked about at 12:05</span></span></li>
+                  <li>The preview says how each result matched, so you can tell exact words from meaning:<span class="cl-reasons"><span class="cl-why">Words: sofa</span><span class="cl-why">Similar meaning</span></span></li>
                   <li>Dates, folders and file types in what you type become filters you can remove. Try <q class="cl-q">pdf from last week in Downloads</q>.</li>
                   <li>Enter opens the file in its usual app. Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;E shows it in its folder and Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;C copies its path.</li>
                   <li>Select text in any app and press Win&nbsp;+&nbsp;Shift&nbsp;+&nbsp;F to find the files about it.</li>
@@ -124,7 +124,7 @@
                   <div><h3 class="heading" id="r010-photos-t">Photos</h3><p class="area-sum">Found by what is in them.</p></div>
                 </div>
                 <ul class="area-list">
-                  <li>Describe a photo and WinFynd finds it by what it shows: <q class="cl-q">dog on the beach at sunset</q>.<span class="cl-reasons"><span class="cl-why">Image matches your search</span></span></li>
+                  <li>Describe a photo and WinFynd finds it by what it shows: <q class="cl-q">dog on the beach at sunset</q>.<span class="cl-reasons"><span class="cl-why">Looks like: dog, beach, sunset</span></span></li>
                   <li>The preview shows the photo itself, with its size, date and folder.</li>
                   <li>Reads JPG, PNG, WebP, GIF and BMP, up to 40&nbsp;MB each.</li>
                   <li>Needs Ollama with the Most accurate or Balanced search model. With Smallest, photos are found by name.</li>
@@ -137,11 +137,11 @@
                   <div><h3 class="heading" id="r010-recordings-t">Recordings and video</h3><p class="area-sum">What was said, and in videos, what was shown.</p></div>
                 </div>
                 <ul class="area-list">
-                  <li>Whisper runs inside WinFynd and writes down what is said in recordings and videos, on your PC. Search <q class="cl-q">when did we agree the Q3 budget</q> and the preview plays from the second it came up.<span class="cl-reasons"><span class="cl-why">Talked about at 12:05</span></span></li>
+                  <li>Whisper runs inside WinFynd and writes down what is said in recordings and videos, on your PC. Search <q class="cl-q">when did we agree the Q3 budget</q> and the preview plays from the second it came up.<span class="cl-reasons"><span class="cl-why">Said at 12:05</span></span></li>
                   <li>With FFmpeg installed and a search model that reads photos, WinFynd also looks at up to 48&nbsp;frames of each video, so describing a scene finds the moment it was on screen.<span class="cl-reasons"><span class="cl-why k-video">Shown at 1:23</span></span></li>
                   <li>MP3, M4A, WAV, FLAC and OGG, and the sound in MP4 and MKV, work as they are. FFmpeg, if installed, covers WMA, Opus, AVI, WMV and the rest.</li>
                   <li>The language is detected for you. The first 4&nbsp;hours of each file are written down.</li>
-                  <li>Turn it on by downloading a speech model in setup or Settings, such as Whisper&nbsp;Small (466&nbsp;MB).</li>
+                  <li>Turn it on by downloading a speech model in setup or Settings, such as Whisper&nbsp;Small (488&nbsp;MB).</li>
                 </ul>
               </section>
 
@@ -151,7 +151,7 @@
                   <div><h3 class="heading" id="r010-ask-t">Ask</h3><p class="area-sum">An answer from your files, with its sources.</p></div>
                 </div>
                 <ul class="area-list">
-                  <li>Press Ctrl&nbsp;+&nbsp;Alt&nbsp;+&nbsp;Space, or start a search with a question mark, and ask in your own words: <q class="cl-q">When does my lease renew?</q></li>
+                  <li>Press Ctrl&nbsp;+&nbsp;Alt&nbsp;+&nbsp;Space, or Tab in the search window, and ask in your own words: <q class="cl-q">When does my lease renew?</q></li>
                   <li>WinFynd finds the six passages that fit best and answers from them, citing each by number with its file and page, slide or time.</li>
                   <li>The answer is written on your PC by a chat model you run in Ollama, such as llama3.2&nbsp;3B (2.0&nbsp;GB). Pick one in Settings, or WinFynd uses a chat model you already have.</li>
                 </ul>
@@ -166,7 +166,7 @@
                   <li>Hold Alt&nbsp;+&nbsp;Shift&nbsp;+&nbsp;Space, say what you remember, and let go. WinFynd searches for what you said.</li>
                   <li>Whisper turns your words into text on your PC, with the same model that reads your recordings.</li>
                   <li>A level meter shows the microphone is hearing you.</li>
-                  <li>In Settings, choose <span class="ui">Hold to talk</span> or <span class="ui">Press to start and stop</span>, and turn <span class="ui">Search when I stop talking</span> on or off.</li>
+                  <li>In Settings, choose <span class="ui">Hold the shortcut while you speak</span> or <span class="ui">Press once to start, press again to stop</span>.</li>
                 </ul>
               </section>
 
@@ -178,8 +178,8 @@
                 <ul class="area-list">
                   <li>Covers every drive on your PC by default. Switch off <span class="ui">Allow full OS context</span> in setup or Settings to pick folders instead, starting with Documents, Pictures, Desktop and Downloads.</li>
                   <li>New, changed, moved and deleted files are picked up within a couple of seconds.</li>
-                  <li>A full rescan every 20&nbsp;minutes catches anything missed. Rescan in Settings runs one now.</li>
-                  <li>OneDrive files that live only in the cloud are found by name, and read in full once they are on your PC. WinFynd never downloads them to read them.</li>
+                  <li>A full rescan every 20&nbsp;minutes catches anything missed. <span class="ui">Look for changes</span> in Settings runs one now.</li>
+                  <li>OneDrive files that live only in the cloud are found by name, and read in full once they are on your PC. Nothing is downloaded unless you switch on <span class="ui">OneDrive files that are only online</span>.</li>
                   <li>Always skipped: Windows, Program Files, AppData, the Recycle Bin, folders that start with a dot (like .git), node_modules, build output and caches.</li>
                 </ul>
               </section>

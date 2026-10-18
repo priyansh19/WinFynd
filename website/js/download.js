@@ -18,11 +18,11 @@
     var btn = win.querySelector("[data-inst-btn]");
     if (!fill || !label || !title) return;
 
-    // The installer's own step labels (setup/ui/setup.js), with their share of the bar.
+    // The installer's own step labels and step count (setup/ui/setup.js), with their share of the bar.
     var STEPS = [
-      { label: "Unpacking WinFynd", end: 0.1 },
-      { label: "Copying WinFynd to your user folder", end: 0.9 },
-      { label: "Adding WinFynd to Start and Apps", end: 1 }
+      { label: "Unpacking WinFynd · step 1 of 3", end: 0.1 },
+      { label: "Copying files · step 2 of 3", end: 0.9 },
+      { label: "Adding WinFynd to Start and Apps · step 3 of 3", end: 1 }
     ];
     var RUN = 6400, HOLD = 2600;
     var raf = 0, start = 0, offset = 0, running = false;
@@ -64,19 +64,18 @@
   }
 
   /* ---------- Setup Welcome: sample searches ----------
-     The SetupWelcome artboard's result lines, as on How it works. Left out: the artboard's
-     "Row 14" and "Line 48" (the app labels sheets by name and has no line numbers) and
-     "03:42" (the app writes 3:42). */
+     The app's own sample lines (src/onboarding/steps/Welcome.tsx), as on How it works,
+     except "Shown at 3:42": the app writes "03:42" there but 3:42 in real results. */
   var BADGE = { PDF: "#e5484d", DOC: "#2f6ce5", XLS: "#1d8f53", PPT: "#d9622b", MP4: "#c43d6a", M4A: "#7a4ae0", MD: "#6b7280", JPG: "#c03d8a" };
   var DEMOS = [
     ["receipt for the blue sofa", [
       ["PDF", "Northwind_Order_88412.pdf", "Page 2 · sofa, navy, total paid", "k-doc"],
       ["JPG", "IMG_2041.jpg", "Looks like a printed receipt", "k-img"],
-      ["XLS", "Living room budget.xlsx", "Sheet Furniture · Sofa $1,240", "k-sheet"]]],
+      ["XLS", "Living room budget.xlsx", "Row 14 · Sofa $1,240", "k-sheet"]]],
     ["when did we agree the Q3 budget", [
       ["M4A", "Budget sync 2026-09-30.m4a", "Said at 12:05", "k-audio"],
       ["PPT", "Q3 Budget review.pptx", "Slide 7 · budget by region", "k-slide"],
-      ["MD", "Q3 planning notes.md", "Mentions budget signed off", "k-doc"]]],
+      ["MD", "Q3 planning notes.md", "Line 48 · budget signed off", "k-doc"]]],
     ["dog on the beach at sunset", [
       ["JPG", "PXL_20250812_191422.jpg", "Looks like dog, beach, sunset", "k-img"],
       ["MP4", "Cornwall day 3.mp4", "Shown at 3:42", "k-video"],
