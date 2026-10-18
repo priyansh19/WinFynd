@@ -38,13 +38,17 @@ export function HotkeyRecorder({
     const onKey = (e: KeyboardEvent) => {
       const plain = !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey;
       const onButton = e.target instanceof HTMLButtonElement;
-      // Plain Tab, Space and Enter can't be shortcuts. Tab reaches Save and
-      // Cancel, Space and Enter press them, and Enter anywhere else saves.
-      if (plain && (e.code === "Tab" || (onButton && (e.code === "Space" || e.code === "Enter")))) return;
+      // Either Enter key, the main one or the keypad's.
+      const enter = e.key === "Enter";
+      // Tab and Shift+Tab move between Save and Cancel.
+      const tab = e.code === "Tab" && !e.ctrlKey && !e.altKey && !e.metaKey;
+      // Tab, Space and Enter can't be shortcuts. Space and Enter press a
+      // focused button, and Enter anywhere else saves.
+      if (tab || (plain && onButton && (e.code === "Space" || enter))) return;
       e.preventDefault();
       e.stopPropagation();
       if (plain && e.code === "Escape") onCancel();
-      else if (plain && e.code === "Enter") saveRef.current();
+      else if (plain && enter) saveRef.current();
       else if (!(plain && e.code === "Space")) {
         const captured = captureCombo(e);
         setParts(captured.parts);

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 import { FileIcon } from "../components/FileIcon";
 import { kindClass } from "../lib/kinds";
 import { excerpt, isTimestamp, queryWords, reasonOf } from "../lib/match";
@@ -104,7 +104,7 @@ export function ResultList({
 }) {
   // Only when the selection or the results change: the launcher re-renders
   // several times a second while indexing, and the wheel has to win then.
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.getElementById(`result-${selected}`)?.scrollIntoView({ block: "nearest" });
   }, [selected, results]);
 

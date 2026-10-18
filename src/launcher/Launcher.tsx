@@ -312,7 +312,12 @@ export function Launcher() {
   };
 
   /** The box still holds the search Up last brought back. */
-  const recalled = () => recall.current >= 0 && query === recentSearches()[recall.current];
+  // A recalled search is in the box and there's an older one to go back to;
+  // otherwise Up at the top of the list wraps as usual.
+  const recalled = () => {
+    const recent = recentSearches();
+    return recall.current >= 0 && recall.current < recent.length - 1 && query === recent[recall.current];
+  };
 
   const onQueryChange = (value: string) => {
     recall.current = -1;

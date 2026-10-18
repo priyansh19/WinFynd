@@ -71,6 +71,8 @@ function MicTest({ device, onAllowed }: { device: string; onAllowed: () => void 
         return;
       }
       onAllowed();
+      // A click that landed before "Stop" showed may have opened one already.
+      stop.current();
       const ctx = new AudioContext();
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 512;
