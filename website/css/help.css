@@ -194,12 +194,40 @@ html:not(.js) .help-jump { margin-top: 36px; }
 .help-shortcut__t { display: flex; align-items: center; gap: 10px; font: 600 18px/26px var(--font); margin: 0 0 4px; }
 .help-shortcut__t svg { flex: none; color: var(--k); }
 
-/* ---------- Keys in the search window ---------- */
+/* ---------- Product shots on the Windows wallpaper ---------- */
+/* The two big shots sit on the app's wallpaper, as in the artboards. They are fluid, not zoomed,
+   so their text never renders under the app's own sizes; container queries reflow them. */
+.help-desk { padding: clamp(14px, 5.5%, 52px) clamp(14px, 6%, 60px); }
 .help-lshot { margin-bottom: 20px; }
+.help-lshot .help-desk { container: help-l / inline-size; }
 .help-lshot__l { width: 100%; }
 .help-lshot__list { padding-bottom: 8px; }
 .help-lshot__pv { gap: 14px; }
+/* The rendered page in the preview (the artboard's inline styles, as classes). */
+.help-paper { height: 214px; padding: 16px 20px; box-sizing: border-box; font-size: 10px; line-height: 15px; display: flex; flex-direction: column; gap: 8px; flex: none; }
+.help-paper__head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.help-paper__brand { font: 700 12px/16px "Segoe UI", sans-serif; letter-spacing: 1.4px; }
+.help-paper__muted { color: #6b6b6b; }
+.help-paper__r { text-align: right; }
+.help-paper__items, .help-paper__total { display: grid; column-gap: 8px; row-gap: 3px; border-top: 1px solid #ddd; padding-top: 8px; }
+.help-paper__items { grid-template-columns: 1fr 34px 70px; }
+.help-paper__total { grid-template-columns: 1fr 70px; }
+@container help-l (max-width: 719px) {
+  /* Too narrow for the preview: the list takes the width and the command bar wraps. */
+  .help-lshot__pv { display: none; }
+  .help-lshot__list { width: 100%; border-right: 0; }
+  .help-lshot .lfoot { height: auto; min-height: 40px; flex-wrap: wrap; row-gap: 6px; padding-top: 8px; padding-bottom: 8px; }
+}
+@container help-l (max-width: 479px) {
+  .help-lshot .lbtn { display: none; }
+  .help-lshot .lsearch { padding-left: 16px; }
+  .help-lshot .lsearch .q { font-size: 17px; text-overflow: ellipsis; }
+}
 
+/* ---------- Keys in the search window ---------- */
+
+/* Copy that follows a shot paints above the shot's shadow, so the shadow never dims it. */
+.help-table, .help-head, .help-sub, .help-fix__after, .help-change { position: relative; z-index: 1; }
 .help-table {
   margin: 0; border-radius: 12px; overflow: hidden;
   background: var(--card); border: 1px solid var(--stroke); box-shadow: var(--shadow-card);
@@ -242,13 +270,25 @@ html:not(.js) .help-jump { margin-top: 36px; }
 }
 .help-note svg { flex: none; color: var(--accent); margin-top: 1px; }
 
-.help-set .wf[data-fit] { width: 960px; }
-.js .help-set .fit-frame { overflow: visible; }
-/* The navigation pane is 40 px narrower than the artboard so the page fits at 960 px and its text stays above 11 px. */
-.help-set .nav { width: 248px; }
-.help-set .content { padding-left: 36px; padding-right: 36px; }
+.help-set__desk { container: help-s / inline-size; padding: clamp(12px, 4%, 40px); }
+.help-set__win { width: 100%; }
+/* The navigation pane is narrower than the artboard's 288 px so the content keeps its room at this width. */
+.help-set .nav { width: 232px; }
+.help-set .content { padding: 4px 32px 32px; }
 .help-set__body { flex: 1; min-height: 0; display: flex; }
-.help-set .content { padding-bottom: 32px; }
+@container help-s (max-width: 759px) {
+  /* The window loses its navigation pane and keeps its real text size. */
+  .help-set .nav { display: none; }
+  .help-set .content { padding: 4px 20px 24px; }
+}
+@container help-s (max-width: 539px) {
+  .help-set .content { padding: 4px 14px 18px; }
+  .help-set .card { flex-wrap: wrap; row-gap: 10px; padding: 14px 16px; }
+  .help-set .card .grow { flex-basis: calc(100% - 36px); }
+  .help-set__keys, .help-rec__hint, .help-rec__keys { margin-left: 36px; }
+  .help-set__keys + .btn, .help-rec__keys + .btn { margin-left: auto; }
+  .help-rec__hint { flex-basis: calc(100% - 36px); }
+}
 .help-set__keys, .help-rec__keys { display: inline-flex; gap: 4px; }
 .help-rec__keys { gap: 16px; }
 /* Recording a new combo: the keys arrive one by one (js/help.js). Static without JS. */
@@ -364,6 +404,7 @@ html:not(.js) .help-jump { margin-top: 36px; }
 .help-crop__body .infobar { margin-bottom: 4px; }
 .help-crop .card { gap: 16px; }
 .help-warm__l { width: 100%; }
+.help-warm .lsearch .q { text-overflow: ellipsis; }
 .help-warm__strip { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 20px; }
 .help-warm__bar { width: 120px; margin-left: auto; flex: none; }
 
@@ -422,6 +463,12 @@ html:not(.js) .help-jump { margin-top: 36px; }
   .help-toc__subwrap { display: none !important; }
   .help-sec:first-of-type { padding-top: 0; }
 }
+@media (min-width: 960px) and (max-width: 1199px) {
+  .help-start { padding-left: 24px; padding-right: 24px; }
+  .help-bigkey { height: 64px; min-width: 76px; font-size: 19px; border-radius: 10px; }
+  .help-bigkey--space { min-width: 168px; }
+  .help-start__keys { gap: 10px; min-height: 72px; }
+}
 @media (max-width: 959px) {
   .help-hero__grid { grid-template-columns: minmax(0, 1fr); }
   .help-hero__intro .display .line { display: inline; }
@@ -429,17 +476,8 @@ html:not(.js) .help-jump { margin-top: 36px; }
   .help-start__keys { flex: none; }
   .help-report { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "list" "foot"; grid-template-rows: none; }
 }
-@media (max-width: 899px) {
-  /* The Settings window loses its navigation pane and reflows at its real size. */
-  .help-set .wf[data-fit] { width: 100% !important; zoom: 1 !important; }
-  .help-set .nav { display: none; }
-  .help-set .content { padding: 4px 20px 24px; }
-}
 @media (max-width: 767px) {
   /* The smaller shots are fluid; on narrow screens they drop the preview pane and wrap. */
-  .help-lshot__pv { display: none; }
-  .help-lshot__list { width: 100%; border-right: 0; }
-  .help-lshot .lfoot { height: auto; min-height: 40px; flex-wrap: wrap; row-gap: 6px; padding-top: 8px; padding-bottom: 8px; }
   .help-crop .card { flex-wrap: wrap; row-gap: 10px; }
   .help-crop .card .grow { flex-basis: calc(100% - 36px); }
   .help-crop__state { margin-left: 36px; }
@@ -456,21 +494,13 @@ html:not(.js) .help-jump { margin-top: 36px; }
 @media (max-width: 599px) {
   .help-find { height: 52px; padding-left: 16px; gap: 10px; margin-top: 28px; }
   .help-find input { font-size: 16px; }
-  /* In the small launcher crops the query keeps its room: the Ask and mic buttons step aside. */
-  .help-lshot .lbtn, .help-warm .lbtn { display: none; }
-  .help-lshot .lsearch .q, .help-warm .lsearch .q { font-size: 17px; }
+  /* In the small launcher crop the query keeps its room: the Ask and mic buttons step aside. */
+  .help-warm .lbtn { display: none; }
+  .help-warm .lsearch .q { font-size: 17px; }
   .help-start { flex-direction: column; text-align: center; gap: 20px; padding: 28px 20px; }
   .help-start__keys { min-height: 64px; gap: 10px; }
   .help-bigkey { height: 60px; min-width: 72px; font-size: 18px; border-radius: 10px; border-bottom-width: 4px; }
   .help-bigkey--space { min-width: 150px; }
-  .help-set .content { padding: 4px 14px 18px; }
-  .help-set .card { flex-wrap: wrap; row-gap: 10px; padding: 14px 16px; }
-  .help-set .card .grow { flex-basis: calc(100% - 36px); }
-  .help-set__keys, .help-rec__hint { margin-left: 36px; }
-  .help-set__keys + .btn { margin-left: auto; }
-  .help-rec__hint { flex-basis: calc(100% - 36px); }
-  .help-rec__keys + .btn { margin-left: auto; }
-  .help-rec__keys { margin-left: 36px; }
   .help-crop__body { padding: 0 14px 16px; }
   .help-qa > summary { grid-template-columns: 40px minmax(0, 1fr) 20px; column-gap: 14px; padding: 16px; }
   .help-qa__q { font-size: 17px; line-height: 24px; }

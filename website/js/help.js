@@ -12,15 +12,38 @@
   var doc = document;
   var reduced = function () { return WF.reducedMotion ? WF.reducedMotion() : false; };
 
-  /* ---------- Open a question when it is linked to ---------- */
-  function openFromHash() {
-    var id = decodeURIComponent((location.hash || "").slice(1));
-    if (!id) return;
-    var el = doc.getElementById(id);
-    if (el && el.tagName === "DETAILS") el.open = true;
+  /* ---------- Open a question when it is linked to ----------
+     The target shows at once (no rise, so the browser's scroll lands where it should),
+     a question opens, and once the page has settled the target is lined up under the
+     header again, unless the visitor has started scrolling. */
+  var userMoved = false;
+  ["wheel", "touchstart", "keydown", "mousedown"].forEach(function (type) {
+    window.addEventListener(type, function () { userMoved = true; }, { passive: true, capture: true });
+  });
+  function targetFromHash() {
+    var id = "";
+    try { id = decodeURIComponent((location.hash || "").slice(1)); } catch (e) { return null; }
+    return id ? doc.getElementById(id) : null;
   }
-  openFromHash();
-  window.addEventListener("hashchange", openFromHash);
+  function showNow(el) {
+    var r = el.closest(".reveal");
+    while (r) { r.classList.add("is-in"); r = r.parentElement && r.parentElement.closest(".reveal"); }
+    el.querySelectorAll(".reveal").forEach(function (x) { x.classList.add("is-in"); });
+  }
+  function openFromHash(settle) {
+    var el = targetFromHash();
+    if (!el) return;
+    showNow(el);
+    if (el.tagName === "DETAILS") el.open = true;
+    if (!settle) return;
+    userMoved = false;
+    setTimeout(function () {
+      if (!userMoved && targetFromHash() === el) el.scrollIntoView({ block: "start" });
+    }, reduced() ? 60 : 420);
+  }
+  openFromHash(false);
+  window.addEventListener("load", function () { openFromHash(true); });
+  window.addEventListener("hashchange", function () { openFromHash(true); });
 
   /* ---------- Table of contents ---------- */
   var toc = doc.querySelector("[data-toc]");

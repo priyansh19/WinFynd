@@ -99,7 +99,7 @@
             <li><a href="#q-files">Which files</a></li>
             <li><a href="#q-screenshots">Screenshots</a></li>
             <li><a href="#q-disk">Disk space</a></li>
-            <li><a href="#q-folders">Watched folders</a></li>
+            <li><a href="#q-folders">What it searches</a></li>
             <li><a href="#q-data">Where your data is</a></li>
             <li><a href="#q-gpu">Graphics card</a></li>
             <li><a href="#q-free">Price</a></li>
@@ -131,7 +131,7 @@
         <div class="help-head" data-reveal-group>
           <p class="eyebrow k-code reveal"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="16" height="10" rx="1.5"></rect><path d="M5 8h.01M8 8h.01M11 8h.01M14 8h.01M5 11h.01M15 11h.01M8 12h4"></path></svg>Shortcuts</p>
           <h2 id="shortcuts-title" class="title reveal">Every key, and how to change it.</h2>
-          <p class="lead reveal">Four shortcuts work over any app, even a full-screen one. A few more work inside the search window.</p>
+          <p class="lead reveal">Four shortcuts work from any app, and you can change each one. Inside the search window, more keys open a file, show it in its folder or copy its path.</p>
         </div>
 
         <div class="help-group" id="keys-anywhere" data-find-group>
@@ -159,26 +159,34 @@
         <div class="help-group" id="keys-window" data-find-group>
           <h3 class="help-sub reveal">In the search window</h3>
           <p class="help-sub-lead reveal">These work while the search window is open. The bar along its bottom shows the main ones for the selected result.</p>
-          <figure class="shot help-lshot reveal" role="img" aria-label="The WinFynd search window with the best match selected. The bar along its bottom reads: Open, Enter. Open folder, Ctrl Shift E. All actions, Ctrl K.">
-            <div class="wf auto">
-                <div class="launcher static help-lshot__l">
-                  <div class="lsearch"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="M12.5 12.5L17 17"></path></svg><div class="q">receipt for the blue sofa</div><span class="lbtn"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M9 2.5l1.7 4.8 4.8 1.7-4.8 1.7L9 15.5l-1.7-4.8L2.5 9l4.8-1.7z"></path><path d="M15.5 13.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"></path></svg>Ask</span><span class="lbtn"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><rect x="7" y="2.5" width="6" height="10" rx="3"></rect><path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5"></path></svg></span><div class="lline"></div></div>
-                  <div class="lbody"><div class="llist help-lshot__list">
-                    <div class="lgroup"><span>Best match</span></div>
-                    <div class="row on k-doc"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="flex: none"><path d="M8.5 3.5h10l7 7v17a1 1 0 0 1-1 1h-16a1 1 0 0 1-1-1v-23a1 1 0 0 1 1-1z" fill="#f4f5f8"></path><path d="M18.5 3.5v6a1 1 0 0 0 1 1h6" fill="#d5d9e2"></path><rect x="3" y="14" width="18" height="10" rx="2" fill="#e5484d"></rect><text x="12" y="21.5" text-anchor="middle" fill="#fff" style="font: 700 7px Segoe UI, sans-serif">PDF</text></svg><div class="txt"><span class="n ellip">Northwind_Order_88412.pdf</span><span class="m ellip">Page 2 · <span style="color: var(--text2)">sofa, navy blue, total paid</span></span></div></div>
-                    <div class="lgroup"><span>Documents</span><span style="font-weight: 400">3</span></div>
-                    <div class="row k-doc"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="flex: none"><path d="M8.5 3.5h10l7 7v17a1 1 0 0 1-1 1h-16a1 1 0 0 1-1-1v-23a1 1 0 0 1 1-1z" fill="#f4f5f8"></path><path d="M18.5 3.5v6a1 1 0 0 0 1 1h6" fill="#d5d9e2"></path><rect x="3" y="14" width="18" height="10" rx="2" fill="#2f6ce5"></rect><text x="12" y="21.5" text-anchor="middle" fill="#fff" style="font: 700 7px Segoe UI, sans-serif">EML</text></svg><div class="txt"><span class="n ellip">Your Northwind order has shipped.eml</span><span class="m ellip">Mail export · <span style="color: var(--text2)">delivery 21 March</span></span></div></div>
-                    <div class="row k-doc"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="flex: none"><path d="M8.5 3.5h10l7 7v17a1 1 0 0 1-1 1h-16a1 1 0 0 1-1-1v-23a1 1 0 0 1 1-1z" fill="#f4f5f8"></path><path d="M18.5 3.5v6a1 1 0 0 0 1 1h6" fill="#d5d9e2"></path><rect x="3" y="14" width="18" height="10" rx="2" fill="#2f6ce5"></rect><text x="12" y="21.5" text-anchor="middle" fill="#fff" style="font: 700 7px Segoe UI, sans-serif">DOC</text></svg><div class="txt"><span class="n ellip">Moving checklist.docx</span><span class="m ellip">Mentions <span style="color: var(--text2)">sofa delivery window</span></span></div></div>
-                  </div>
-                    <div class="lpreview help-lshot__pv">
-                      <div style="display: flex; flex-direction: column; gap: 4px"><span style="font: 600 16px/22px var(--font)">Northwind_Order_88412.pdf</span><span class="small muted">Page 2 · sofa, navy blue, total paid</span></div>
-                      <dl class="meta"><dt>Folder</dt><dd>C:\Users\gupta\Documents\Home\Receipts</dd><dt>Modified</dt><dd>14 March 2026, 18:22</dd><dt>Size</dt><dd>184 KB · 3 pages</dd></dl>
-                    </div>
-                  </div>
-                  <div class="lfoot"><span class="num help-lshot__count">5 results on this PC</span><span style="margin-left: auto"></span><span class="act">Open <span class="kbd">Enter</span></span><span class="act">Open folder <span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">E</span></span><span class="act">All actions <span class="kbd">Ctrl</span><span class="kbd">K</span></span></div>
+          <figure class="shot help-lshot reveal" role="img" aria-label="The WinFynd search window for “receipt for the blue sofa”. The best match, Northwind_Order_88412.pdf, page 2, is selected and its page shows in the preview. The bar along the bottom reads: 5 results on this PC. Open, Enter. Open folder, Ctrl Shift E. All actions, Ctrl K.">
+            <div class="shot-desk wf auto help-desk">
+              <div class="launcher static help-lshot__l">
+                <div class="lsearch"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="M12.5 12.5L17 17"></path></svg><div class="q">receipt for the blue sofa</div><span class="lbtn"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M9 2.5l1.7 4.8 4.8 1.7-4.8 1.7L9 15.5l-1.7-4.8L2.5 9l4.8-1.7z"></path><path d="M15.5 13.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"></path></svg>Ask</span><span class="lbtn"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><rect x="7" y="2.5" width="6" height="10" rx="3"></rect><path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5"></path></svg></span><div class="lline"></div></div>
+                <div class="lbody"><div class="llist help-lshot__list">
+                  <div class="lgroup"><span>Best match</span></div>
+                  <div class="row on k-doc"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="flex: none"><path d="M8.5 3.5h10l7 7v17a1 1 0 0 1-1 1h-16a1 1 0 0 1-1-1v-23a1 1 0 0 1 1-1z" fill="#f4f5f8"></path><path d="M18.5 3.5v6a1 1 0 0 0 1 1h6" fill="#d5d9e2"></path><rect x="3" y="14" width="18" height="10" rx="2" fill="#e5484d"></rect><text x="12" y="21.5" text-anchor="middle" fill="#fff" style="font: 700 7px Segoe UI, sans-serif">PDF</text></svg><div class="txt"><span class="n ellip">Northwind_Order_88412.pdf</span><span class="m ellip">Page 2 · <span style="color: var(--text2)">sofa, navy blue, total paid</span></span></div></div>
+                  <div class="lgroup"><span>Photos</span></div>
+                  <div class="row k-img"><div class="thumb" style="width: 32px; height: 32px; flex: none"><svg viewBox="0 0 64 64" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="64" height="64" fill="#7a5236"></rect><path d="M0 40l64-10v34H0z" fill="#6a4630"></path><g transform="rotate(-8 32 32)"><rect x="18" y="8" width="28" height="48" fill="#f6f3ec"></rect><path d="M22 16h20M22 21h14M22 30h20M22 34h18M22 38h20M22 46h12" stroke="#9a978f" stroke-width="1.6"></path></g></svg></div><div class="txt"><span class="n ellip">IMG_2041.jpg</span><span class="m ellip">Looks like <span style="color: var(--text2)">a printed receipt</span></span></div></div>
+                  <div class="lgroup"><span>Documents</span><span style="font-weight: 400">3</span></div>
+                  <div class="row k-sheet"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="flex: none"><path d="M8.5 3.5h10l7 7v17a1 1 0 0 1-1 1h-16a1 1 0 0 1-1-1v-23a1 1 0 0 1 1-1z" fill="#f4f5f8"></path><path d="M18.5 3.5v6a1 1 0 0 0 1 1h6" fill="#d5d9e2"></path><rect x="3" y="14" width="18" height="10" rx="2" fill="#1d8f53"></rect><text x="12" y="21.5" text-anchor="middle" fill="#fff" style="font: 700 7px Segoe UI, sans-serif">XLS</text></svg><div class="txt"><span class="n ellip">Living room budget.xlsx</span><span class="m ellip">Sheet Furniture · <span style="color: var(--text2)">Sofa $1,240</span></span></div></div>
+                  <div class="row k-doc"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="flex: none"><path d="M8.5 3.5h10l7 7v17a1 1 0 0 1-1 1h-16a1 1 0 0 1-1-1v-23a1 1 0 0 1 1-1z" fill="#f4f5f8"></path><path d="M18.5 3.5v6a1 1 0 0 0 1 1h6" fill="#d5d9e2"></path><rect x="3" y="14" width="18" height="10" rx="2" fill="#2f6ce5"></rect><text x="12" y="21.5" text-anchor="middle" fill="#fff" style="font: 700 7px Segoe UI, sans-serif">EML</text></svg><div class="txt"><span class="n ellip">Your Northwind order has shipped.eml</span><span class="m ellip">Mail export · <span style="color: var(--text2)">delivery 21 March</span></span></div></div>
+                  <div class="row k-doc"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="flex: none"><path d="M8.5 3.5h10l7 7v17a1 1 0 0 1-1 1h-16a1 1 0 0 1-1-1v-23a1 1 0 0 1 1-1z" fill="#f4f5f8"></path><path d="M18.5 3.5v6a1 1 0 0 0 1 1h6" fill="#d5d9e2"></path><rect x="3" y="14" width="18" height="10" rx="2" fill="#2f6ce5"></rect><text x="12" y="21.5" text-anchor="middle" fill="#fff" style="font: 700 7px Segoe UI, sans-serif">DOC</text></svg><div class="txt"><span class="n ellip">Moving checklist.docx</span><span class="m ellip">Mentions <span style="color: var(--text2)">sofa delivery window</span></span></div></div>
                 </div>
+                  <div class="lpreview help-lshot__pv">
+                    <div class="paper help-paper">
+                      <div class="help-paper__head"><span class="help-paper__brand">NORTHWIND HOME</span><span class="help-paper__muted">Order 88412 · page 2 of 3</span></div>
+                      <div class="help-paper__items"><span class="help-paper__muted">Item</span><span class="help-paper__muted">Qty</span><span class="help-paper__muted help-paper__r">Amount</span><span>Harlow 3-seat <mark>sofa, navy</mark> velvet</span><span>1</span><span class="help-paper__r">$1,240.00</span><span>Harlow scatter cushions, set of 2</span><span>1</span><span class="help-paper__r">$64.00</span><span>White-glove delivery and setup</span><span>1</span><span class="help-paper__r">$89.00</span></div>
+                      <div class="help-paper__total"><span class="help-paper__muted">Subtotal</span><span class="help-paper__r">$1,393.00</span><span style="font-weight: 700"><mark>Total paid</mark></span><span class="help-paper__r" style="font-weight: 700">$1,393.00</span></div>
+                      <span class="help-paper__muted">Paid by Visa ending 4417 on 14 March 2026. Delivery booked for 21 March, 8 am to 12 pm.</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px"><span style="font: 600 16px/22px var(--font)">Northwind_Order_88412.pdf</span><div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="chip">Words: sofa, navy</span><span class="chip"><svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l1.9 5.6 5.6 1.9-5.6 1.9L10 17.5l-1.9-5.6L2.5 10l5.6-1.9z"></path></svg>Meaning: a receipt</span></div></div>
+                    <dl class="meta"><dt>Folder</dt><dd>C:\Users\gupta\Documents\Home\Receipts</dd><dt>Modified</dt><dd>14 March 2026, 18:22</dd><dt>Size</dt><dd>184 KB · 3 pages</dd></dl>
+                  </div>
+                </div>
+                <div class="lfoot"><span class="num help-lshot__count">5 results on this PC</span><span style="margin-left: auto"></span><span class="act">Open <span class="kbd">Enter</span></span><span class="act">Open folder <span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">E</span></span><span class="act">All actions <span class="kbd">Ctrl</span><span class="kbd">K</span></span></div>
               </div>
-            
+            </div>
           </figure>
           <dl class="help-table" data-reveal-group>
             <div class="help-table__row reveal" data-find><dt><span class="keys"><kbd class="keycap">Enter</kbd></span></dt><dd>Open the file in its usual app. In Ask, it sends your question.</dd></div>
@@ -203,8 +211,8 @@
             <p class="help-note reveal"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"></circle><path d="M10 9v5M10 6.2v.1"></path></svg><span>If another app already uses those keys, WinFynd tells you and keeps the old shortcut. Windows uses Alt&nbsp;+&nbsp;Space for a window’s menu; WinFynd takes it over while it runs.</span></p>
           </div>
           <figure class="shot help-set reveal" role="img" aria-label="WinFynd Settings, Shortcuts and voice. Open search is Alt Space, Talk to search is Alt Shift Space, Search selected text is Win Shift F, each with a Change button. The Ask a question row is waiting for new keys: Ctrl and Alt are pressed so far.">
-            <div class="fit-frame">
-              <div class="wf auto win help-set__win" data-fit="960">
+            <div class="shot-desk wf auto help-desk help-set__desk">
+              <div class="win help-set__win">
                 <div class="titlebar"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true" style="flex: none"><defs><linearGradient id="wfghs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b9bff"></stop><stop offset=".45" stop-color="#9a7bff"></stop><stop offset=".75" stop-color="#ff6fb5"></stop><stop offset="1" stop-color="#ff9548"></stop></linearGradient></defs><rect width="48" height="48" rx="12" fill="url(#wfghs)"></rect><circle cx="21" cy="21" r="10" fill="none" stroke="#ffffff" stroke-width="4"></circle><path d="M28.5 28.5l8 8" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"></path><path d="M21 15.5l1.4 3.8 3.8 1.4-3.8 1.4L21 26l-1.4-3.9-3.8-1.4 3.8-1.4z" fill="#ffffff"></path></svg><span>WinFynd Settings</span><div class="caps"><span class="cap" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M5 10h10"></path></svg></span><span class="cap" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><rect x="5.5" y="5.5" width="9" height="9" rx="1.5"></rect></svg></span><span class="cap" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9"></path></svg></span></div></div>
                 <div class="help-set__body">
                   <div class="nav">
@@ -269,7 +277,7 @@
                 <li>moments in videos, found by what is on screen (with FFmpeg)</li>
                 <li>Ask: answers from your files, with numbered sources</li>
               </ul>
-              <p>Install it later and WinFynd catches up by itself. Files it already read are added to search by meaning on its next pass, at most 20 minutes later.</p>
+              <p>Install it later and WinFynd catches up by itself: its next full check adds the files it already read to search by meaning. That check runs right after you download a model, and every 20 minutes.</p>
             </div>
           </details>
 
@@ -293,7 +301,7 @@
             <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="1.5"></rect><circle cx="7" cy="8" r="1.5"></circle><path d="M2.5 14l4.5-4 4 3.5 2.5-2 4 3.5"></path></svg></span><h3 class="help-qa__q">Why doesn’t it find text in my screenshots?</h3><span class="help-qa__a">Version 0.1.0 doesn’t read text inside images.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
             <div class="help-qa__body">
               <p>Screenshots, photos of documents and scanned PDFs are not read for their words; there is no text recognition (OCR) in 0.1.0. With Ollama, images are matched by what they look like, so describe the picture rather than the words in it.</p>
-              <p>The name and date always work. “screenshot last week” finds Screenshot 2026-10-18 101422.png by its name, with “last week” as a date filter.</p>
+              <p>Kind and date still narrow it down. “screenshots last week” lists the pictures from the last two weeks, newest first, with “Photos” and “Last 2 weeks” as filters you can remove.</p>
             </div>
           </details>
 
@@ -312,12 +320,14 @@
           </details>
 
           <details class="help-qa k-amber reveal" id="q-folders" data-find>
-            <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 5.5a1 1 0 0 1 1-1h4l2 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"></path></svg></span><h3 class="help-qa__q">Which folders does it watch, and can I change them?</h3><span class="help-qa__a">Documents, Desktop, Downloads and Pictures. Yes, any time.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
+            <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 5.5a1 1 0 0 1 1-1h4l2 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"></path></svg></span><h3 class="help-qa__q">Which folders does it search, and can I change them?</h3><span class="help-qa__a">Every drive on your PC. Switch that off and pick folders instead.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
             <div class="help-qa__body">
-              <p>At first it watches Documents, Desktop, Downloads and Pictures, whichever your PC has. Change them during setup or any time in Settings: add any folder, or remove one and its files leave the index.</p>
-              <p>New, changed, moved and deleted files are picked up within a couple of seconds, and a full check every 20 minutes catches anything missed.</p>
+              <p>By default WinFynd reads every drive on your PC: all of C: and any other drive, like D:. The switch is called <b>Allow full OS context</b>, in setup and in <b>Settings › Folders</b>.</p>
+              <p>Switch it off to choose folders instead. Documents, Pictures, Desktop and Downloads start ticked, and you can add any folder. Remove one and its files leave the index.</p>
+              <p>Reading the whole PC means the index holds text from files anywhere on it. All of it stays on this PC.</p>
               <ul class="help-list">
-                <li>Always skipped: system and program folders like Windows, Program Files and AppData, hidden folders like .git, and build folders like node_modules.</li>
+                <li>New, changed, moved and deleted files are picked up within a couple of seconds, and a full check every 20 minutes catches anything missed.</li>
+                <li>Always skipped: Windows and program folders like Windows, Program Files and AppData, the Recycle Bin, hidden folders like .git, and build folders like node_modules.</li>
                 <li>OneDrive files that live only in the cloud are found by name until you download them. WinFynd never downloads them itself.</li>
               </ul>
             </div>
@@ -339,7 +349,7 @@
             <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="10" height="10" rx="1.5"></rect><path d="M8 8h4v4H8zM8 2.5V5M12 2.5V5M8 15v2.5M12 15v2.5M2.5 8H5M2.5 12H5M15 8h2.5M15 12h2.5"></path></svg></span><h3 class="help-qa__q">Does it use my GPU?</h3><span class="help-qa__a">It doesn’t need one.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
             <div class="help-qa__body">
               <p>Whisper turns speech into text on the processor, using all its cores but one, up to eight, so the PC stays responsive. Search by meaning and Ask run inside Ollama, which decides whether to use your graphics card.</p>
-              <p>The Most accurate search model works best on a PC with 16 GB of memory. Balanced and Smallest need less.</p>
+              <p>The Most accurate search model works best on a PC with 16 GB of memory. Balanced and Smallest are smaller models, 0.7 GB and 0.3 GB.</p>
             </div>
           </details>
 
@@ -407,12 +417,12 @@
               
               <figcaption>What you want to see in Settings › Models.</figcaption>
             </figure>
-            <p class="help-fix__after">Files WinFynd already read are added to search by meaning by themselves, at most 20 minutes later. Finding photos by what’s in them also needs Most accurate or Balanced; Smallest reads text only.</p>
+            <p class="help-fix__after">You don’t need to start over. The next full check, right after the download and then every 20 minutes, adds the files WinFynd already read to search by meaning. Finding photos by what’s in them also needs Most accurate or Balanced; Smallest reads text only.</p>
           </article>
 
           <article class="help-fix k-video reveal" id="fix-frames" aria-labelledby="fix-frames-t" data-find>
             <div class="help-fix__head"><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="11" height="10" rx="1.5"></rect><path d="M13.5 9l4-2.5v7l-4-2.5"></path></svg></span><h3 id="fix-frames-t" class="heading">Videos aren’t found by what’s on screen</h3></div>
-            <p class="help-fix__why">Reading frames from videos needs FFmpeg, which WinFynd doesn’t include. Without it, videos are still found by name, and MP4 and MKV videos by what’s said in them.</p>
+            <p class="help-fix__why">Reading frames from videos needs FFmpeg, which WinFynd doesn’t include. Without it, videos are still found by name and, once Whisper is downloaded, MP4 and MKV videos by what’s said in them.</p>
             <ol class="help-steps">
               <li>Install FFmpeg. Open Terminal and run:
                 <span class="help-cmd"><code>winget install Gyan.FFmpeg</code><button type="button" class="button button--secondary button--small help-copy" data-copy="winget install Gyan.FFmpeg"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"></rect><path d="M13 7V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3"></path></svg><span data-copy-label>Copy</span></button></span></li>
@@ -446,7 +456,7 @@
 
           <article class="help-fix k-doc reveal" id="fix-slow" aria-labelledby="fix-slow-t" data-find>
             <div class="help-fix__head"><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"></circle><path d="M10 5.5V10l3 2"></path></svg></span><h3 id="fix-slow-t" class="heading">The first read is taking a long time</h3></div>
-            <p class="help-fix__why">The first time, WinFynd reads every file in your folders. On the example PC, 51,204 files took 47 minutes. Recordings and videos go last, because writing down what’s said is the slow part.</p>
+            <p class="help-fix__why">The first time, WinFynd reads every file it searches: every drive by default, or the folders you picked. On the example PC, 51,204 files on C: and D: took 47 minutes. Recordings and videos go last, because writing down what’s said is the slow part.</p>
             <ol class="help-steps">
               <li>Keep going. Search works from the start and fills in as it reads.</li>
               <li>Close the window if you like. WinFynd carries on from the notification area; point at its icon to see “WinFynd · indexing 12,840 of 51,204 files”.</li>
