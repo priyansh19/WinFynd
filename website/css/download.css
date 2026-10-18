@@ -376,6 +376,11 @@ code.mono { overflow-wrap: anywhere; }
   .ss-dialog { min-height: 0; }
 }
 
+/* The narrowest phones: a tighter search box, so "receipt for the blue sofa" shows whole. */
+@media (max-width: 340px) {
+  .setup-q { padding: 0 10px; gap: 8px; }
+}
+
 /* ================================================================ Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .more-link__t svg, .more-link:hover .more-link__t svg { transition: none; transform: none; }
