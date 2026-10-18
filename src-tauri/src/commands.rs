@@ -36,6 +36,16 @@ pub async fn ask(engine: EngineState<'_>, question: String) -> Result<Answer, St
         .map_err(|e| e.to_string())?
 }
 
+/// Text for a spoken search: 16 kHz mono samples from the microphone,
+/// transcribed on this PC by the speech model.
+#[tauri::command]
+pub async fn transcribe_voice(engine: EngineState<'_>, samples: Vec<f32>) -> Result<String, String> {
+    let engine = engine.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || engine.transcribe_query(&samples))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 /// Run blocking work off the window thread.
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> Result<T, String> {
     tauri::async_runtime::spawn_blocking(f).await.map_err(|e| e.to_string())
@@ -69,7 +79,10 @@ pub async fn set_engine_config<R: Runtime>(
         if !config.speech_model.is_empty() && !speech::is_installed(&engine.speech_dir, &config.speech_model) {
             return Err("Download that speech model first".into());
         }
-        engine.set_config(&app, config)
+        let saved = engine.set_config(&app, config)?;
+        // Every window shows folders and models; tell them all.
+        let _ = app.emit("engine://config", &saved);
+        Ok(saved)
     })
     .await?
 }
@@ -257,16 +270,17 @@ mod tests {
     /// be `async`.
     #[test]
     fn no_command_runs_on_the_window_thread() {
-        let src = include_str!("commands.rs");
-        let mut lines = src.lines();
         let mut checked = 0;
-        while let Some(line) = lines.next() {
-            if line.trim() == "#[tauri::command]" {
-                let sig = lines.next().unwrap_or_default();
-                assert!(sig.contains("async fn"), "command must be async: {sig}");
-                checked += 1;
+        for src in [include_str!("commands.rs"), include_str!("stats.rs")] {
+            let mut lines = src.lines();
+            while let Some(line) = lines.next() {
+                if line.trim() == "#[tauri::command]" {
+                    let sig = lines.next().unwrap_or_default();
+                    assert!(sig.contains("async fn"), "command must be async: {sig}");
+                    checked += 1;
+                }
             }
         }
-        assert!(checked >= 10, "found only {checked} commands");
+        assert!(checked >= 15, "found only {checked} commands");
     }
 }

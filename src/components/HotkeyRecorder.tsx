@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { captureCombo, displayKeys, knownConflict, suspendHotkeys } from "../lib/hotkeys";
-import { Keycap } from "./Keycap";
 import "./controls.css";
 
 /**
- * Captures the next key combo the user presses. Global hotkeys are released
+ * Captures the next key combo, inline in its card: "Press the new shortcut",
+ * the keys held so far, then Cancel or Save. Global hotkeys are released
  * while recording so pressing an existing combo reaches this field.
  */
 export function HotkeyRecorder({
@@ -22,14 +22,16 @@ export function HotkeyRecorder({
     suspendHotkeys(true).catch(() => {});
     const onKey = (e: KeyboardEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       if (e.code === "Escape" && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
         onCancel();
         return;
       }
+      if (e.code === "Enter" && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) return;
       const captured = captureCombo(e);
       setParts(captured.parts);
       setError(null);
-      if (captured.accelerator) setCombo(captured.accelerator);
+      setCombo(captured.accelerator);
     };
     window.addEventListener("keydown", onKey, true);
     return () => {
@@ -51,22 +53,28 @@ export function HotkeyRecorder({
   };
 
   return (
-    <div className="recorder">
-      <div className="recorder-field" aria-live="polite">
-        {!shown.length && <span className="recorder-label">Press a key combination</span>}
+    <div className="recorder" aria-live="polite">
+      {warning ? (
+        <span className={error ? "recorder-note error" : "recorder-note"}>{warning}</span>
+      ) : (
+        <span className="recorder-label">{combo ? "Save to use it" : "Press the new shortcut"}</span>
+      )}
+      <span className="keys">
         {shown.map((k) => (
-          <Keycap key={k}>{k}</Keycap>
+          <kbd key={k} className="kbd live">
+            {k}
+          </kbd>
         ))}
-      </div>
-      <div className="recorder-actions">
-        {warning && <span className={error ? "recorder-error" : "recorder-warning"}>{warning}</span>}
-        <button type="button" className="btn" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="button" className="btn btn-accent" disabled={!combo} onClick={save}>
+        {!combo && <kbd className="kbd">…</kbd>}
+      </span>
+      {combo && (
+        <button type="button" className="btn accent" onClick={save}>
           Save
         </button>
-      </div>
+      )}
+      <button type="button" className="btn" onClick={onCancel}>
+        Cancel
+      </button>
     </div>
   );
 }

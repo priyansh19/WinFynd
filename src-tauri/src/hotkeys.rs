@@ -243,7 +243,7 @@ pub fn set_voice_options<R: Runtime>(
     Ok(config.clone())
 }
 
-/// While the Control Center records a new combo, release every hotkey so the
+/// While Settings records a new combo, release every hotkey so the
 /// OS passes key presses through to the recorder instead of firing actions.
 #[tauri::command]
 pub fn suspend_hotkeys<R: Runtime>(

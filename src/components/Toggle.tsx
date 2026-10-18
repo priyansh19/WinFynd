@@ -40,15 +40,17 @@ export function ComboBox<T extends string | number>({
   onChange,
   label,
   disabled,
+  width,
 }: {
   value: T;
   options: { value: T; label: string }[];
   onChange: (v: T) => void;
   label: string;
   disabled?: boolean;
+  width?: number;
 }) {
   return (
-    <span className="combo">
+    <span className="combo" style={width ? { minWidth: width, width } : undefined}>
       <select
         aria-label={label}
         value={String(value)}
@@ -64,37 +66,7 @@ export function ComboBox<T extends string | number>({
           </option>
         ))}
       </select>
-      <Icon name="chevronDown" size={12} />
+      <Icon name="chevronDown" size={16} />
     </span>
-  );
-}
-
-/** A row of mutually exclusive options, like the WinUI SelectorBar. */
-export function Segmented<T extends string>({
-  value,
-  options,
-  onChange,
-  label,
-}: {
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (v: T) => void;
-  label: string;
-}) {
-  return (
-    <div role="radiogroup" aria-label={label} className="segmented">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={value === o.value}
-          className="segmented-option"
-          onClick={() => onChange(o.value)}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
   );
 }

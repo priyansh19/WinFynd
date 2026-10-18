@@ -1,83 +1,129 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
-import { Keycap } from "../components/Keycap";
+import { Keys } from "../components/Keycap";
 import { Menu, type MenuItem } from "../components/Menu";
-import { useEngineStatus } from "../lib/engine";
-import { getHotkeys, type VoiceMode } from "../lib/hotkeys";
+import { useEngineConfig, useEngineStatus } from "../lib/engine";
+import { getHotkeys, type HotkeyConfig } from "../lib/hotkeys";
+import { countByKind } from "../lib/kinds";
+import { isTimestamp } from "../lib/match";
 import { useFitWindowHeight } from "../lib/native";
-import { ask, groupResults, openResult, revealResult, search, withoutPhrase, type Answer, type FilterChip, type SearchResult } from "../lib/search";
+import { recentSearches, rememberSearch } from "../lib/recent";
+import {
+  ask,
+  groupResults,
+  openResult,
+  PHOTO_GRID_MIN,
+  revealResult,
+  search,
+  withoutPhrase,
+  type Answer,
+  type FilterChip,
+  type SearchResult,
+} from "../lib/search";
 import { invoke, listen } from "../lib/tauri";
-import { AnswerPanel } from "./AnswerPanel";
-import { EmptyState } from "./EmptyState";
-import { Preview } from "./Preview";
+import { AnswerPanel, answerAsText } from "./AnswerPanel";
+import { NothingFound, Notes } from "./EmptyState";
+import { Preview, type PreviewControls } from "./Preview";
 import { ResultList } from "./ResultList";
 import { VoiceBar, useVoice } from "./Voice";
 
 type Mode = "search" | "ask";
 type MenuAt = { right: number; bottom: number } | { left: number; top: number };
+type Found = { query: string; hits: SearchResult[]; ms: number; semantic: boolean; filters: FilterChip[] };
+type Asked = { question: string; answer: Answer; seconds: number };
+type Action = { label: string; keys: string[]; run: () => void };
+
+const DEFAULT_KEYS: HotkeyConfig = {
+  launcher: "Alt+Space",
+  voice: "Alt+Shift+Space",
+  ask: "Alt+Shift+A",
+  selection: "Alt+Shift+F",
+  voiceMode: "hold",
+  autoSubmit: true,
+};
+const GRID_COLUMNS = 3;
+
+/** Recordings and matched video moments play in place; everything else opens. */
+const plays = (r: SearchResult) => (r.kind === "audio" || r.kind === "video") && isTimestamp(r.location);
+
+function Footer({ left, actions }: { left: React.ReactNode; actions: Action[] }) {
+  return (
+    <footer className="lfoot">
+      <span className="grow num" role="status">
+        {left}
+      </span>
+      {actions.map((a) => (
+        <button key={a.label} type="button" className="act" onMouseDown={(e) => e.preventDefault()} onClick={a.run}>
+          {a.label} <Keys keys={a.keys} />
+        </button>
+      ))}
+    </footer>
+  );
+}
 
 export function Launcher() {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<Mode>("search");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [semantic, setSemantic] = useState(true);
-  const [filters, setFilters] = useState<FilterChip[]>([]);
+  const [found, setFound] = useState<Found | null>(null);
+  const [pending, setPending] = useState(false);
   const [selected, setSelected] = useState(0);
-  const [answer, setAnswer] = useState<Answer | null>(null);
+  const [asked, setAsked] = useState<Asked | null>(null);
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuAt | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [voiceMode, setVoiceMode] = useState<VoiceMode>("hold");
-  const [autoSubmit, setAutoSubmit] = useState(true);
+  const [voiceNote, setVoiceNote] = useState<string | null>(null);
+  const [voiceByClick, setVoiceByClick] = useState(false);
+  const [keys, setKeys] = useState<HotkeyConfig>(DEFAULT_KEYS);
   const input = useRef<HTMLInputElement>(null);
   const root = useRef<HTMLDivElement>(null);
+  const controls = useRef<PreviewControls>({});
   const latest = useRef(0);
+  const recall = useRef(-1);
   const status = useEngineStatus();
+  const [config] = useEngineConfig();
   useFitWindowHeight(root);
 
   const runSearch = useCallback(async (q: string) => {
     const id = ++latest.current;
     if (!q.trim()) {
-      setResults([]);
-      setFilters([]);
+      setFound(null);
+      setPending(false);
       return;
     }
+    setPending(true);
+    const started = performance.now();
     try {
       const r = await search(q);
       if (id !== latest.current) return; // a newer keystroke won
-      // Keep the list in the order it's shown so the arrow keys follow it.
-      setResults(groupResults(r.hits).flatMap((g) => g.items));
-      setSemantic(r.semantic);
-      setFilters(r.filters);
+      // Keep the list in the order it's shown, so the arrow keys follow it.
+      const hits = groupResults(r.hits).flatMap((g) => g.items);
+      setFound({ query: q, hits, ms: Math.round(performance.now() - started), semantic: r.semantic, filters: r.filters });
       setSelected(0);
       setError(null);
     } catch (e) {
       if (id === latest.current) setError(String(e));
+    } finally {
+      if (id === latest.current) setPending(false);
     }
   }, []);
 
   const runAsk = useCallback(async (q: string) => {
     if (!q.trim()) return;
     setAsking(true);
-    setAnswer(null);
+    setAsked(null);
     setError(null);
+    const started = performance.now();
     try {
-      setAnswer(await ask(q));
+      const answer = await ask(q);
+      setAsked({ question: q, answer, seconds: (performance.now() - started) / 1000 });
+      rememberSearch(q);
     } catch (e) {
       setError(String(e));
     } finally {
       setAsking(false);
     }
   }, []);
-
-  const voice = useVoice({
-    onTranscript: (text, final) => {
-      if (!text) return;
-      setQuery(text);
-      if (final && autoSubmit && mode === "ask") runAsk(text);
-    },
-  });
 
   // Search as you type, lightly debounced so each keystroke doesn't embed.
   useEffect(() => {
@@ -86,14 +132,17 @@ export function Launcher() {
     return () => clearTimeout(t);
   }, [query, mode, runSearch]);
 
-  const refreshSettings = useCallback(() => {
-    getHotkeys()
-      .then(({ config }) => {
-        setVoiceMode(config.voiceMode);
-        setAutoSubmit(config.autoSubmit);
-      })
-      .catch(() => {});
-  }, []);
+  const voice = useVoice({
+    onDone: (text) => {
+      if (!text) {
+        setVoiceNote("Didn't catch anything. Hold the voice keys, say what you're looking for, then let go.");
+        return;
+      }
+      setQuery(text);
+      if (mode === "ask" && keys.autoSubmit) runAsk(text);
+    },
+    onError: setError,
+  });
 
   const switchMode = useCallback((next: Mode) => {
     setMode(next);
@@ -102,232 +151,350 @@ export function Launcher() {
     input.current?.focus();
   }, []);
 
+  // Global hotkeys arrive as events; read the newest state through a ref so
+  // the listeners are set up once.
+  const onEvent = useRef({ press: () => {}, release: () => {} });
+  onEvent.current = {
+    press: () => {
+      setVoiceNote(null);
+      setVoiceByClick(false);
+      if (voice.state === "off") voice.start();
+      else if (keys.voiceMode === "toggle") voice.stop();
+    },
+    release: () => voice.stop(),
+  };
+
   useEffect(() => {
-    refreshSettings();
+    const refreshKeys = () =>
+      getHotkeys()
+        .then(({ config }) => setKeys(config))
+        .catch(() => {});
+    refreshKeys();
     const subs = [
       listen("launcher://shown", () => {
-        refreshSettings();
+        refreshKeys();
         setMenu(null);
+        recall.current = -1;
         input.current?.focus();
         input.current?.select();
       }),
       listen("launcher://ask", () => switchMode("ask")),
       listen("launcher://selection", () => switchMode("search")),
-      listen("voice://press", () => voice.press(voiceMode)),
-      listen("voice://release", () => voice.release()),
+      listen("voice://press", () => onEvent.current.press()),
+      listen("voice://release", () => onEvent.current.release()),
     ];
     return () => subs.forEach((p) => p.then((off) => off()));
-  }, [refreshSettings, switchMode, voice, voiceMode]);
+  }, [switchMode]);
 
-  // A short confirmation, like "Path copied", in the command bar.
+  // A short confirmation, like "Path copied", in the footer.
   useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(null), 2000);
     return () => clearTimeout(t);
   }, [notice]);
 
-  const hide = () => invoke("hide_launcher_cmd").catch(() => {});
-  const current = mode === "search" ? results[selected] : undefined;
-  const open = (r?: SearchResult) => r && openResult(r.path).catch((e) => setError(String(e)));
-  const reveal = (r?: SearchResult) => r && revealResult(r.path).catch((e) => setError(String(e)));
-  const copyPath = (r?: SearchResult) =>
-    r &&
-    navigator.clipboard
-      .writeText(r.path)
-      .then(() => setNotice("Path copied"))
-      .catch((e) => setError(String(e)));
+  const hits = found && query.trim() ? found.hits : [];
+  const current = mode === "search" ? hits[selected] : undefined;
+  const groups = useMemo(() => groupResults(hits), [hits]);
 
+  const hide = () => invoke("hide_launcher_cmd").catch(() => {});
+  const fail = (e: unknown) => setError(String(e));
+  const open = (r?: SearchResult) => {
+    if (!r) return;
+    rememberSearch(query);
+    openResult(r.path).catch(fail);
+  };
+  const reveal = (r?: SearchResult) => {
+    if (!r) return;
+    rememberSearch(query);
+    revealResult(r.path).catch(fail);
+  };
+  const primary = (r?: SearchResult) => {
+    if (r && plays(r) && controls.current.play) {
+      rememberSearch(query);
+      controls.current.play();
+    } else open(r);
+  };
+  const copy = (text: string, done: string) =>
+    navigator.clipboard
+      .writeText(text)
+      .then(() => setNotice(done))
+      .catch(fail);
+  const openSource = (n: number) => {
+    const s = asked?.answer.sources.find((x) => x.n === n);
+    if (s) openResult(s.path).catch(fail);
+  };
+
+  const primaryLabel = current && plays(current) ? `Play from ${current.location}` : "Open";
   const actions: MenuItem[] = current
     ? [
-        { label: current.location ? `Open at ${current.location}` : "Open", icon: "open", shortcut: "Enter", run: () => open(current) },
-        { label: "Open file location", icon: "folderOpen", shortcut: "Ctrl+Shift+E", run: () => reveal(current) },
-        { label: "Copy as path", icon: "copy", shortcut: "Ctrl+Shift+C", run: () => copyPath(current) },
+        { label: primaryLabel, icon: plays(current) ? "play" : "open", shortcut: "Enter", run: () => primary(current) },
+        ...(plays(current) ? [{ label: "Open in its app", icon: "open" as const, run: () => open(current) }] : []),
+        { label: "Open folder", icon: "folder", shortcut: "Ctrl+Shift+E", run: () => reveal(current) },
+        { label: "Copy as path", icon: "copy", shortcut: "Ctrl+Shift+C", run: () => copy(current.path, "Path copied") },
       ]
     : [];
 
-  const onQueryChange = (value: string) => {
-    // "?" at the start asks a question instead, like a launcher prefix.
-    if (mode === "search" && value.startsWith("?")) {
-      switchMode("ask");
-      value = value.slice(1).trimStart();
+  /** Up and Down through the list; in the photo grid they move a row at a time. */
+  const step = (by: 1 | -1) => {
+    const n = hits.length;
+    let start = 0;
+    for (const g of groups) {
+      const end = start + g.items.length;
+      const grid = g.key === "image" && g.items.length >= PHOTO_GRID_MIN;
+      if (grid && selected >= start && selected < end) {
+        const target = selected + by * GRID_COLUMNS;
+        if (target >= start && target < end) return target;
+        const lastRow = start + Math.floor((end - 1 - start) / GRID_COLUMNS) * GRID_COLUMNS;
+        if (by === 1 && selected < lastRow) return end - 1;
+        break;
+      }
+      start = end;
     }
+    return (selected + by + n) % n;
+  };
+
+  const onQueryChange = (value: string) => {
+    recall.current = -1;
+    setVoiceNote(null);
     setQuery(value);
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     const key = e.key.toLowerCase();
     if (e.key === "Escape") {
-      if (voice.listening) voice.cancel();
-      else if (query) setQuery("");
+      if (voice.state !== "off") voice.cancel();
       else if (mode === "ask") switchMode("search");
+      else if (query) setQuery("");
       else hide();
-    } else if (e.key === "Backspace" && !query && mode === "ask") {
-      switchMode("search");
-    } else if (mode === "search" && results.length && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
-      const step = e.key === "ArrowDown" ? 1 : -1;
-      setSelected((i) => (i + step + results.length) % results.length);
-    } else if (mode === "search" && results.length && (e.key === "PageDown" || e.key === "PageUp")) {
-      const step = e.key === "PageDown" ? 5 : -5;
-      setSelected((i) => Math.max(0, Math.min(results.length - 1, i + step)));
-    } else if (e.key === "Enter" && mode === "ask") {
-      runAsk(query);
+    } else if (e.key === "Tab") {
+      switchMode(mode === "ask" ? "search" : "ask");
+    } else if (voice.state === "listening" && e.key === "Enter") {
+      voice.stop();
+    } else if (mode === "ask") {
+      if (e.key === "Enter") runAsk(query);
+      else if (asked && e.ctrlKey && e.shiftKey && key === "c") copy(answerAsText(asked.answer), "Answer copied");
+      else if (asked && e.ctrlKey && /^[1-9]$/.test(e.key)) openSource(Number(e.key));
+      else return;
+    } else if (e.key === "ArrowUp" && !query) {
+      // Up in an empty box brings back recent searches, newest first.
+      const recent = recentSearches();
+      if (!recent.length) return;
+      recall.current = Math.min(recall.current + 1, recent.length - 1);
+      setQuery(recent[recall.current]);
+    } else if (hits.length && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      setSelected(step(e.key === "ArrowDown" ? 1 : -1));
+    } else if (hits.length && (e.key === "PageDown" || e.key === "PageUp")) {
+      const by = e.key === "PageDown" ? 5 : -5;
+      setSelected((i) => Math.max(0, Math.min(hits.length - 1, i + by)));
     } else if (e.key === "Enter" && (e.ctrlKey || e.shiftKey)) {
       reveal(current);
     } else if (e.key === "Enter") {
-      open(current);
+      primary(current);
     } else if (e.ctrlKey && e.shiftKey && key === "e") {
       reveal(current);
     } else if (e.ctrlKey && e.shiftKey && key === "c") {
-      copyPath(current);
+      if (current) copy(current.path, "Path copied");
     } else if (current && ((e.ctrlKey && key === "k") || (e.shiftKey && e.key === "F10") || e.key === "ContextMenu")) {
-      setMenu({ right: 8, bottom: 44 });
+      setMenu({ right: 12, bottom: 44 });
     } else {
       return;
     }
     e.preventDefault();
   };
 
+  const talking = voice.state !== "off";
   const searching = mode === "search" && query.trim().length > 0;
-  const expanded = mode === "ask" || searching;
+  const settled = !!found && found.query === query && !pending;
+  const nothing = searching && settled && hits.length === 0;
+  const busy = pending || asking || voice.state === "transcribing";
+  const filters = mode === "search" && query.trim() ? (found?.filters ?? []) : [];
+
+  const summary = (() => {
+    if (!found) return "";
+    const photosLead = groups[0]?.key === "image" && groups[0].items.length >= PHOTO_GRID_MIN;
+    const count = photosLead ? countByKind(hits.map((h) => h.kind)) : `${hits.length} ${hits.length === 1 ? "result" : "results"}`;
+    return `${count} · ${found.ms} ms${found.semantic ? "" : " · exact words only"}`;
+  })();
+  const left = notice ? (
+    <span className="notice">
+      <Icon name="check" size={14} strokeWidth={2} />
+      {notice}
+    </span>
+  ) : null;
+
+  // The words heard so far; the last one stays faint until Whisper settles on it.
+  const heard = (() => {
+    if (!voice.heard) return <span className="faint">Say what you're looking for</span>;
+    if (voice.state === "transcribing") return voice.heard;
+    const at = voice.heard.lastIndexOf(" ");
+    return at < 0 ? (
+      <span className="faint">{voice.heard}</span>
+    ) : (
+      <>
+        {voice.heard.slice(0, at + 1)}
+        <span className="faint">{voice.heard.slice(at + 1)}</span>
+      </>
+    );
+  })();
 
   return (
-    <div ref={root} className={`launcher ${expanded ? "is-expanded" : ""}`} onKeyDown={onKeyDown}>
-      <div className="launcher-search">
-        <Icon name={mode === "ask" ? "ask" : "search"} size={20} className={`launcher-search-icon ${mode === "ask" ? "is-ask" : ""}`} />
+    <div ref={root} className="launcher" onKeyDown={onKeyDown}>
+      <div className={`lsearch${mode === "ask" ? " ask" : ""}`}>
+        {talking ? (
+          <span className="mic">
+            <Icon name="mic" size={16} strokeWidth={1.8} />
+          </span>
+        ) : (
+          <Icon name={mode === "ask" ? "sparkle" : "search"} size={20} style={{ flex: "none" }} />
+        )}
+        {talking && <div className="heard">{heard}</div>}
         <input
           ref={input}
           autoFocus
           spellCheck={false}
           autoComplete="off"
           role="combobox"
-          aria-label={mode === "ask" ? "Ask a question about your files" : "Search your PC"}
-          aria-expanded={mode === "search" && results.length > 0}
+          className={talking ? "offstage" : undefined}
+          aria-label={mode === "ask" ? "Ask a question about your files" : "Search your files"}
+          aria-expanded={mode === "search" && hits.length > 0}
           aria-controls="results"
           aria-activedescendant={current ? `result-${selected}` : undefined}
-          placeholder={mode === "ask" ? "Ask a question about your files" : "Search your PC, or type ? to ask a question"}
+          placeholder={mode === "ask" ? "Ask a question about your files" : "Search files, photos and recordings"}
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
         />
+        {filters.map((f) => (
+          <button
+            key={f.label}
+            type="button"
+            className="lchip"
+            title={`Search everything, not just ${f.label.toLowerCase()}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setQuery(withoutPhrase(query, f.phrase))}
+          >
+            {f.label}
+            <Icon name="close" size={12} />
+          </button>
+        ))}
         <button
           type="button"
-          className="btn btn-subtle launcher-mode"
+          className={`lbtn${mode === "ask" ? " on" : ""}`}
           aria-pressed={mode === "ask"}
           title="Ask a question about your files"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => switchMode(mode === "ask" ? "search" : "ask")}
         >
-          <Icon name="sparkle" size={16} />
+          <Icon name="sparkle" />
           Ask
+          <kbd className="kbd">Tab</kbd>
         </button>
-        <button
-          type="button"
-          className="btn btn-subtle btn-icon"
-          aria-label={voice.listening ? "Stop listening" : "Search by voice"}
-          title={voice.listening ? "Stop listening" : "Search by voice"}
-          aria-pressed={voice.listening}
-          onClick={() => (voice.listening ? voice.release() : voice.press("toggle"))}
-        >
-          <Icon name={voice.listening ? "micOn" : "mic"} size={16} />
-        </button>
+        {!talking && (
+          <button
+            type="button"
+            className="lbtn"
+            aria-label="Search by voice"
+            title="Search by voice"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setVoiceNote(null);
+              setVoiceByClick(true);
+              voice.start();
+            }}
+          >
+            <Icon name="mic" />
+          </button>
+        )}
+        {talking && voiceByClick && (
+          <button type="button" className="lbtn on" aria-label="Stop and search" onMouseDown={(e) => e.preventDefault()} onClick={() => voice.stop()}>
+            <Icon name="mic" />
+          </button>
+        )}
+        {(searching || mode === "ask" || talking) && <div className={`lline${busy ? " busy" : ""}`} />}
       </div>
 
-      {mode === "search" && filters.length > 0 && (
-        <div className="filter-chips" aria-label="Filters from your search">
-          {filters.map((f) => (
-            <button
-              key={f.label}
-              type="button"
-              className="filter-chip"
-              title={`Remove "${f.phrase}" from the search`}
-              onClick={() => {
-                setQuery(withoutPhrase(query, f.phrase));
-                input.current?.focus();
-              }}
-            >
-              {f.label} <span aria-hidden="true">×</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {voice.listening && <VoiceBar level={voice.level} mode={voiceMode} />}
       {error && (
-        <div className="launcher-error" role="alert">
+        <div className="lerror" role="alert">
           <Icon name="error" size={16} />
           <span className="selectable">{error}</span>
         </div>
       )}
-      {!expanded && <EmptyState status={status} searched={false} />}
 
-      {expanded && (
-        <div className={`launcher-body ${mode === "search" && !results.length ? "is-empty" : ""}`}>
-          {mode === "ask" ? (
-            <AnswerPanel answer={answer} loading={asking} onOpen={(p) => openResult(p).catch((e) => setError(String(e)))} />
-          ) : results.length ? (
-            <>
-              <ResultList
-                results={results}
-                selected={selected}
-                onSelect={setSelected}
-                onOpen={(i) => open(results[i])}
-                onContextMenu={(i, x, y) => {
-                  setSelected(i);
-                  setMenu({ left: Math.min(x, window.innerWidth - 240), top: Math.min(y, window.innerHeight - 140) });
-                }}
-              />
-              {current && <Preview result={current} />}
-            </>
-          ) : (
-            <EmptyState status={status} searched />
-          )}
+      {talking ? (
+        <VoiceBar state={voice.state} level={voice.level} mode={keys.voiceMode} accelerator={keys.voice} byClick={voiceByClick} />
+      ) : mode === "ask" ? (
+        <>
+          <AnswerPanel answer={asked?.answer ?? null} loading={asking} seconds={asked?.seconds ?? null} onOpen={(p) => openResult(p).catch(fail)} />
+          <Footer
+            left={left ?? "Ask"}
+            actions={
+              asked
+                ? [
+                    { label: "Copy answer", keys: ["Ctrl", "Shift", "C"], run: () => copy(answerAsText(asked.answer), "Answer copied") },
+                    { label: "Open source", keys: ["Ctrl", "1"], run: () => openSource(1) },
+                    { label: "Back to results", keys: ["Esc"], run: () => switchMode("search") },
+                  ]
+                : [
+                    { label: "Ask", keys: ["Enter"], run: () => runAsk(query) },
+                    { label: "Back to results", keys: ["Esc"], run: () => switchMode("search") },
+                  ]
+            }
+          />
+        </>
+      ) : hits.length > 0 ? (
+        <>
+          <div className="lbody">
+            <ResultList
+              results={hits}
+              selected={selected}
+              query={found?.query ?? query}
+              onSelect={setSelected}
+              onOpen={(i) => primary(hits[i])}
+              onContextMenu={(i, x, y) => {
+                setSelected(i);
+                setMenu({ left: Math.min(x, window.innerWidth - 240), top: Math.min(y, window.innerHeight - 160) });
+              }}
+            />
+            {current && <Preview result={current} query={found?.query ?? query} controls={controls} speechModel={config?.speechModel} />}
+          </div>
+          <Footer
+            left={left ?? summary}
+            actions={[
+              { label: primaryLabel, keys: ["Enter"], run: () => primary(current) },
+              { label: "Open folder", keys: ["Ctrl", "Shift", "E"], run: () => reveal(current) },
+              { label: "All actions", keys: ["Ctrl", "K"], run: () => setMenu(menu ? null : { right: 12, bottom: 44 }) },
+            ]}
+          />
+        </>
+      ) : nothing ? (
+        <>
+          <NothingFound
+            roots={config?.roots ?? []}
+            onAsk={() => {
+              switchMode("ask");
+              runAsk(query);
+            }}
+          />
+          <Footer
+            left={summary}
+            actions={[
+              { label: "Ask", keys: ["Tab"], run: () => switchMode("ask") },
+              { label: "Close", keys: ["Esc"], run: hide },
+            ]}
+          />
+        </>
+      ) : (
+        !searching && <Notes status={status} />
+      )}
+
+      {voiceNote && !talking && (
+        <div className="lnote" role="status">
+          <Icon name="mic" size={16} />
+          <span className="grow">{voiceNote}</span>
         </div>
       )}
 
-      {expanded && (
-        <footer className="command-bar">
-          <span className="command-bar-status" role="status">
-            {notice ? (
-              <>
-                <Icon name="checkmark" size={16} />
-                {notice}
-              </>
-            ) : (
-              <>
-                <Icon name="lock" size={16} />
-                {mode === "ask"
-                  ? "Answers come only from files on this PC"
-                  : `${results.length} ${results.length === 1 ? "result" : "results"} on this PC${semantic ? "" : " · exact words only"}`}
-              </>
-            )}
-          </span>
-          {mode === "ask" ? (
-            <button type="button" className="btn btn-subtle command" onClick={() => runAsk(query)} disabled={!query.trim() || asking}>
-              Ask <Keycap small>Enter</Keycap>
-            </button>
-          ) : (
-            current && (
-              <>
-                <button type="button" className="btn btn-subtle command" onClick={() => open(current)}>
-                  Open <Keycap small>Enter</Keycap>
-                </button>
-                <span className="command-sep" aria-hidden="true" />
-                <button
-                  type="button"
-                  className="btn btn-subtle command"
-                  aria-haspopup="menu"
-                  aria-expanded={!!menu}
-                  onClick={() => setMenu(menu ? null : { right: 8, bottom: 44 })}
-                >
-                  More actions <Keycap small>Ctrl</Keycap>
-                  <Keycap small>K</Keycap>
-                </button>
-              </>
-            )
-          )}
-        </footer>
-      )}
-
-      {menu && actions.length > 0 && (
-        <Menu label="Actions" items={actions} style={menu} onClose={() => setMenu(null)} />
-      )}
+      {menu && actions.length > 0 && <Menu label="Actions" items={actions} style={menu} onClose={() => setMenu(null)} />}
     </div>
   );
 }

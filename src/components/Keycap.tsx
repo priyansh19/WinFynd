@@ -1,18 +1,19 @@
 import { displayKeys } from "../lib/hotkeys";
 import "./controls.css";
 
-export function Keycap({ children, small }: { children: string; small?: boolean }) {
-  return <kbd className={small ? "keycap keycap-small" : "keycap"}>{children}</kbd>;
-}
-
-export function KeyCombo({ accelerator, small }: { accelerator: string; small?: boolean }) {
+export function Keys({ keys, big }: { keys: string[]; big?: boolean }) {
   return (
-    <span className="key-combo" aria-label={displayKeys(accelerator).join(" + ")}>
-      {displayKeys(accelerator).map((k) => (
-        <Keycap key={k} small={small}>
+    <span className="keys" aria-label={keys.join(" + ")}>
+      {keys.map((k) => (
+        <kbd key={k} className={big ? "kbd big" : "kbd"}>
           {k}
-        </Keycap>
+        </kbd>
       ))}
     </span>
   );
+}
+
+/** A shortcut as keycaps: "Super+Shift+F" shows Win, Shift, F. */
+export function KeyCombo({ accelerator, big }: { accelerator: string; big?: boolean }) {
+  return <Keys keys={displayKeys(accelerator)} big={big} />;
 }

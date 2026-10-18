@@ -15,7 +15,7 @@
         "label": "launcher",
         "title": "WinFynd",
         "url": "launcher.html",
-        "width": 760,
+        "width": 880,
         "height": 64,
         "center": false,
         "resizable": false,
@@ -30,25 +30,29 @@
         "label": "control",
         "title": "WinFynd Settings",
         "url": "index.html",
-        "width": 1040,
-        "height": 740,
-        "minWidth": 640,
-        "minHeight": 480,
+        "width": 1152,
+        "height": 760,
+        "minWidth": 720,
+        "minHeight": 520,
         "center": true,
         "visible": false,
-        "transparent": true
+        "transparent": true,
+        "decorations": false,
+        "shadow": true
       },
       {
         "label": "onboarding",
         "title": "Welcome to WinFynd",
         "url": "onboarding.html",
         "width": 960,
-        "height": 640,
+        "height": 620,
         "resizable": false,
         "maximizable": false,
         "center": true,
         "visible": false,
-        "transparent": true
+        "transparent": true,
+        "decorations": false,
+        "shadow": true
       }
     ],
     "security": {

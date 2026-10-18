@@ -1,91 +1,224 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Keycap } from "../components/Keycap";
+import { Icon } from "../components/Icon";
+import { KeyCombo } from "../components/Keycap";
 import type { VoiceMode } from "../lib/hotkeys";
+import { transcribeVoice } from "../lib/search";
 
-/**
- * Microphone capture for voice search. It measures the input level for the
- * listening UI; turning speech into text is the on-device Whisper model's job
- * and isn't wired up yet, so transcripts are not produced.
- */
-export function useVoice({ onTranscript }: { onTranscript: (text: string, final: boolean) => void }) {
-  const [listening, setListening] = useState(false);
-  const [level, setLevel] = useState(0);
-  const stream = useRef<MediaStream | null>(null);
-  const frame = useRef<number>(0);
-  const transcript = useRef("");
+/** Whisper listens at 16 kHz, mono. */
+const RATE = 16000;
+/** A press longer than this stops by itself. */
+const MAX_SECONDS = 30;
+/** How often the words heard so far are refreshed while talking. */
+const INTERIM_MS = 1800;
 
-  const stopCapture = useCallback(() => {
-    cancelAnimationFrame(frame.current);
-    stream.current?.getTracks().forEach((t) => t.stop());
-    stream.current = null;
-    setLevel(0);
-  }, []);
+export type VoiceState = "off" | "listening" | "transcribing";
 
-  const start = useCallback(async () => {
-    setListening(true);
-    transcript.current = "";
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.current = s;
-      const ctx = new AudioContext();
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 512;
-      ctx.createMediaStreamSource(s).connect(analyser);
-      const data = new Uint8Array(analyser.fftSize);
-      const tick = () => {
-        analyser.getByteTimeDomainData(data);
-        let sum = 0;
-        for (const v of data) sum += ((v - 128) / 128) ** 2;
-        setLevel(Math.min(1, Math.sqrt(sum / data.length) * 4));
-        frame.current = requestAnimationFrame(tick);
-      };
-      tick();
-    } catch {
-      // No microphone or permission denied: keep the listening UI, flat level.
-    }
-  }, []);
-
-  const release = useCallback(() => {
-    if (!listening) return;
-    setListening(false);
-    stopCapture();
-    onTranscript(transcript.current, true);
-  }, [listening, onTranscript, stopCapture]);
-
-  const press = useCallback(
-    (mode: VoiceMode) => {
-      if (listening && mode === "toggle") release();
-      else if (!listening) start();
-    },
-    [listening, release, start],
-  );
-
-  const cancel = useCallback(() => {
-    setListening(false);
-    stopCapture();
-  }, [stopCapture]);
-
-  useEffect(() => stopCapture, [stopCapture]);
-
-  return useMemo(() => ({ listening, level, press, release, cancel }), [listening, level, press, release, cancel]);
+function join(chunks: Float32Array[]): Float32Array {
+  const out = new Float32Array(chunks.reduce((n, c) => n + c.length, 0));
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.length;
+  }
+  return out;
 }
 
-const BARS = [10, 18, 28, 36, 22, 30, 40, 26, 16, 32, 38, 24, 14, 20];
+/** Resample to 16 kHz with the browser's own filter, so Whisper hears it cleanly. */
+async function to16k(samples: Float32Array, rate: number): Promise<Float32Array> {
+  if (rate === RATE || !samples.length) return samples;
+  const ctx = new OfflineAudioContext(1, Math.ceil((samples.length * RATE) / rate), RATE);
+  const buffer = ctx.createBuffer(1, samples.length, rate);
+  buffer.getChannelData(0).set(samples);
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(ctx.destination);
+  source.start();
+  return (await ctx.startRendering()).getChannelData(0);
+}
 
-export function VoiceBar({ level, mode }: { level: number; mode: VoiceMode }) {
+/** The microphone picked in Settings, if any. */
+function chosenMic(): string | undefined {
+  try {
+    return localStorage.getItem("wf.mic") || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Push to talk. Records the microphone while the voice keys are held, shows
+ * the words as Whisper hears them, and on release hands the final text back.
+ * Speech is turned into text by the engine on this PC; nothing leaves it.
+ */
+export function useVoice({ onDone, onError }: { onDone: (text: string) => void; onError: (message: string) => void }) {
+  const [state, setState] = useState<VoiceState>("off");
+  const [level, setLevel] = useState<number | null>(null);
+  const [heard, setHeard] = useState("");
+  const capture = useRef<{ stream: MediaStream; ctx: AudioContext; chunks: Float32Array[] } | null>(null);
+  const live = useRef(false);
+  const stopWanted = useRef(false);
+  const interim = useRef<{ timer: number; busy: boolean }>({ timer: 0, busy: false });
+  const limit = useRef(0);
+  const done = useRef(onDone);
+  const failed = useRef(onError);
+  done.current = onDone;
+  failed.current = onError;
+
+  const close = useCallback(() => {
+    clearInterval(interim.current.timer);
+    clearTimeout(limit.current);
+    const c = capture.current;
+    capture.current = null;
+    c?.stream.getTracks().forEach((t) => t.stop());
+    c?.ctx.close().catch(() => {});
+    setLevel(null);
+    return c;
+  }, []);
+
+  const stop = useCallback(async () => {
+    if (!live.current) return;
+    if (!capture.current) {
+      // Released before the microphone opened: stop as soon as it does.
+      stopWanted.current = true;
+      return;
+    }
+    live.current = false;
+    const c = close();
+    if (!c) return;
+    setState("transcribing");
+    try {
+      const samples = await to16k(join(c.chunks), c.ctx.sampleRate);
+      const text = samples.length > RATE / 4 ? await transcribeVoice(samples) : "";
+      setState("off");
+      setHeard("");
+      done.current(text.trim());
+    } catch (e) {
+      setState("off");
+      setHeard("");
+      failed.current(String(e));
+    }
+  }, [close]);
+
+  const start = useCallback(async () => {
+    if (live.current) return;
+    live.current = true;
+    stopWanted.current = false;
+    setHeard("");
+    setState("listening");
+    try {
+      const mic = chosenMic();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: mic ? { ideal: mic } : undefined, channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      });
+      if (!live.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      const ctx = new AudioContext();
+      const chunks: Float32Array[] = [];
+      const source = ctx.createMediaStreamSource(stream);
+      // ScriptProcessor is old but runs everywhere WebView2 does, with no worklet file to ship.
+      const tap = ctx.createScriptProcessor(4096, 1, 1);
+      tap.onaudioprocess = (e) => {
+        const data = e.inputBuffer.getChannelData(0);
+        chunks.push(new Float32Array(data));
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+        setLevel(Math.min(1, Math.sqrt(sum / data.length) * 6));
+      };
+      source.connect(tap);
+      tap.connect(ctx.destination);
+      capture.current = { stream, ctx, chunks };
+      limit.current = window.setTimeout(() => stop(), MAX_SECONDS * 1000);
+      interim.current.timer = window.setInterval(async () => {
+        const c = capture.current;
+        if (!c || interim.current.busy || c.chunks.length < 4) return;
+        interim.current.busy = true;
+        try {
+          const text = await transcribeVoice(await to16k(join(c.chunks), c.ctx.sampleRate));
+          if (live.current) setHeard(text.trim());
+        } catch {
+          // The final pass reports any problem.
+        } finally {
+          interim.current.busy = false;
+        }
+      }, INTERIM_MS);
+      if (stopWanted.current) stop();
+    } catch {
+      live.current = false;
+      close();
+      setState("off");
+      failed.current("Windows didn't give WinFynd the microphone. Turn it on in Settings, Privacy & security, Microphone.");
+    }
+  }, [close, stop]);
+
+  const cancel = useCallback(() => {
+    live.current = false;
+    close();
+    setHeard("");
+    setState("off");
+  }, [close]);
+
+  useEffect(() => cancel, [cancel]);
+
+  return useMemo(() => ({ state, level, heard, start, stop, cancel }), [state, level, heard, start, stop, cancel]);
+}
+
+/** How tall each bar of the meter stands at full voice. */
+const SHAPE = [0.55, 0.8, 0.65, 1, 0.75, 0.9, 0.6, 0.85, 1, 0.7, 0.8, 0.5];
+const DELAYS = [0, 320, 140, 560, 260, 700, 80, 420, 610, 200, 350, 90];
+
+/**
+ * The row under the search box while talking: a level meter, how to finish,
+ * and the promise that speech stays here. Before the microphone reports a
+ * level, the bars sway on their own.
+ */
+export function VoiceBar({
+  state,
+  level,
+  mode,
+  accelerator,
+  byClick,
+}: {
+  state: VoiceState;
+  level: number | null;
+  mode: VoiceMode;
+  accelerator: string;
+  byClick: boolean;
+}) {
+  const now = performance.now();
   return (
-    <div className="voice-bar" role="status">
-      <span className="voice-dot" aria-hidden="true" />
-      <span className="voice-label">Listening</span>
-      <span className="voice-hint">
-        {mode === "hold" ? "Release the voice key to search" : "Press the voice key again to search"} ·{" "}
-        <Keycap small>Esc</Keycap> to cancel
-      </span>
-      <div className="voice-wave" aria-hidden="true">
-        {BARS.map((h, i) => (
-          <span key={i} style={{ height: Math.max(3, h * 0.6 * (0.2 + level)) }} />
+    <div className="voicebar" role="status">
+      <div className={`eq${level === null || state !== "listening" ? " idle" : ""}`} aria-hidden="true">
+        {SHAPE.map((s, i) => (
+          <i
+            key={i}
+            style={
+              level === null || state !== "listening"
+                ? { animationDelay: `-${DELAYS[i]}ms` }
+                : { transform: `scaleY(${Math.max(0.14, Math.min(1, level * s * (0.8 + 0.2 * Math.sin(now / 110 + i * 1.7))))})` }
+            }
+          />
         ))}
       </div>
+      {state === "transcribing" ? (
+        <span className="voicebar-hint">Turning what you said into words on this PC…</span>
+      ) : byClick ? (
+        <span className="voicebar-hint">
+          Listening. Press <kbd className="kbd">Enter</kbd> or click the mic to search.
+        </span>
+      ) : mode === "hold" ? (
+        <span className="voicebar-hint">
+          Listening. Release <KeyCombo accelerator={accelerator} /> to search.
+        </span>
+      ) : (
+        <span className="voicebar-hint">
+          Listening. Press <KeyCombo accelerator={accelerator} /> again to search.
+        </span>
+      )}
+      <span className="voicebar-private">
+        <Icon name="lock" size={14} /> Speech stays on this PC
+      </span>
     </div>
   );
 }

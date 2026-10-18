@@ -4,15 +4,15 @@
 const tauri = window.__TAURI__;
 const $ = (id) => document.getElementById(id);
 
+// 20 x 20 icons from the WinFynd Fluent set.
 const ICONS = {
-  pending: '<circle cx="8" cy="8" r="5.5"/>',
-  active: '<path d="M8 2.5a5.5 5.5 0 0 1 5.5 5.5"/>',
-  done: '<path d="M3 8.5l3.2 3L13 4.5"/>',
-  failed: '<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>',
-  info: '<circle cx="8" cy="8" r="6"/><path d="M8 7.2v4M8 4.8v.4"/>',
+  done: '<circle cx="10" cy="10" r="7.5"/><path d="M6.8 10.2l2.2 2.2 4.2-4.6"/>',
+  failed: '<circle cx="10" cy="10" r="7.5"/><path d="M7.5 7.5l5 5M12.5 7.5l-5 5"/>',
+  info: '<circle cx="10" cy="10" r="7.5"/><path d="M10 9v5M10 6.2v.1"/>',
+  lock: '<rect x="4" y="9" width="12" height="8.5" rx="1.5"/><path d="M6.5 9V6.5a3.5 3.5 0 0 1 7 0V9"/>',
 };
 
-const STEP_CLASS = { pending: "icon muted", active: "icon", done: "icon ok", failed: "icon danger" };
+const TAGLINE = "Find anything on your PC by describing it.";
 
 let state;
 let steps = [];
@@ -32,7 +32,8 @@ const mock = (() => {
       installDir: "C:\\Users\\gupta\\AppData\\Local\\WinFynd",
       running: mode === "update",
       autostart: true,
-      dataBytes: 2.4e9,
+      dataBytes: 2.3e9,
+      appBytes: 38e6,
       accentLight: null,
       accentDark: null,
     },
@@ -53,16 +54,26 @@ function closeWindow() {
   if (tauri) tauri.window.getCurrentWindow().close();
 }
 
+function minimizeWindow() {
+  if (tauri) tauri.window.getCurrentWindow().minimize();
+}
+
 // --- Rendering --------------------------------------------------------------
 
 function show(screen) {
   document.body.dataset.screen = screen;
 }
 
+// The coloured band at the top of the window.
 function hero(title, subtitle) {
   $("title").textContent = title;
   $("subtitle").textContent = subtitle || "";
   $("subtitle").hidden = !subtitle;
+}
+
+function text(id, value) {
+  $(id).textContent = value || "";
+  $(id).hidden = !value;
 }
 
 function buttons(primary, secondary) {
@@ -77,17 +88,23 @@ function buttons(primary, secondary) {
   set($("secondary"), secondary);
 }
 
-function footer(note) {
-  $("footer-note").textContent = note || "";
+// A short note at the left of the footer; `lock` puts the padlock in front of it.
+function footer(note, lock) {
+  const el = $("footer-note");
+  el.textContent = note || "";
+  if (note && lock) {
+    el.insertAdjacentHTML("afterbegin", `<svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true">${ICONS.lock}</svg>`);
+  }
 }
 
-function message(kind, text, detail) {
+function message(kind, heading, body, detail) {
+  text("message-heading", heading);
   const icon = $("message-icon");
-  icon.setAttribute("class", kind === "ok" ? "icon ok" : kind === "error" ? "icon danger" : "icon muted");
+  icon.setAttribute("class", kind === "ok" ? "icon ok" : kind === "error" ? "icon danger" : "icon accent");
   icon.innerHTML = kind === "ok" ? ICONS.done : kind === "error" ? ICONS.failed : ICONS.info;
-  $("message").textContent = text;
-  $("message-detail").textContent = detail || "";
-  $("message-detail").hidden = !detail;
+  $("message-card").className = `infobar ${kind === "ok" ? "" : kind === "error" ? "error" : "info"}`;
+  $("message").textContent = body;
+  text("message-detail", detail);
   show("message");
 }
 
@@ -99,10 +116,13 @@ function formatBytes(bytes) {
 
 // --- Progress ---------------------------------------------------------------
 
-function startProgress(label, list) {
+function startProgress(heading, list, tip) {
   steps = list.map((s) => ({ ...s, status: "pending" }));
-  $("progress-label").textContent = label;
-  $("progress-fill").parentElement.classList.remove("failed");
+  $("progress-heading").textContent = heading;
+  $("progress").classList.remove("failed");
+  $("progress").classList.add("live");
+  $("progress-tip-text").textContent = tip || "";
+  $("progress-tip").hidden = !tip;
   setProgress(0);
   renderSteps();
   footer("");
@@ -111,20 +131,19 @@ function startProgress(label, list) {
   show("progress");
 }
 
+// One line under the bar: what is happening now, and how far along the steps are.
 function renderSteps() {
-  $("steps").innerHTML = "";
-  for (const s of steps) {
-    const li = document.createElement("li");
-    li.className = s.status;
-    li.innerHTML = `<svg class="${STEP_CLASS[s.status]}" viewBox="0 0 16 16" aria-hidden="true">${ICONS[s.status]}</svg>`;
-    li.append(document.createTextNode(s.label));
-    $("steps").append(li);
-  }
+  let index = steps.findIndex((s) => s.status === "active" || s.status === "failed");
+  if (index < 0) index = steps.findIndex((s) => s.status === "pending");
+  if (index < 0) index = steps.length - 1;
+  const current = steps[index];
+  const where = steps.length > 1 ? ` · step ${index + 1} of ${steps.length}` : "";
+  $("progress-label").textContent = current ? `${current.label}${where}` : "";
 }
 
 function setProgress(percent) {
   $("progress-fill").style.width = `${percent}%`;
-  $("progress-fill").parentElement.setAttribute("aria-valuenow", String(Math.round(percent)));
+  $("progress").setAttribute("aria-valuenow", String(Math.round(percent)));
 }
 
 // Each step owns a slice of the bar. The installer reports nothing while it runs,
@@ -146,7 +165,7 @@ function updateStep({ id, status }) {
   } else if (status === "done") {
     setProgress(end);
   } else if (status === "failed") {
-    $("progress-fill").parentElement.classList.add("failed");
+    $("progress").classList.add("failed");
   }
 }
 
@@ -165,29 +184,44 @@ async function runMockSteps() {
 function renderInstall() {
   const { mode, version, installedVersion, running } = state;
   const fresh = mode === "install";
-  if (fresh) hero("WinFynd", "Find anything on your PC by typing or speaking.");
-  else if (mode === "update") hero("Update WinFynd", `Version ${installedVersion} to ${version}`);
-  else hero("Reinstall WinFynd", `Version ${version} is already installed.`);
+  hero("WinFynd", TAGLINE);
+  if (fresh) {
+    text("install-heading", "");
+    text("install-lede", "");
+  } else if (mode === "update") {
+    text("install-heading", `Update to version ${version}`);
+    text("install-lede", `You have ${installedVersion}. Your index, folders, shortcuts and models are kept.`);
+  } else {
+    text("install-heading", `Reinstall version ${version}`);
+    text("install-lede", `Version ${version} is already installed. Reinstalling repairs it and keeps your index, folders, shortcuts and models.`);
+  }
 
-  $("location").textContent = state.installDir;
+  renderLocation();
   $("location-row").hidden = !fresh;
   $("autostart-row").hidden = !fresh;
   $("shortcut-row").hidden = !fresh;
-  $("kept-row").hidden = fresh;
   $("running-row").hidden = fresh || !running;
   $("autostart").checked = state.autostart;
 
-  footer(`Version ${version}`);
+  if (fresh) footer("No account. Nothing is uploaded.", true);
+  else footer("");
   const label = fresh ? "Install" : mode === "update" ? "Update" : "Reinstall";
-  buttons({ label, action: install }, { label: fresh ? "Cancel" : "Not now", action: closeWindow });
+  // A fresh install closes from the title bar; an update offers "Not now".
+  buttons({ label, action: install }, fresh ? null : { label: "Not now", action: closeWindow });
   show("install");
+}
+
+function renderLocation() {
+  const size = state.appBytes ? ` · ${formatBytes(state.appBytes)}` : "";
+  $("location").textContent = `${state.installDir}${size}`;
+  $("location").title = state.installDir;
 }
 
 async function chooseFolder() {
   const picked = await invoke("choose_folder", { current: state.installDir });
   if (picked) {
     state.installDir = picked;
-    $("location").textContent = picked;
+    renderLocation();
     $("location-label").textContent = "Install to";
   }
 }
@@ -196,12 +230,18 @@ async function install() {
   const { mode } = state;
   const fresh = mode === "install";
   const wasRunning = state.running;
-  hero(fresh ? "Installing WinFynd" : "Updating WinFynd", "This takes less than a minute.");
-  startProgress(fresh ? "Installing" : "Updating", [
-    { id: "prepare", label: "Unpacking WinFynd", weight: 1 },
-    { id: "copy", label: fresh ? "Copying WinFynd to your user folder" : "Closing WinFynd and replacing its files", weight: 8 },
-    { id: "register", label: fresh ? "Adding WinFynd to Start and Apps" : "Checking the new version", weight: 1 },
-  ]);
+  hero("WinFynd", TAGLINE);
+  startProgress(
+    fresh ? "Installing WinFynd" : "Updating WinFynd",
+    [
+      { id: "prepare", label: "Unpacking WinFynd", weight: 1 },
+      { id: "copy", label: fresh ? "Copying files" : "Closing WinFynd and replacing its files", weight: 8 },
+      { id: "register", label: fresh ? "Adding WinFynd to Start and Apps" : "Checking the new version", weight: 1 },
+    ],
+    fresh
+      ? "When this finishes, setup asks which folders to search. That takes about two minutes."
+      : "Your index, folders, shortcuts and models stay as they are.",
+  );
   const run = invoke("install", {
     options: { dir: state.installDir, autostart: $("autostart").checked, desktopShortcut: $("shortcut").checked },
   });
@@ -212,16 +252,17 @@ async function install() {
     return failed("WinFynd isn't installed yet", error, renderInstall);
   }
 
+  $("progress").classList.remove("live");
   if (fresh) {
-    hero("WinFynd is installed", "It lives in the tray, next to the clock.");
+    text("done-heading", "WinFynd is installed");
+    $("next-steps").textContent = "It lives in the tray, next to the clock. When it opens, it asks which folders to search and sets up the search model on this PC.";
     $("open-row").hidden = false;
-    $("next-steps").hidden = false;
   } else {
     // Bring it back the way it was: running in the tray if it was running before.
     if (wasRunning) invoke("launch_app", { background: true }).catch(() => {});
-    hero("WinFynd is updated", wasRunning ? "It's running again in the tray." : `You're on version ${state.version}.`);
+    text("done-heading", `WinFynd is updated to version ${state.version}`);
+    $("next-steps").textContent = wasRunning ? "It's running again in the tray, next to the clock." : "Your index, folders, shortcuts and models were kept.";
     $("open-row").hidden = wasRunning;
-    $("next-steps").hidden = true;
   }
   footer("");
   buttons({ label: "Finish", action: finish }, null);
@@ -241,22 +282,28 @@ async function finish() {
 
 // --- Uninstall --------------------------------------------------------------
 
+function uninstallSubtitle() {
+  const parts = [];
+  if (state.installedVersion) parts.push(`Version ${state.installedVersion}`);
+  if (state.appBytes) parts.push(formatBytes(state.appBytes));
+  return parts.join(" · ");
+}
+
 function renderUninstall() {
-  hero("Uninstall WinFynd?", "WinFynd closes and is removed from this PC.");
-  $("data-size").textContent = state.dataBytes
-    ? `${formatBytes(state.dataBytes)} in AppData. Leave this off to keep your index if you install WinFynd again.`
-    : "Leave this off to keep your settings if you install WinFynd again.";
-  footer(`Version ${state.installedVersion}`);
+  hero("Uninstall WinFynd", uninstallSubtitle());
+  $("delete-data-label").textContent = state.dataBytes
+    ? `Also delete my search index and settings (${formatBytes(state.dataBytes)})`
+    : "Also delete my search index and settings";
+  footer("");
   buttons({ label: "Uninstall", action: uninstall }, { label: "Cancel", action: closeWindow });
   show("uninstall");
 }
 
 async function uninstall() {
   const deleteData = $("delete-data").checked;
-  hero("Uninstalling WinFynd", "");
   const list = [{ id: "remove", label: "Closing WinFynd and removing it", weight: 4 }];
   if (deleteData) list.push({ id: "data", label: "Deleting your index and settings", weight: 1 });
-  startProgress("Uninstalling", list);
+  startProgress("Uninstalling WinFynd", list, "Your own files are never touched. Models you downloaded with Ollama stay in Ollama.");
   const run = invoke("uninstall", { deleteData });
   runMockSteps();
   try {
@@ -264,9 +311,9 @@ async function uninstall() {
   } catch (error) {
     return failed("WinFynd wasn't fully uninstalled", error, renderUninstall);
   }
-  hero("WinFynd is uninstalled", "");
   message(
     "ok",
+    "WinFynd is uninstalled",
     deleteData ? "Your index and settings were deleted too." : "Your index and settings are still in AppData.",
     deleteData ? "" : "Install WinFynd again and it picks up where you left off.",
   );
@@ -277,15 +324,17 @@ async function uninstall() {
 
 function failed(title, error, retry) {
   clearInterval(creep);
-  hero(title, "");
-  message("error", String(error), "");
+  $("progress").classList.remove("live");
+  message("error", title, String(error), "");
+  footer("");
   buttons({ label: "Close", action: closeWindow }, retry ? { label: "Try again", action: retry } : null);
 }
 
 function renderNewer() {
-  hero("WinFynd is up to date", "");
+  hero("WinFynd", TAGLINE);
   message(
     "info",
+    "WinFynd is up to date",
     `A newer version, ${state.installedVersion}, is already installed.`,
     `This setup has version ${state.version}. To go back to it, uninstall WinFynd first.`,
   );
@@ -296,32 +345,28 @@ function renderNewer() {
   );
 }
 
-function renderSimple(title, text, detail) {
-  hero(title, "");
-  message("info", text, detail);
+function renderSimple(heading, body, detail) {
+  hero("WinFynd", TAGLINE);
+  message("info", heading, body, detail);
   footer("");
   buttons({ label: "Close", action: closeWindow }, null);
 }
 
 // --- Start ------------------------------------------------------------------
 
-function applyAccent() {
-  const root = document.documentElement.style;
-  if (state.accentLight) root.setProperty("--accent-light", state.accentLight);
-  if (state.accentDark) root.setProperty("--accent-dark", state.accentDark);
-}
-
 document.addEventListener("keydown", (e) => {
   const tag = document.activeElement?.tagName;
   if (e.key === "Enter" && tag !== "BUTTON" && !$("primary").hidden && !$("primary").disabled) $("primary").click();
   if (e.key === "Escape" && !$("secondary").hidden && $("secondary").textContent !== "Try again") $("secondary").click();
+  else if (e.key === "Escape" && $("secondary").hidden && document.body.dataset.screen !== "progress") closeWindow();
 });
 
 async function start() {
   state = await invoke("get_state");
-  applyAccent();
   onStep(updateStep);
   $("change").onclick = chooseFolder;
+  $("cap-min").onclick = minimizeWindow;
+  $("cap-close").onclick = closeWindow;
 
   switch (state.mode) {
     case "install":

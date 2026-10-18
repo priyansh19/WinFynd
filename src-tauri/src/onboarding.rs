@@ -52,12 +52,13 @@ pub fn show<R: Runtime>(app: &AppHandle<R>) {
     if let Some(w) = app.get_webview_window("onboarding") {
         let _ = w.unminimize();
         let _ = w.center();
+        windows::fit_to_screen(&w);
         let _ = w.show();
         let _ = w.set_focus();
     }
 }
 
-/// At launch: the welcome flow until it's finished, then the Control Center.
+/// At launch: the welcome flow until it's finished, then Settings.
 pub fn show_first_window<R: Runtime>(app: &AppHandle<R>) {
     if is_complete(app) {
         windows::show_control_center(app);
@@ -67,7 +68,7 @@ pub fn show_first_window<R: Runtime>(app: &AppHandle<R>) {
 }
 
 /// Close the welcome flow. `then` is where the user goes next: "launcher" to
-/// try a search, "control" for the Control Center, anything else for the tray.
+/// try a search, "control" for Settings, anything else for the tray.
 #[tauri::command]
 pub fn finish_onboarding<R: Runtime>(app: AppHandle<R>, then: String) -> Result<(), String> {
     mark_complete(&app)?;

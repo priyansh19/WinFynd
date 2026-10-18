@@ -52,6 +52,8 @@ struct SetupState {
     running: bool,
     autostart: bool,
     data_bytes: u64,
+    /// Size of the installed app folder, shown when uninstalling.
+    app_bytes: u64,
     accent_light: Option<String>,
     accent_dark: Option<String>,
 }
@@ -114,6 +116,10 @@ fn get_state(app: tauri::State<App>) -> SetupState {
             system::data_dirs().iter().map(|d| system::dir_size(d)).sum()
         } else {
             0
+        },
+        app_bytes: match (app.mode, installed) {
+            (Mode::Uninstall, Some(i)) => system::dir_size(&i.dir),
+            _ => 0,
         },
         accent_light: accent.as_ref().map(|a| a.0.clone()),
         accent_dark: accent.map(|a| a.1),

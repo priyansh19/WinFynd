@@ -1,98 +1,96 @@
-// A live view of the indexer for the Overview page. It follows the engine's
-// per-file `engine://activity` events; until an engine sends those, it falls
-// back to the status events: each new `current` file is the one being read
-// now, and the one before it has just been indexed.
+// The live corner: the files the indexer is reading right now, from the
+// engine's batched `engine://activity` events (an array of file updates at
+// most every 250 ms, each file once at its latest stage).
 import { useEffect, useRef, useState } from "react";
-import type { EngineStatus } from "./engine";
 import type { ResultKind } from "./search";
 import { inTauri, listen } from "./tauri";
 
-export interface FeedItem {
-  /** Unique per appearance, so the same file indexed twice animates twice. */
-  key: number;
-  path: string;
-  kind: ResultKind;
-  /** What the indexer is doing with it: "Reading", "Transcribing"… or null once done. */
-  stage: string | null;
-  skipped?: boolean;
-  chunks?: number;
-}
+export type Stage = "reading" | "embedding" | "done" | "skipped";
 
-/** One file's progress through the indexer, from `engine://activity`. */
-interface Activity {
+/** One file's progress through the indexer, as the engine sends it. */
+export interface Activity {
   path: string;
   name: string;
   kind: ResultKind;
-  stage: "reading" | "embedding" | "done" | "skipped";
+  stage: Stage;
   chunks?: number;
 }
 
-const STAGE_LABEL = { reading: "Reading", embedding: "Understanding" } as const;
+export interface FeedItem extends Activity {
+  /** Unique per appearance, so the same file read twice animates twice. */
+  key: number;
+}
 
-const KINDS: [RegExp, ResultKind][] = [
-  [/\.(jpe?g|png|gif|webp|bmp|heic|tiff?)$/i, "image"],
-  [/\.(mp4|mkv|mov|avi|webm|wmv)$/i, "video"],
-  [/\.(mp3|wav|m4a|flac|ogg|aac|wma)$/i, "audio"],
-  [/\.(pptx?|odp|key)$/i, "slides"],
-  [/\.(xlsx?|csv|ods)$/i, "spreadsheet"],
-  [/\.(rs|ts|tsx|js|py|cs|cpp|c|h|java|go|json|ya?ml|toml|sql|sh|ps1)$/i, "code"],
-  [/\.(pdf|docx?|odt|rtf|txt|md|html?)$/i, "document"],
-];
-const kindOf = (path: string): ResultKind => KINDS.find(([re]) => re.test(path))?.[1] ?? "other";
+const MAX = 6;
 
-const MAX = 7;
+/** Fold a batch into the feed: new files slide in at the top, known ones change stage in place. */
+export function applyBatch(list: FeedItem[], batch: Activity[], nextKey: () => number): FeedItem[] {
+  let out = list;
+  for (const a of batch) {
+    const at = out.findIndex((i) => i.path === a.path);
+    if (at >= 0 && out[at].stage !== "done" && out[at].stage !== "skipped") {
+      out = out.map((i, n) => (n === at ? { ...i, stage: a.stage, chunks: a.chunks } : i));
+    } else {
+      out = [{ ...a, key: nextKey() }, ...out];
+    }
+  }
+  return out.slice(0, MAX);
+}
 
-export function useIndexingFeed(): FeedItem[] {
+/** Per-kind tallies of files finished since the window opened, for "Read so far". */
+export type Finished = Partial<Record<ResultKind, number>>;
+
+export function useIndexingFeed(): { items: FeedItem[]; finished: Finished } {
   const [items, setItems] = useState<FeedItem[]>([]);
+  const [finished, setFinished] = useState<Finished>({});
   const next = useRef(0);
 
   useEffect(() => {
-    let detailed = false;
-    const onActivity = (a: Activity) => {
-      detailed = true;
-      setItems((list) => {
-        const update: Partial<FeedItem> = {
-          stage: a.stage === "done" || a.stage === "skipped" ? null : STAGE_LABEL[a.stage],
-          skipped: a.stage === "skipped",
-          chunks: a.chunks,
-        };
-        const at = list.findIndex((i) => i.path === a.path);
-        if (at >= 0) return list.map((i, n) => (n === at ? { ...i, ...update } : i));
-        return [{ key: next.current++, path: a.path, kind: a.kind, stage: null, ...update }, ...list].slice(0, MAX);
-      });
-    };
-    const onStatus = (s: EngineStatus) => {
-      if (detailed) return;
-      const current = s.current;
-      setItems((list) => {
-        // "Transcribing talk.mp3" and similar describe the file already at the top.
-        if (current && !/[\\/]/.test(current)) {
-          const [stage] = current.split(" ");
-          return list.length && list[0].stage ? [{ ...list[0], stage }, ...list.slice(1)] : list;
-        }
-        const done = list.map((i) => (i.stage ? { ...i, stage: null } : i));
-        if (!current || done[0]?.path === current) return done;
-        return [{ key: next.current++, path: current, kind: kindOf(current), stage: "Reading" }, ...done].slice(0, MAX);
-      });
+    const onBatch = (batch: Activity[] | Activity) => {
+      const list = Array.isArray(batch) ? batch : [batch];
+      if (!list.length) return;
+      setItems((cur) => applyBatch(cur, list, () => next.current++));
+      const done = list.filter((a) => a.stage === "done" || a.stage === "skipped");
+      if (done.length) {
+        setFinished((f) => {
+          const n = { ...f };
+          for (const a of done) n[a.kind] = (n[a.kind] ?? 0) + 1;
+          return n;
+        });
+      }
     };
     if (inTauri) {
-      const subs = [listen<Activity>("engine://activity", onActivity), listen<EngineStatus>("engine://status", onStatus)];
-      return () => subs.forEach((p) => p.then((off) => off()));
+      const off = listen<Activity[]>("engine://activity", onBatch);
+      return () => {
+        off.then((f) => f());
+      };
     }
-    // Browser preview: a made-up stream of files so the animation can be worked on.
-    const sample = [
-      "C:\\Users\\you\\Downloads\\Lease agreement 2026.pdf",
-      "C:\\Users\\you\\Pictures\\Screenshots\\Screenshot 2026-10-18 091422.png",
-      "C:\\Users\\you\\Documents\\Budget\\Household budget.xlsx",
-      "C:\\Users\\you\\Videos\\Captures\\Standup recording.mp4",
-      "C:\\Users\\you\\Documents\\Notes\\Trip ideas.md",
-      "C:\\Users\\you\\OneDrive\\Work\\Roadmap review.pptx",
-      "C:\\Users\\you\\Music\\Voice memo 14.m4a",
+    // Browser preview: the design's stream of files, so the motion can be worked on.
+    const sample: [string, ResultKind][] = [
+      ["Screenshot 2026-10-18 101422.png", "image"],
+      ["Expenses October.csv", "spreadsheet"],
+      ["PXL_20261017_184455.jpg", "image"],
+      ["Meeting notes 18 Oct.md", "document"],
+      ["Demo walkthrough.mp4", "video"],
+      ["Budget sync 2026-10-02.m4a", "audio"],
+      ["Q4 roadmap.pptx", "slides"],
+      ["search.rs", "code"],
+      ["Lease_Renewal_2026_Signed.pdf", "document"],
     ];
     let i = 0;
-    const t = setInterval(() => onStatus({ current: sample[i++ % sample.length] } as EngineStatus), 1600);
+    const tick = () => {
+      const [name, kind] = sample[i++ % sample.length];
+      const path = `C:\\Users\\gupta\\Documents\\${name}`;
+      const prev = sample[(i + sample.length - 2) % sample.length];
+      onBatch([
+        { path: `C:\\Users\\gupta\\Documents\\${prev[0]}`, name: prev[0], kind: prev[1], stage: "done", chunks: 3 },
+        { path, name, kind, stage: "reading" },
+      ]);
+    };
+    for (let n = 0; n < 5; n++) tick();
+    const t = setInterval(tick, 1800);
     return () => clearInterval(t);
   }, []);
 
-  return items;
+  return { items, finished };
 }

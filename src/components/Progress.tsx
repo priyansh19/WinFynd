@@ -1,22 +1,26 @@
 import "./controls.css";
 
-/** WinUI ProgressBar; leave `value` out for the indeterminate animation. */
-export function ProgressBar({ value, label }: { value?: number; label: string }) {
+/**
+ * The spectrum progress bar. `live` adds the slow sheen used while files are
+ * being read; leave `value` out for the indeterminate slide.
+ */
+export function Bar({ value, label, live, style }: { value?: number; label: string; live?: boolean; style?: React.CSSProperties }) {
   const known = value !== undefined;
   return (
     <div
-      className={known ? "progress" : "progress progress-indeterminate"}
+      className={`bar${live ? " live" : ""}${known ? "" : " indeterminate"}`}
+      style={style}
       role="progressbar"
       aria-label={label}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={known ? Math.round(value) : undefined}
     >
-      <div className="progress-fill" style={known ? { width: `${Math.max(2, Math.min(100, value))}%` } : undefined} />
+      <i style={known ? { width: `${Math.max(1.5, Math.min(100, value))}%` } : undefined} />
     </div>
   );
 }
 
-export function ProgressRing({ label }: { label: string }) {
-  return <span className="ring" role="progressbar" aria-label={label} />;
+export function Spinner({ label }: { label: string }) {
+  return <span className="spinner" role="progressbar" aria-label={label} />;
 }

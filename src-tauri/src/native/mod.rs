@@ -48,9 +48,10 @@ pub fn apply<R: Runtime>(app: &AppHandle<R>) {
         if let Some(effect) = effect {
             let _ = window.set_effects(EffectsBuilder::new().effect(effect).build());
         }
-        // A borderless window gets square corners unless it asks DWM for round ones.
+        // A borderless window gets square corners unless it asks DWM for round
+        // ones. Every window draws its own title bar, so all of them ask.
         #[cfg(windows)]
-        if label == "launcher" {
+        {
             if let Ok(hwnd) = window.hwnd() {
                 win::round_corners(hwnd);
             }

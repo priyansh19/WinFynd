@@ -1,5 +1,6 @@
 // Search and Ask, backed by the Rust engine (EmbeddingGemma 2 via local Ollama).
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { PREVIEW_IMAGES, PREVIEW_RESULTS } from "./previewData";
 import { inTauri, invoke, stubCommands } from "./tauri";
 
 export type ResultKind = "document" | "slides" | "spreadsheet" | "code" | "image" | "video" | "audio" | "other";
@@ -45,20 +46,22 @@ export const GROUP_LABEL: Record<ResultKind, string> = {
   slides: "Presentations",
   spreadsheet: "Spreadsheets",
   code: "Code",
-  image: "Images",
-  video: "Video",
-  audio: "Audio",
+  image: "Photos",
+  video: "Videos",
+  audio: "Recordings",
   other: "Other files",
 };
 
 export const search = (query: string) => invoke<SearchResponse>("search", { query, limit: 30 });
 export const ask = (question: string) => invoke<Answer>("ask", { question });
+export const transcribeVoice = (samples: Float32Array) => invoke<string>("transcribe_voice", { samples: Array.from(samples) });
 export const openResult = (path: string) => invoke<void>("open_path", { path });
 export const revealResult = (path: string) => invoke<void>("reveal_path", { path });
 
 /** Image thumbnails load straight from disk through Tauri's asset protocol. */
-export function thumbnailUrl(r: SearchResult): string | null {
-  return r.kind === "image" && inTauri ? convertFileSrc(r.path) : null;
+export function thumbnailUrl(r: Pick<SearchResult, "kind" | "path">): string | null {
+  if (r.kind !== "image") return null;
+  return inTauri ? convertFileSrc(r.path) : previewImage(r.path);
 }
 
 /** Seconds into a recording for labels like "1:23" or "1:02:03"; null otherwise. */
@@ -93,10 +96,39 @@ export interface ResultGroup {
 
 /** Confident results grouped by kind in order of first appearance, then the
  *  weaker matches in one group of their own. */
+/** Which group a result is listed under. Spreadsheets and email sit with documents, as people think of them. */
+function groupOf(r: SearchResult): { key: string; label: string } {
+  if (r.kind === "video" && r.reason.startsWith("Shown at")) return { key: "invideo", label: "In videos" };
+  if (r.kind === "spreadsheet" || r.kind === "document") return { key: "document", label: "Documents" };
+  return { key: r.kind, label: GROUP_LABEL[r.kind] };
+}
+
+/** Photos are shown as a grid once there are enough of them to look through. */
+export const PHOTO_GRID_MIN = 3;
+
+/**
+ * The top result as "Best match", then confident results grouped in order of
+ * first appearance, then weaker matches. When photos lead and there are
+ * several, the photo grid comes first instead of a best match.
+ */
 export function groupResults(results: SearchResult[]): ResultGroup[] {
-  const groups = new Map<ResultKind, SearchResult[]>();
-  for (const r of results) if (r.confident) groups.set(r.kind, [...(groups.get(r.kind) ?? []), r]);
-  const out: ResultGroup[] = [...groups].map(([kind, items]) => ({ key: kind, label: GROUP_LABEL[kind], items }));
+  const confident = results.filter((r) => r.confident);
+  const photos = confident.filter((r) => r.kind === "image");
+  const photosLead = confident[0]?.kind === "image" && photos.length >= PHOTO_GRID_MIN;
+  const out: ResultGroup[] = [];
+  let rest = confident;
+  if (confident.length > 1 && !photosLead) {
+    out.push({ key: "best", label: "Best match", items: [confident[0]] });
+    rest = confident.slice(1);
+  }
+  const groups = new Map<string, ResultGroup>();
+  for (const r of rest) {
+    const g = groupOf(r);
+    const group = groups.get(g.key) ?? { ...g, items: [] };
+    group.items.push(r);
+    groups.set(g.key, group);
+  }
+  out.push(...groups.values());
   const weak = results.filter((r) => !r.confident);
   if (weak.length) out.push({ key: "weak", label: "Weaker matches", items: weak });
   return out;
@@ -109,26 +141,38 @@ export function withoutPhrase(query: string, phrase: string): string {
   return (query.slice(0, i) + query.slice(i + phrase.length)).replace(/\s+/g, " ").trim();
 }
 
-// Browser preview (`npm run dev`): sample results so the UI can be worked on
-// without the Rust side.
-const SAMPLE: SearchResult[] = [
-  { id: 1, kind: "document", name: "Invoice_2026-03_Acme.pdf", path: "C:\\Users\\you\\Documents\\Finance\\Invoice_2026-03_Acme.pdf", size: 188_000, modified: 1773446400, location: "Page 1", snippet: "Acme Studio Invoice #0342, issued March 14. Total due within 30 days.", reason: "Exact words on page 1", confident: true },
-  { id: 2, kind: "slides", name: "Board update, Q3.pptx", path: "C:\\Users\\you\\OneDrive\\Work\\Board update, Q3.pptx", size: 6_500_000, modified: 1789000000, location: "Slide 7", snippet: "FY26 revenue by region: North, South, East, West, International", reason: "Matches the meaning on slide 7", confident: true },
-  { id: 3, kind: "image", name: "IMG_4410.jpg", path: "C:\\Users\\you\\Pictures\\Goa 2026\\IMG_4410.jpg", size: 3_100_000, modified: 1771718400, location: null, snippet: null, reason: "Image matches your search", confident: true },
-  { id: 4, kind: "video", name: "Goa trip, beach day.mp4", path: "C:\\Users\\you\\Videos\\Goa 2026\\Goa trip, beach day.mp4", size: 412_000_000, modified: 1771718400, location: null, snippet: null, reason: "Name is a close match", confident: false },
-];
+// Browser preview (`npm run dev`): the design's searches, so the UI can be
+// worked on and compared with the canvas without the Rust side.
+export function previewImage(path: string): string | null {
+  return inTauri ? null : (PREVIEW_IMAGES[path] ?? null);
+}
+
 stubCommands({
   search: ({ query }) => {
     const q = String(query).toLowerCase();
-    const hits = SAMPLE.filter((r) => q.split(/\s+/).some((w) => w && `${r.name} ${r.snippet ?? ""}`.toLowerCase().includes(w)));
+    const set = PREVIEW_RESULTS.find((s) => s.words.some((w) => q.includes(w)));
     const filters = /\bphotos?\b/.test(q) ? [{ label: "Photos", phrase: q.match(/\bphotos?\b/)![0] }] : [];
-    return { hits: hits.length ? hits : SAMPLE, semantic: true, filters };
+    return { hits: set?.hits ?? [], semantic: true, filters };
   },
-  ask: ({ question }) => ({
-    text: `In the desktop app, answers to "${question}" are written by your local Ollama model from the passages below [1].`,
-    sources: SAMPLE.slice(0, 2).map((r, i) => ({ n: i + 1, name: r.name, path: r.path, location: r.location })),
-    model: "preview",
-  }),
+  ask: () =>
+    new Promise((done) =>
+      setTimeout(
+        () =>
+          done({
+            text:
+              "Your lease renews automatically on **1 June 2027** for another 12 months [1]. To leave or renegotiate you need to give **60 days' written notice**, so by **2 April 2027** [1].\n\n" +
+              "Your landlord confirmed that notice can go by email to leasing@harbourviewliving.com [2]. Rent rises 3% at renewal, to $2,266 a month [1] [3].",
+            sources: [
+              { n: 1, name: "Lease_Renewal_2026_Signed.pdf", path: "C:\\Users\\gupta\\Documents\\Home\\Lease_Renewal_2026_Signed.pdf", location: "Page 4 · clause 12.2" },
+              { n: 2, name: "RE: Lease renewal questions.eml", path: "C:\\Users\\gupta\\Documents\\Mail\\RE: Lease renewal questions.eml", location: "9 January 2026" },
+              { n: 3, name: "Household budget 2027.xlsx", path: "C:\\Users\\gupta\\Documents\\Home\\Household budget 2027.xlsx", location: "Sheet Monthly · Rent" },
+            ],
+            model: "llama3.2:3b",
+          }),
+        600,
+      ),
+    ),
   open_path: () => undefined,
   reveal_path: () => undefined,
+  transcribe_voice: () => "find the slides about the Q3 budget",
 });

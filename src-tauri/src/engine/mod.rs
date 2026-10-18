@@ -71,6 +71,8 @@ pub struct Status {
     /// Files that couldn't be read (too slow, or the reader crashed) and
     /// were indexed by name only, since the app started.
     pub unreadable: u64,
+    /// Unix seconds when a pause the user asked for ends, while paused.
+    pub paused_until: Option<i64>,
 }
 
 /// One file moving through the indexer. They're sent as `engine://activity`
@@ -131,6 +133,8 @@ pub struct Engine {
     speech: Mutex<Option<(String, Arc<dyn Transcribe>)>>,
     /// FFmpeg, when installed; needed for video frames.
     ffmpeg: RwLock<Option<PathBuf>>,
+    /// Unix seconds until which reading new files waits; 0 when not paused.
+    paused_until: std::sync::atomic::AtomicI64,
 }
 
 impl Engine {
@@ -211,12 +215,33 @@ impl Engine {
             speech_dir,
             speech: Mutex::new(None),
             ffmpeg: RwLock::new(media::find_ffmpeg()),
+            paused_until: std::sync::atomic::AtomicI64::new(0),
         });
         Ok((engine, rx))
     }
 
     pub(crate) fn enqueue(&self, job: Job) {
         let _ = self.jobs.send(job);
+    }
+
+    /// Stop reading files for `minutes` (0 resumes now). Searches keep working.
+    pub fn pause(&self, minutes: u64) {
+        let until = if minutes == 0 { 0 } else { unix_now() + minutes as i64 * 60 };
+        self.paused_until.store(until, Ordering::Release);
+        self.update_status(|s| s.paused_until = (until > 0).then_some(until));
+    }
+
+    fn is_paused(&self) -> bool {
+        let until = self.paused_until.load(Ordering::Acquire);
+        if until == 0 {
+            return false;
+        }
+        if unix_now() < until {
+            return true;
+        }
+        self.paused_until.store(0, Ordering::Release);
+        self.update_status(|s| s.paused_until = None);
+        false
     }
 
     pub fn status(&self) -> Status {
@@ -410,6 +435,17 @@ impl Engine {
                 self.refresh_ffmpeg();
                 self.queue_files(&mut pending, self.walk_roots());
                 self.refresh_ollama_state();
+            }
+
+            // While paused, keep handling removals and new jobs but read nothing.
+            if !pending.is_empty() && self.is_paused() {
+                self.update_status(|s| {
+                    s.state = "paused".into();
+                    s.queued = pending.len();
+                    s.current = None;
+                });
+                std::thread::sleep(Duration::from_millis(500));
+                continue;
             }
 
             // Index a few files between checks for new jobs, so removals and
@@ -627,6 +663,23 @@ impl Engine {
         found
     }
 
+    /// Turn a spoken search (16 kHz mono samples) into text with the
+    /// configured speech model, on this PC.
+    pub fn transcribe_query(&self, samples: &[f32]) -> Result<String, String> {
+        let cfg = self.config();
+        if cfg.speech_model.is_empty() {
+            return Err("Turn on speech on the Models page to talk to search.".into());
+        }
+        let t = self.transcriber(&cfg).ok_or("The speech model isn't downloaded yet.")?;
+        // Whisper needs at least a second; pad a short phrase with silence.
+        let mut audio = samples.to_vec();
+        if audio.len() < media::SAMPLE_RATE * 11 / 10 {
+            audio.resize(media::SAMPLE_RATE * 11 / 10, 0.0);
+        }
+        let text = t.transcribe(&audio)?.iter().map(|s| s.text.trim()).collect::<Vec<_>>().join(" ");
+        Ok(text.trim().trim_end_matches(['.', '!', '?', '。']).to_string())
+    }
+
     /// The speech model named in the config, loaded once and reused.
     fn transcriber(&self, cfg: &EngineConfig) -> Option<Arc<dyn Transcribe>> {
         let mut slot = self.speech.lock().unwrap();
@@ -740,6 +793,15 @@ fn next_jobs(rx: &Receiver<Job>, block: bool) -> Option<Vec<Job>> {
         }
     }
     Some(jobs)
+}
+
+/// The kind name ("document", "image", …) the index would give this file.
+pub(crate) fn kind_name(path: &Path) -> &'static str {
+    extract::kind_of(path).as_str()
+}
+
+fn unix_now() -> i64 {
+    std::time::SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
 }
 
 /// Every file under `root` that isn't excluded.
