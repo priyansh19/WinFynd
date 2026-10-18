@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "../../components/Icon";
 import { Toggle } from "../../components/Toggle";
 import { checksForUpdates } from "../../lib/app";
@@ -53,6 +53,17 @@ export function PrivacyPage() {
   const [deleted, setDeleted] = useState(false);
   const host = (config?.ollamaUrl ?? "http://127.0.0.1:11434").replace(/^https?:\/\//, "").replace(/\/$/, "");
   const size = formatBytes(stats?.indexBytes ?? 0);
+
+  // The launcher adds searches from its own window, and Settings stays open while hidden.
+  useEffect(() => {
+    const check = () => setHasHistory(recentSearches().length > 0);
+    window.addEventListener("storage", check);
+    window.addEventListener("focus", check);
+    return () => {
+      window.removeEventListener("storage", check);
+      window.removeEventListener("focus", check);
+    };
+  }, []);
 
   return (
     <>

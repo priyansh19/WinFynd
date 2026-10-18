@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { captureCombo, displayKeys, knownConflict, suspendHotkeys } from "../lib/hotkeys";
 import "./controls.css";
 
@@ -17,27 +17,43 @@ export function HotkeyRecorder({
   const [parts, setParts] = useState<string[]>([]);
   const [combo, setCombo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const saveRef = useRef<() => void>(() => {});
+
+  // Hotkeys stay released only while this window has focus. Closing the window
+  // just hides it, so recording would otherwise leave them off everywhere.
+  useEffect(() => {
+    const suspend = () => suspendHotkeys(true).catch(() => {});
+    const resume = () => suspendHotkeys(false).catch(() => {});
+    suspend();
+    window.addEventListener("focus", suspend);
+    window.addEventListener("blur", resume);
+    return () => {
+      window.removeEventListener("focus", suspend);
+      window.removeEventListener("blur", resume);
+      resume();
+    };
+  }, []);
 
   useEffect(() => {
-    suspendHotkeys(true).catch(() => {});
     const onKey = (e: KeyboardEvent) => {
+      const plain = !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey;
+      const onButton = e.target instanceof HTMLButtonElement;
+      // Plain Tab, Space and Enter can't be shortcuts. Tab reaches Save and
+      // Cancel, Space and Enter press them, and Enter anywhere else saves.
+      if (plain && (e.code === "Tab" || (onButton && (e.code === "Space" || e.code === "Enter")))) return;
       e.preventDefault();
       e.stopPropagation();
-      if (e.code === "Escape" && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
-        onCancel();
-        return;
+      if (plain && e.code === "Escape") onCancel();
+      else if (plain && e.code === "Enter") saveRef.current();
+      else if (!(plain && e.code === "Space")) {
+        const captured = captureCombo(e);
+        setParts(captured.parts);
+        setError(null);
+        setCombo(captured.accelerator);
       }
-      if (e.code === "Enter" && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) return;
-      const captured = captureCombo(e);
-      setParts(captured.parts);
-      setError(null);
-      setCombo(captured.accelerator);
     };
     window.addEventListener("keydown", onKey, true);
-    return () => {
-      window.removeEventListener("keydown", onKey, true);
-      suspendHotkeys(false).catch(() => {});
-    };
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [onCancel]);
 
   const shown = combo ? displayKeys(combo) : parts.map((p) => (p === "Super" ? "Win" : p));
@@ -51,6 +67,7 @@ export function HotkeyRecorder({
       setError(String(e));
     }
   };
+  saveRef.current = save;
 
   return (
     <div className="recorder" aria-live="polite">

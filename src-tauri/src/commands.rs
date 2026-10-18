@@ -225,7 +225,10 @@ pub async fn download_speech_model<R: Runtime>(app: AppHandle<R>, engine: Engine
             let mut cfg = engine.config();
             if !speech::is_installed(&engine.speech_dir, &cfg.speech_model) {
                 cfg.speech_model = id.clone();
-                let _ = engine.set_config(cfg);
+                // Windows showing the old config would turn speech off again on their next save.
+                if let Ok(saved) = engine.set_config(cfg) {
+                    let _ = app.emit("engine://config", &saved);
+                }
             }
         }
         emit(SpeechProgress { id: id.clone(), completed: 0, total: 0, done: true, error: result.err() });

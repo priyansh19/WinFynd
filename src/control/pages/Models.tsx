@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../../components/Icon";
 import { Bar } from "../../components/Progress";
 import { ComboBox } from "../../components/Toggle";
 import {
   downloadSpeechModel,
   formatBytes,
+  getConfig,
   listModels,
   mediaSupport,
   pullModel,
+  setConfig,
   useEngineConfig,
   type EngineConfig,
   type InstalledModel,
@@ -41,6 +43,34 @@ const has = (installed: InstalledModel[] | null, name: string) =>
 
 const REBUILD = "Changing this reads all your files again. Search keeps working meanwhile, with some results missing until it finishes.";
 
+// A model picked before it was downloaded is switched to once the download
+// finishes. Settings shows one page at a time and a download can outlast
+// this one, so the switch is made here rather than in the page.
+const wanted: { embed?: string; speech?: string } = {};
+let reportError: (error: string | null) => void = () => {};
+
+async function switchTo(change: (c: EngineConfig) => EngineConfig, rebuild = false) {
+  if (rebuild && !(await confirmNative(REBUILD, "Read your files again?", "Read again"))) return;
+  try {
+    await setConfig(change(await getConfig()));
+    reportError(null);
+  } catch (e) {
+    reportError(String(e));
+  }
+}
+
+listen<PullProgress>("models://pull", (p) => {
+  if (!p.done || wanted.embed !== p.model) return;
+  wanted.embed = undefined;
+  const m = EMBED.find((e) => e.tag === p.model);
+  if (!p.error) switchTo((c) => ({ ...c, embedModel: p.model, indexImages: !!m?.images && c.indexImages }), true);
+});
+listen<SpeechProgress>("models://speech", (p) => {
+  if (!p.done || wanted.speech !== p.id) return;
+  wanted.speech = undefined;
+  if (!p.error) switchTo((c) => ({ ...c, speechModel: p.id }));
+});
+
 function InUse({ label = "In use" }: { label?: string }) {
   return (
     <span className="status small muted">
@@ -68,8 +98,6 @@ export function ModelsPage() {
   const [pull, setPull] = useState<PullProgress | null>(null);
   const [speechPull, setSpeechPull] = useState<SpeechProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // A model picked before it was downloaded; switched to once the download finishes.
-  const wanted = useRef<{ embed?: string; speech?: string }>({});
 
   const refresh = useCallback(() => {
     listModels()
@@ -82,9 +110,6 @@ export function ModelsPage() {
       .then((i) => setOllama((o) => ({ ...o, version: i.version })))
       .catch(() => {});
   }, []);
-
-  const configRef = useRef(config);
-  configRef.current = config;
 
   const apply = useCallback(
     async (next: EngineConfig, rebuild = false) => {
@@ -100,20 +125,14 @@ export function ModelsPage() {
   );
 
   useEffect(() => {
+    reportError = setError;
     refresh();
     mediaSupport()
       .then(setMedia)
       .catch(() => {});
     const offPull = listen<PullProgress>("models://pull", (p) => {
       setPull(p.done && !p.error ? null : p);
-      if (!p.done) return;
-      refresh();
-      const c = configRef.current;
-      if (!p.error && c && wanted.current.embed === p.model) {
-        wanted.current.embed = undefined;
-        const m = EMBED.find((e) => e.tag === p.model);
-        apply({ ...c, embedModel: p.model, indexImages: !!m?.images && c.indexImages }, true);
-      }
+      if (p.done) refresh();
     });
     const offSpeech = listen<SpeechProgress>("models://speech", (p) => {
       setSpeechPull(p.done && !p.error ? null : p);
@@ -121,17 +140,13 @@ export function ModelsPage() {
       mediaSupport()
         .then(setMedia)
         .catch(() => {});
-      const c = configRef.current;
-      if (!p.error && c && wanted.current.speech === p.id) {
-        wanted.current.speech = undefined;
-        apply({ ...c, speechModel: p.id });
-      }
     });
     return () => {
+      reportError = () => {};
       offPull.then((f) => f());
       offSpeech.then((f) => f());
     };
-  }, [refresh, apply]);
+  }, [refresh]);
 
   if (!config) return null;
 
@@ -140,6 +155,7 @@ export function ModelsPage() {
     try {
       await pullModel(model);
     } catch (e) {
+      if (wanted.embed === model) wanted.embed = undefined;
       setPull(null);
       setError(String(e));
     }
@@ -150,6 +166,7 @@ export function ModelsPage() {
     try {
       await downloadSpeechModel(id);
     } catch (e) {
+      if (wanted.speech === id) wanted.speech = undefined;
       setSpeechPull(null);
       setError(String(e));
     }
@@ -223,14 +240,16 @@ export function ModelsPage() {
         <ComboBox
           label="Search model size"
           width={220}
-          value={wanted.current.embed ?? config.embedModel}
+          value={wanted.embed ?? config.embedModel}
           disabled={!!pullingEmbed}
           options={EMBED.map((e) => ({ value: e.tag, label: e.label }))}
           onChange={(tag) => {
             const m = EMBED.find((e) => e.tag === tag)!;
-            if (has(installed, tag)) apply({ ...config, embedModel: tag, indexImages: m.images && config.indexImages }, true);
-            else {
-              wanted.current.embed = tag;
+            if (has(installed, tag)) {
+              wanted.embed = undefined;
+              apply({ ...config, embedModel: tag, indexImages: m.images && config.indexImages }, true);
+            } else {
+              wanted.embed = tag;
               download(tag);
             }
           }}
@@ -302,7 +321,7 @@ export function ModelsPage() {
                 const m = speechModels.find((x) => x.id === id);
                 if (m?.installed) apply({ ...config, speechModel: id });
                 else {
-                  wanted.current.speech = id;
+                  wanted.speech = id;
                   downloadSpeech(id);
                 }
               }}

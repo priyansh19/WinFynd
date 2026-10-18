@@ -61,6 +61,8 @@ function matches(query: string) {
 function FindSetting({ onPick }: { onPick: (label: string, page: PageId) => void }) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
+  // The list covers the navigation, so it shows only while the box has focus.
+  const [open, setOpen] = useState(false);
   const found = useMemo(() => matches(query), [query]);
   const pick = (i: number) => {
     const s = found[i];
@@ -76,12 +78,15 @@ function FindSetting({ onPick }: { onPick: (label: string, page: PageId) => void
           placeholder="Find a setting"
           aria-label="Find a setting"
           role="combobox"
-          aria-expanded={found.length > 0}
+          aria-expanded={open && found.length > 0}
           aria-controls="setting-matches"
           spellCheck={false}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
           onChange={(e) => {
             setQuery(e.target.value);
             setActive(0);
+            setOpen(true);
           }}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") setActive((i) => Math.min(i + 1, found.length - 1));
@@ -94,7 +99,7 @@ function FindSetting({ onPick }: { onPick: (label: string, page: PageId) => void
         />
         <Icon name="search" size={14} />
       </label>
-      {query.trim() && (
+      {open && query.trim() && (
         <div className="menu navsearch-menu" role="listbox" id="setting-matches">
           {found.length ? (
             found.map((s, i) => (
@@ -143,14 +148,34 @@ export function Settings() {
   }, [go]);
 
   useLayoutEffect(() => {
-    main.current?.scrollTo({ top: 0 });
-    if (!focus) return;
-    const el = main.current?.querySelector<HTMLElement>(`[data-setting="${CSS.escape(focus)}"]`);
-    if (!el) return;
-    el.scrollIntoView({ block: "center" });
-    el.classList.remove("flash");
-    void el.offsetWidth;
-    el.classList.add("flash");
+    const root = main.current;
+    root?.scrollTo({ top: 0 });
+    if (!focus || !root) return;
+    const find = () => root.querySelector<HTMLElement>(`[data-setting="${CSS.escape(focus)}"]`);
+    const show = (el: HTMLElement) => {
+      el.scrollIntoView({ block: "center" });
+      el.classList.remove("flash");
+      void el.offsetWidth;
+      el.classList.add("flash");
+    };
+    const el = find();
+    if (el) {
+      show(el);
+      return;
+    }
+    // Most pages draw nothing until their settings load, so wait a moment for the setting to appear.
+    const observer = new MutationObserver(() => {
+      const el = find();
+      if (!el) return;
+      observer.disconnect();
+      show(el);
+    });
+    observer.observe(root, { childList: true, subtree: true });
+    const giveUp = window.setTimeout(() => observer.disconnect(), 2000);
+    return () => {
+      observer.disconnect();
+      clearTimeout(giveUp);
+    };
   }, [page, focus]);
 
   // Up and Down move between pages, as in a NavigationView.

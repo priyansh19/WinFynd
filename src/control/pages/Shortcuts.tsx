@@ -56,11 +56,20 @@ function MicTest({ device, onAllowed }: { device: string; onAllowed: () => void 
   const [level, setLevel] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
   const stop = useRef<() => void>(() => {});
+  const starting = useRef(false);
+  const mounted = useRef(true);
 
   const start = async () => {
+    // The microphone takes a moment to open; a second click meanwhile would open it twice.
+    if (starting.current) return;
+    starting.current = true;
     setFailed(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: device ? { deviceId: { exact: device } } : true });
+      if (!mounted.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       onAllowed();
       const ctx = new AudioContext();
       const analyser = ctx.createAnalyser();
@@ -86,10 +95,18 @@ function MicTest({ device, onAllowed }: { device: string; onAllowed: () => void 
       };
     } catch {
       setFailed(true);
+    } finally {
+      starting.current = false;
     }
   };
 
-  useEffect(() => () => stop.current(), []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      stop.current();
+    };
+  }, []);
   const now = performance.now();
   return (
     <>
