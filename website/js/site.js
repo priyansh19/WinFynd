@@ -1,6 +1,6 @@
 /* WinFynd website: shared behaviour for every page.
    - sets .js on <html> (pages also set it inline in <head> to avoid a flash)
-   - scroll reveal (.reveal, [data-reveal-group])
+   - scroll reveal (.reveal, [data-reveal-group]); #anchor targets are shown at once so links land exactly
    - header state on scroll, mobile menu niceties
    - [data-fit] scaling for product shots
    - WinFynd.whenActive(el, cb): run demos only while visible and the tab is shown
@@ -15,6 +15,7 @@
   WF.reducedMotion = function () { return !!reduceQuery.matches; };
 
   /* ---------- Scroll reveal ---------- */
+  var io = null;
   function initReveal() {
     document.querySelectorAll("[data-reveal-group]").forEach(function (group) {
       var i = 0;
@@ -28,7 +29,7 @@
       items.forEach(function (el) { el.classList.add("is-in"); });
       return;
     }
-    var io = new IntersectionObserver(function (entries) {
+    io = new IntersectionObserver(function (entries) {
       entries.forEach(function (e) {
         /* Also show anything already scrolled past (anchor links, restored scroll),
            so scrolling back up never meets hidden content. */
@@ -38,6 +39,53 @@
       });
     }, { rootMargin: "0px 0px -6% 0px", threshold: 0.06 });
     items.forEach(function (el) { io.observe(el); });
+  }
+
+  /* ---------- Anchor links land exactly ----------
+     A .reveal element waits 16 px low until it is shown, so a #link that scrolls to it (or to
+     something inside it) would land 16 px off and then slide. WinFynd.revealNow(target) shows,
+     with no transition: the target, its .reveal ancestors, everything before it on the page
+     and whatever of it fills the first screen. It runs before the browser scrolls (page load
+     with a #hash, a click on a same-page #link) and after a hashchange, which re-aligns.
+     Returns true if anything was still hidden. */
+  WF.revealNow = function (target) {
+    if (!target || !target.getBoundingClientRect) return false;
+    var reach = target.getBoundingClientRect().top + (window.innerHeight || 800);
+    var list = [];
+    document.querySelectorAll(".reveal:not(.is-in)").forEach(function (el) {
+      var before = el.compareDocumentPosition(target) & 4; /* target follows el, or el contains it */
+      var inside = el === target || (target.contains(el) && el.getBoundingClientRect().top < reach);
+      if (before || inside) list.push(el);
+    });
+    if (!list.length) return false;
+    list.forEach(function (el) {
+      el.style.transition = "none";
+      el.classList.add("is-in");
+      if (io) io.unobserve(el);
+    });
+    void root.offsetHeight; /* settle the shown state while transitions are off */
+    list.forEach(function (el) { el.style.transition = ""; });
+    return true;
+  };
+  function hashTarget(hash) {
+    if (!hash || hash.length < 2) return null;
+    var id = hash.slice(1);
+    try { id = decodeURIComponent(id); } catch (e) { /* keep it as written */ }
+    return document.getElementById(id);
+  }
+  function initAnchors() {
+    WF.revealNow(hashTarget(location.hash));
+    document.addEventListener("click", function (e) {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      var a = e.target.closest && e.target.closest("a[href]");
+      if (!a || a.target && a.target !== "_self" || a.hasAttribute("download")) return;
+      if (a.origin !== location.origin || a.pathname !== location.pathname || a.search !== location.search) return;
+      WF.revealNow(hashTarget(a.hash));
+    });
+    window.addEventListener("hashchange", function () {
+      var t = hashTarget(location.hash);
+      if (WF.revealNow(t)) t.scrollIntoView({ block: "start" });
+    });
   }
 
   /* ---------- Header ---------- */
@@ -110,7 +158,7 @@
   /* ---------- Small helpers shared by page scripts ---------- */
   WF.fmt = function (n) { return Number(n).toLocaleString("en-US"); };
 
-  function init() { initReveal(); initHeader(); initFit(); }
+  function init() { initReveal(); initAnchors(); initHeader(); initFit(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
