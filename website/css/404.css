@@ -1,0 +1,67 @@
+/* WinFynd website: 404 page only. Shared pieces live in site.css and wf.css. */
+
+.nf, .site-footer { overflow-x: clip; }
+
+.nf { position: relative; isolation: isolate; padding: clamp(40px, 6vw, 80px) 0 0; }
+.nf-copy { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px; max-width: 1000px; margin: 0 auto; }
+.nf-copy .display .line { display: inline-block; }
+.nf-ironic { color: var(--text3); }
+.nf-copy .lead { max-width: 600px; }
+.nf-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 6px; }
+
+/* The launcher's "nothing found" state, from the LauncherStates artboard, on the Windows wallpaper.
+   It is fluid rather than scaled, so its text stays full size on a phone. */
+.nf-shot { max-width: 1040px; margin: clamp(48px, 6vw, 72px) auto 0; }
+.nf-desk {
+  display: flex; justify-content: center;
+  padding: clamp(40px, 6vw, 72px) clamp(16px, 6vw, 80px);
+}
+.nf-launcher { width: 100%; max-width: 880px; animation: none; }
+.nf-launcher .q { text-overflow: ellipsis; }
+.nf-empty { display: flex; flex-direction: column; gap: 14px; padding: 20px 28px 22px; }
+.nf-empty__title { font: 600 16px/22px var(--font); }
+.nf-empty__text { max-width: 640px; }
+.nf-empty__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Typing demo (js/404.js): the query is typed, the search runs, then the empty state arrives. */
+.nf-launcher.is-typing .nf-empty,
+.nf-launcher.is-typing .lfoot .num { opacity: 0; }
+.nf-launcher.is-found .nf-empty > *,
+.nf-launcher.is-found .lfoot .num { animation: nf-in 250ms var(--ease) both; animation-delay: calc(var(--d, 0) * 1ms); }
+.nf-empty > :nth-child(2) { --d: 50; }
+.nf-empty > :nth-child(3) { --d: 100; }
+@keyframes nf-in { from { opacity: 0; transform: translateY(6px); } }
+
+/* Other pages */
+.nf-more {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 4px;
+  margin-top: 28px; font-size: 15px;
+}
+.nf-more__label { color: var(--text3); margin-right: 6px; }
+.nf-more a {
+  display: inline-flex; align-items: center; height: 36px; padding: 0 12px; border-radius: var(--radius-s);
+  color: var(--text2); text-decoration: none; font-weight: 500;
+  transition: color 150ms var(--ease), background-color 150ms var(--ease);
+}
+.nf-more a:hover { color: var(--text); background: var(--fill); }
+
+/* Phones: the search box reflows instead of shrinking. */
+@media (max-width: 600px) {
+  .nf-copy .display .line { display: inline; }
+  .nf-actions { width: 100%; flex-direction: column; align-items: stretch; }
+  .nf-desk { padding: 28px 12px; }
+  .nf-launcher .lsearch { height: auto; min-height: 60px; padding: 14px 8px 14px 16px; gap: 10px; align-items: flex-start; }
+  .nf-launcher .lsearch > svg { margin-top: 4px; }
+  .nf-launcher .q { white-space: normal; font-size: 18px; line-height: 26px; padding-top: 1px; }
+  .nf-launcher .lbtn { padding: 0 8px; }
+  .nf-ask-label { display: none; }
+  .nf-empty { padding: 18px 16px 20px; }
+  .nf-launcher .lfoot { padding: 0 12px 0 16px; }
+  .nf-more { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; max-width: 360px; margin-left: auto; margin-right: auto; }
+  .nf-more__label { grid-column: 1 / -1; margin: 0 0 4px; text-align: center; }
+  .nf-more a { justify-content: center; height: 44px; background: var(--card); border: 1px solid var(--stroke); border-radius: var(--radius); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nf-launcher.is-found .nf-empty > *, .nf-launcher.is-found .lfoot .num { animation: none; }
+}
