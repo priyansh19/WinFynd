@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy · WinFynd</title>
+<meta name="description" content="Every connection WinFynd can make, every file it keeps and where, and how to remove all of it. No account, no analytics, no cloud index: your files never leave your PC.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0b0c21" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f4fb" media="(prefers-color-scheme: light)">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/wf.css">
+<link rel="stylesheet" href="css/site.css">
+<link rel="stylesheet" href="css/privacy.css">
+<script>document.documentElement.classList.add("js")</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a class="brand" href="index.html"><svg width="28" height="28" viewBox="0 0 48 48" aria-hidden="true" style="flex: none"><defs><linearGradient id="wfghdr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b9bff"></stop><stop offset=".45" stop-color="#9a7bff"></stop><stop offset=".75" stop-color="#ff6fb5"></stop><stop offset="1" stop-color="#ff9548"></stop></linearGradient></defs><rect width="48" height="48" rx="12" fill="url(#wfghdr)"></rect><circle cx="21" cy="21" r="10" fill="none" stroke="#ffffff" stroke-width="4"></circle><path d="M28.5 28.5l8 8" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"></path><path d="M21 15.5l1.4 3.8 3.8 1.4-3.8 1.4L21 26l-1.4-3.9-3.8-1.4 3.8-1.4z" fill="#ffffff"></path></svg><span>WinFynd</span></a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="how-it-works.html">How it works</a>
+        <a href="privacy.html" aria-current="page">Privacy</a>
+        <a href="help.html">Help</a>
+        <a href="changelog.html">Changelog</a>
+    </nav>
+    <a class="button button--primary button--small" href="download.html"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v10M5.5 8.5L10 13l4.5-4.5M4 16.5h12"></path></svg>Download</a>
+    <details class="site-menu">
+      <summary aria-label="Menu"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="menu-open"><path d="M3.5 6h13M3.5 10h13M3.5 14h13"></path></svg><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="menu-close"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9"></path></svg></summary>
+      <nav class="site-menu__panel" aria-label="Main">
+        <a href="how-it-works.html">How it works</a>
+        <a href="privacy.html" aria-current="page">Privacy</a>
+        <a href="help.html">Help</a>
+        <a href="changelog.html">Changelog</a>
+        <a class="button button--primary" href="download.html"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v10M5.5 8.5L10 13l4.5-4.5M4 16.5h12"></path></svg>Download for Windows</a>
+      </nav>
+    </details>
+  </div>
+</header>
+<main id="main">
+
+<!-- ================================================================ 1. Hero -->
+<section class="pv-hero" aria-labelledby="hero-title">
+  <div class="bloom bloom--blue" style="--w: 1000px; --h: 760px; left: -420px; top: -320px"></div>
+  <div class="bloom bloom--violet" style="--w: 900px; --h: 700px; right: -380px; top: -200px"></div>
+  <div class="bloom bloom--pink" style="--w: 1100px; --h: 620px; left: 50%; margin-left: -550px; top: 760px"></div>
+  <div class="container">
+    <div class="pv-hero__top">
+      <div class="pv-hero__copy" data-reveal-group>
+        <p class="eyebrow k-sheet reveal"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l6 2.5v4.5c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8V5z"></path><path d="M7.5 10l1.8 1.8 3.4-3.6"></path></svg>Privacy</p>
+        <h1 id="hero-title" class="display reveal"><span class="line">Your files never</span> <span class="line">leave this PC.</span></h1>
+        <p class="lead reveal">WinFynd reads, searches and answers questions on your PC. Here is every connection it can make, every file it keeps and how to remove them, with the exact paths so you can check.</p>
+        <ul class="pv-promises reveal" aria-label="In short">
+          <li class="kind-chip kind-chip--plain k-ok"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 10.5l3.5 3.5 7.5-8"></path></svg>No account</li>
+          <li class="kind-chip kind-chip--plain k-ok"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 10.5l3.5 3.5 7.5-8"></path></svg>No analytics</li>
+          <li class="kind-chip kind-chip--plain k-ok"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 10.5l3.5 3.5 7.5-8"></path></svg>No cloud index</li>
+        </ul>
+      </div>
+      <nav class="pv-toc reveal" aria-label="On this page">
+        <p class="pv-toc__title">On this page</p>
+        <ol>
+          <li><a href="#connections"><span class="pv-toc__n" aria-hidden="true">1</span>Every connection<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></a></li>
+          <li><a href="#stored"><span class="pv-toc__n" aria-hidden="true">2</span>What it keeps, and where<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></a></li>
+          <li><a href="#never"><span class="pv-toc__n" aria-hidden="true">3</span>What it never does<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></a></li>
+          <li><a href="#remove"><span class="pv-toc__n" aria-hidden="true">4</span>Removing everything<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></a></li>
+          <li><a href="#website"><span class="pv-toc__n" aria-hidden="true">5</span>This website<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></a></li>
+          <li><a href="#check"><span class="pv-toc__n" aria-hidden="true">6</span>Check it yourself<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></a></li>
+        </ol>
+      </nav>
+    </div>
+
+    <figure class="shot pv-shot reveal" aria-label="WinFynd Settings open on Privacy. Your files never leave this PC. Connections: Ollama at 127.0.0.1:11434 for embeddings and answers, every search, on this PC. Model downloads from ollama.com and huggingface.co, only when you click Download, internet. Update check to github.com/priyansh19/WinFynd releases, once a day and can be turned off, internet.">
+      <div class="wf auto desk pv-desk" inert data-indexing>
+        <div class="win pv-win">
+          <div class="titlebar"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true" style="flex: none"><defs><linearGradient id="wfgpvs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b9bff"></stop><stop offset=".45" stop-color="#9a7bff"></stop><stop offset=".75" stop-color="#ff6fb5"></stop><stop offset="1" stop-color="#ff9548"></stop></linearGradient></defs><rect width="48" height="48" rx="12" fill="url(#wfgpvs)"></rect><circle cx="21" cy="21" r="10" fill="none" stroke="#ffffff" stroke-width="4"></circle><path d="M28.5 28.5l8 8" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"></path><path d="M21 15.5l1.4 3.8 3.8 1.4-3.8 1.4L21 26l-1.4-3.9-3.8-1.4 3.8-1.4z" fill="#ffffff"></path></svg><span>WinFynd Settings</span><div class="caps" aria-hidden="true"><span class="cap"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10"></path></svg></span><span class="cap"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="9" height="9" rx="1.5"></rect></svg></span><span class="cap"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9"></path></svg></span></div></div>
+          <div class="pv-win__body">
+            <div class="nav pv-nav">
+              <div class="navsearch"><span>Find a setting</span><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="M12.5 12.5L17 17"></path></svg></div>
+              <span class="navitem"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="k-doc kc" style="flex: none"><path d="M3 9l7-6 7 6v7.5a1 1 0 0 1-1 1h-3.5v-5h-5v5H4a1 1 0 0 1-1-1z"></path></svg>Home</span><span class="navitem"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="k-amber kc" style="flex: none"><path d="M2.5 5.5a1 1 0 0 1 1-1h4l2 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"></path></svg>Folders</span><span class="navitem"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="k-audio kc" style="flex: none"><path d="M10 2.5l7 3.8v7.4l-7 3.8-7-3.8V6.3z"></path><path d="M3 6.3l7 3.9 7-3.9M10 10.2v7.3"></path></svg>Models</span><span class="navitem"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="k-code kc" style="flex: none"><rect x="2" y="5" width="16" height="10" rx="1.5"></rect><path d="M5 8h.01M8 8h.01M11 8h.01M14 8h.01M5 11h.01M15 11h.01M8 12h4"></path></svg>Shortcuts &amp; voice</span><span class="navitem on"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="k-sheet kc" style="flex: none"><path d="M10 2.5l6 2.5v4.5c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8V5z"></path><path d="M7.5 10l1.8 1.8 3.4-3.6"></path></svg>Privacy</span><span class="navitem"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="k-other kc" style="flex: none"><circle cx="10" cy="10" r="7.5"></circle><path d="M10 9v5M10 6.2v.1"></path></svg>About</span>
+              <div class="panel pv-indexing">
+                <div class="pv-indexing__head"><span class="pulse"></span><span style="font-weight: 600">Indexing</span><span class="small faint num" style="margin-left: auto"><span data-queue>18</span> in queue</span></div>
+                <div class="feed" style="height: 148px; overflow: hidden" data-feed>
+                  <div class="feeditem k-img"><span class="state reading"></span><span class="ellip">Screenshot 2026-10-18 101422.png</span></div>
+                  <div class="feeditem k-sheet"><span class="state done"></span><span class="ellip">Expenses October.csv</span></div>
+                  <div class="feeditem k-img"><span class="state done"></span><span class="ellip">PXL_20261017_184455.jpg</span></div>
+                  <div class="feeditem k-doc"><span class="state done"></span><span class="ellip">Meeting notes 18 Oct.md</span></div>
+                  <div class="feeditem k-video"><span class="state done"></span><span class="ellip">Demo walkthrough.mp4</span></div>
+                </div>
+                <div class="bar live"><i style="width: 25%" data-bar></i></div>
+                <span class="small faint num"><span data-done>12,840</span> of 51,204 files read</span>
+              </div>
+            </div>
+            <div class="content pv-content">
+              <div class="h1">Privacy</div>
+              <div class="panel pv-banner">
+                <svg width="44" height="44" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="pv-banner__icon" style="flex: none"><path d="M10 2.5l6 2.5v4.5c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8V5z"></path><path d="M7.5 10l1.8 1.8 3.4-3.6"></path></svg>
+                <div style="display: flex; flex-direction: column; gap: 4px"><span class="pv-banner__title">Your files never leave this PC</span>
+                <span class="muted">These are the only connections WinFynd makes. There is no account, no analytics and no cloud index.</span></div>
+              </div>
+              <div class="h2">Connections</div>
+              <div class="stack">
+                <div class="card pv-card"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="k-audio kc" style="flex: none"><path d="M10 2.5l7 3.8v7.4l-7 3.8-7-3.8V6.3z"></path><path d="M3 6.3l7 3.9 7-3.9M10 10.2v7.3"></path></svg><div class="grow"><span class="t">Ollama</span><span class="s">127.0.0.1:11434 · embeddings and answers</span></div><span class="small muted pv-when">Every search</span><span class="chip k-ok"><svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="9" width="12" height="8.5" rx="1.5"></rect><path d="M6.5 9V6.5a3.5 3.5 0 0 1 7 0V9"></path></svg>On this PC</span></div>
+                <div class="card pv-card"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="k-doc kc" style="flex: none"><path d="M10 3v10M5.5 8.5L10 13l4.5-4.5M4 16.5h12"></path></svg><div class="grow"><span class="t">Model downloads</span><span class="s">ollama.com and huggingface.co</span></div><span class="small muted pv-when">Only when you click Download</span><span class="chip k-other"><svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"></circle><path d="M2.5 10h15M10 2.5c2.2 2.2 2.2 12.8 0 15M10 2.5c-2.2 2.2-2.2 12.8 0 15"></path></svg>Internet</span></div>
+                <div class="card pv-card"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="k-code kc" style="flex: none"><path d="M16 10a6 6 0 1 1-1.8-4.3M16 3.5v3.5h-3.5"></path></svg><div class="grow"><span class="t">Update check</span><span class="s">github.com/priyansh19/WinFynd releases</span></div><span class="small muted pv-when">Once a day, can be turned off</span><span class="chip k-other"><svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"></circle><path d="M2.5 10h15M10 2.5c2.2 2.2 2.2 12.8 0 15M10 2.5c-2.2 2.2-2.2 12.8 0 15"></path></svg>Internet</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption>Settings &gt; Privacy in WinFynd, on the example PC.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ================================================================ 2. Connections -->
+<section class="section pv-conn" id="connections" aria-labelledby="conn-title">
+  <div class="bloom bloom--blue" style="--w: 900px; --h: 640px; right: -360px; top: 4%"></div>
+  <div class="container">
+    <div class="section-head" data-reveal-group>
+      <p class="eyebrow k-code reveal"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"></circle><path d="M2.5 10h15M10 2.5c2.2 2.2 2.2 12.8 0 15M10 2.5c-2.2 2.2-2.2 12.8 0 15"></path></svg>Connections</p>
+      <h2 id="conn-title" class="title reveal">Every connection WinFynd can make.</h2>
+      <p class="lead reveal">There are six. WinFynd reads and searches with one of them, Ollama, which runs on this PC. The other five reach the internet only when you click Download or Get Ollama, when the installer needs WebView2, or once a day to check for updates.</p>
+    </div>
+
+    <div class="pv-table-wrap reveal">
+      <table class="pv-table">
+        <caption class="visually-hidden">Every connection WinFynd can make: what it is, the host, when it happens and whether it leaves this PC</caption>
+        <thead>
+          <tr><th scope="col">What</th><th scope="col">Host</th><th scope="col">When</th><th scope="col">Leaves this PC?</th></tr>
+        </thead>
+        <tbody>
+          <tr class="is-local">
+            <th scope="row" data-label="What"><span class="pv-what"><span class="icon-badge k-audio"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l7 3.8v7.4l-7 3.8-7-3.8V6.3z"></path><path d="M3 6.3l7 3.9 7-3.9M10 10.2v7.3"></path></svg></span><span><span class="pv-what__t">Ollama</span><span class="pv-what__s">Meaning, photos and Ask answers</span></span></span></th>
+            <td data-label="Host"><code class="pv-host">127.0.0.1:11434</code><span class="pv-host__s">Ollama, on this PC</span></td>
+            <td data-label="When">Every search, every Ask, while reading new or changed files, and when it checks which models you have</td>
+            <td data-label="Leaves this PC?"><span class="pv-chip k-ok"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="9" width="12" height="8.5" rx="1.5"></rect><path d="M6.5 9V6.5a3.5 3.5 0 0 1 7 0V9"></path></svg>No, on this PC</span><span class="pv-note">WinFynd refuses any Ollama address that isn't this PC: 127.0.0.1, localhost or ::1.</span></td>
+          </tr>
+          <tr>
+            <th scope="row" data-label="What"><span class="pv-what"><span class="icon-badge k-audio"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10h1M6 7v6M9 4v12M12 6.5v7M15 8.5v3M17 10h.5"></path></svg></span><span><span class="pv-what__t">Speech model download</span><span class="pv-what__s">Whisper, for recordings, videos and voice</span></span></span></th>
+            <td data-label="Host"><code class="pv-host">huggingface.co</code><span class="pv-host__s">May hand the file to Hugging Face's download servers</span></td>
+            <td data-label="When">Only when you click Download for a speech model, like Whisper Small (466 MB)</td>
+            <td data-label="Leaves this PC?"><span class="pv-chip k-other"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"></circle><path d="M2.5 10h15M10 2.5c2.2 2.2 2.2 12.8 0 15M10 2.5c-2.2 2.2-2.2 12.8 0 15"></path></svg>Yes, internet</span><span class="pv-note">A request for the model file. Nothing about your files.</span></td>
+          </tr>
+          <tr>
+            <th scope="row" data-label="What"><span class="pv-what"><span class="icon-badge k-doc"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v10M5.5 8.5L10 13l4.5-4.5M4 16.5h12"></path></svg></span><span><span class="pv-what__t">Search and Ask models</span><span class="pv-what__s">EmbeddingGemma 2, a chat model</span></span></span></th>
+            <td data-label="Host"><code class="pv-host">ollama.com</code><span class="pv-host__s">Ollama's model library, reached by Ollama itself</span></td>
+            <td data-label="When">Only when you click Download for a search or Ask model</td>
+            <td data-label="Leaves this PC?"><span class="pv-chip k-other"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"></circle><path d="M2.5 10h15M10 2.5c2.2 2.2 2.2 12.8 0 15M10 2.5c-2.2 2.2-2.2 12.8 0 15"></path></svg>Yes, by Ollama</span><span class="pv-note">WinFynd asks Ollama on 127.0.0.1 to fetch the model. Ollama downloads it.</span></td>
+          </tr>
+          <tr>
+            <th scope="row" data-label="What"><span class="pv-what"><span class="icon-badge k-other"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.5 3.5h5v5M16.5 3.5l-7 7M14 11.5v4a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4"></path></svg></span><span><span class="pv-what__t">Get Ollama</span><span class="pv-what__s">A button in setup, if Ollama isn't running</span></span></span></th>
+            <td data-label="Host"><code class="pv-host">ollama.com/<wbr>download/<wbr>windows</code><span class="pv-host__s">Opens in your browser</span></td>
+            <td data-label="When">Only when you click Get Ollama</td>
+            <td data-label="Leaves this PC?"><span class="pv-chip k-other"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"></circle><path d="M2.5 10h15M10 2.5c2.2 2.2 2.2 12.8 0 15M10 2.5c-2.2 2.2-2.2 12.8 0 15"></path></svg>Your browser</span><span class="pv-note">Your browser opens the page. WinFynd itself sends nothing.</span></td>
+          </tr>
+          <tr>
+            <th scope="row" data-label="What"><span class="pv-what"><span class="icon-badge k-amber"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 11.5l2-7h11l2 7v4a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"></path><path d="M2.5 11.5h4l1 2h5l1-2h4"></path></svg></span><span><span class="pv-what__t">WebView2 for the installer</span><span class="pv-what__s">The Microsoft runtime that draws WinFynd's windows</span></span></span></th>
+            <td data-label="Host"><span class="pv-host pv-host--plain">Microsoft</span><span class="pv-host__s">WebView2 Runtime download</span></td>
+            <td data-label="When">While installing, and only if WebView2 is missing from the PC</td>
+            <td data-label="Leaves this PC?"><span class="pv-chip k-other"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"></circle><path d="M2.5 10h15M10 2.5c2.2 2.2 2.2 12.8 0 15M10 2.5c-2.2 2.2-2.2 12.8 0 15"></path></svg>Yes, installer only</span><span class="pv-note">Otherwise the installer connects to nothing. WinFynd is inside it.</span></td>
+          </tr>
+          <tr>
+            <th scope="row" data-label="What"><span class="pv-what"><span class="icon-badge k-code"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10a6 6 0 1 1-1.8-4.3M16 3.5v3.5h-3.5"></path></svg></span><span><span class="pv-what__t">Update check</span><span class="pv-what__s">Is there a newer version?</span></span></span></th>
+            <td data-label="Host"><code class="pv-host">github.com</code><span class="pv-host__s">priyansh19/WinFynd releases</span></td>
+            <td data-label="When">Once a day, and you can turn it off</td>
+            <td data-label="Leaves this PC?"><span class="pv-chip k-other"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"></circle><path d="M2.5 10h15M10 2.5c2.2 2.2 2.2 12.8 0 15M10 2.5c-2.2 2.2-2.2 12.8 0 15"></path></svg>Yes, internet</span><span class="pv-note">Asks GitHub for the latest release. GitHub sees your IP address, as with any request.</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="pv-allnote reveal"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l6 2.5v4.5c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8V5z"></path><path d="M7.5 10l1.8 1.8 3.4-3.6"></path></svg><span>That is the whole list. WinFynd has no account, analytics or crash-reporting code, so there is nothing else to send. Settings &gt; Privacy shows the same list without Get Ollama and the installer, with both model downloads on one card.</span></p>
+  </div>
+</section>
+
+<!-- ================================================================ 3. Stored -->
+<section class="section pv-store" id="stored" aria-labelledby="store-title">
+  <div class="bloom bloom--violet" style="--w: 900px; --h: 700px; left: -420px; top: 18%"></div>
+  <div class="container">
+    <div class="section-head" data-reveal-group>
+      <p class="eyebrow k-amber reveal"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 5.5a1 1 0 0 1 1-1h4l2 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"></path></svg>Stored on this PC</p>
+      <h2 id="store-title" class="title reveal">What it keeps, and where.</h2>
+      <p class="lead reveal">Everything WinFynd writes lives in your Windows profile. The full paths below are from the example PC, where the user is called gupta.</p>
+    </div>
+
+    <div class="pv-scope k-amber reveal">
+      <span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="11" width="15" height="5.5" rx="1.5"></rect><path d="M4.5 11l2-6.5h7l2 6.5"></path><path d="M13.5 13.75h.01M11 13.75h.01"></path></svg></span>
+      <div class="pv-scope__text">
+        <h3 class="heading">It reads every drive, unless you choose folders.</h3>
+        <p class="body">By default WinFynd searches the whole PC: all of C: and every other drive. So the index can hold text from any file on the PC, and all of it stays on the PC. It skips system and app folders such as Windows, Program Files and AppData.</p>
+      </div>
+      <div class="pv-scope__how">
+        <p class="pv-scope__t">To keep it to certain folders</p>
+        <p class="body">Switch off <span class="pv-ui">Allow full OS context</span> in setup or in Settings &gt; Folders, then pick the folders. Documents, Pictures, Desktop and Downloads are ticked to start.</p>
+      </div>
+    </div>
+
+    <div class="pv-store__grid">
+      <div class="pv-tree reveal" role="group" aria-label="WinFynd's folders and files">
+        <div class="pv-tree__group">
+          <div class="pv-tree__root">
+            <span class="pv-tree__ficon k-amber"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 5.5a1 1 0 0 1 1-1h4l2 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"></path></svg></span>
+            <div class="pv-tree__path"><code class="pv-tree__env">%APPDATA%\<wbr>app.winfynd.desktop</code><span class="pv-tree__full">C:\<wbr>Users\<wbr>gupta\<wbr>AppData\<wbr>Roaming\<wbr>app.winfynd.desktop</span></div>
+            <button class="pv-copy" type="button" data-copy="%APPDATA%\app.winfynd.desktop" hidden><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"></rect><path d="M13 7V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3"></path></svg><span>Copy path</span></button>
+          </div>
+          <ul class="pv-tree__items">
+            <li class="pv-tree__item k-doc"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="kc"><ellipse cx="10" cy="5" rx="6" ry="2.5"></ellipse><path d="M4 5v10c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V5M4 10c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5"></path></svg><div><code class="pv-tree__name">index.sqlite3</code><span class="pv-tree__also">with index.sqlite3-wal and -shm</span><p>The search index: each file's path and name, the text read from it in passages, and their vectors.</p></div><span class="pv-size">2.3 GB</span></li>
+            <li class="pv-tree__item k-audio"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="kc"><path d="M3 10h1M6 7v6M9 4v12M12 6.5v7M15 8.5v3M17 10h.5"></path></svg><div><code class="pv-tree__name">speech\ggml-small.bin</code><p>Whisper Small, the speech model, once you download it.</p></div><span class="pv-size">466 MB</span></li>
+            <li class="pv-tree__item k-code"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="kc"><circle cx="10" cy="10" r="2.5"></circle><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4"></path></svg><div><code class="pv-tree__name">engine.json</code><p>Settings: what to search, the models you chose and your options.</p></div></li>
+            <li class="pv-tree__item k-code"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="kc"><rect x="2" y="5" width="16" height="10" rx="1.5"></rect><path d="M5 8h.01M8 8h.01M11 8h.01M14 8h.01M5 11h.01M15 11h.01M8 12h4"></path></svg><div><code class="pv-tree__name">hotkeys.json</code><p>Your shortcuts and voice settings.</p></div></li>
+            <li class="pv-tree__item k-code"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="kc"><path d="M4.5 10.5l3.5 3.5 7.5-8"></path></svg><div><code class="pv-tree__name">onboarding.json</code><p>How far setup got.</p></div></li>
+          </ul>
+        </div>
+        <div class="pv-tree__group">
+          <div class="pv-tree__root">
+            <span class="pv-tree__ficon k-amber"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 5.5a1 1 0 0 1 1-1h4l2 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"></path></svg></span>
+            <div class="pv-tree__path"><code class="pv-tree__env">%LOCALAPPDATA%\<wbr>app.winfynd.desktop</code><span class="pv-tree__full">C:\<wbr>Users\<wbr>gupta\<wbr>AppData\<wbr>Local\<wbr>app.winfynd.desktop</span></div>
+            <button class="pv-copy" type="button" data-copy="%LOCALAPPDATA%\app.winfynd.desktop" hidden><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"></rect><path d="M13 7V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3"></path></svg><span>Copy path</span></button>
+          </div>
+          <ul class="pv-tree__items">
+            <li class="pv-tree__item k-other"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="kc"><path d="M5.5 2.5h6l4 4v10a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z"></path><path d="M11.5 2.5v4h4M7.5 10.5h5M7.5 13.5h5"></path></svg><div><code class="pv-tree__name">logs\winfynd.log</code><p>The log: times, events and errors, including the paths of files that were slow or failed to read. Past 2 MB it moves to winfynd.old.log.</p></div></li>
+            <li class="pv-tree__item k-other"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="kc"><rect x="2.5" y="3.5" width="15" height="13" rx="1.5"></rect><path d="M2.5 7.5h15"></path></svg><div><span class="pv-tree__name pv-tree__name--plain">WebView2 cache</span><p>What Microsoft's WebView2 keeps for WinFynd's own windows.</p></div></li>
+          </ul>
+        </div>
+        <div class="pv-tree__group pv-tree__group--more">
+          <p class="pv-tree__label">Elsewhere</p>
+          <ul class="pv-tree__items pv-tree__items--flat">
+            <li class="pv-tree__item k-amber"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="kc"><path d="M2.5 5.5a1 1 0 0 1 1-1h4l2 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"></path></svg><div><code class="pv-tree__name">%LOCALAPPDATA%\WinFynd</code><p>The program itself. No data of yours.</p></div></li>
+            <li class="pv-tree__item k-code"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="kc"><circle cx="7" cy="13" r="3.5"></circle><path d="M9.5 10.5l7-7M14 6l2 2M12 8l1.5 1.5"></path></svg><div><code class="pv-tree__name">HKCU\<wbr>Software\<wbr>Microsoft\<wbr>Windows\<wbr>CurrentVersion\<wbr>Run</code><p>A registry value named WinFynd that starts it in the tray when you sign in. It is only there if you left “Start WinFynd when I sign in” ticked while installing.</p></div></li>
+            <li class="pv-tree__item k-video"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="kc"><rect x="2.5" y="5" width="11" height="10" rx="1.5"></rect><path d="M13.5 9l4-2.5v7l-4-2.5"></path></svg><div><code class="pv-tree__name">%TEMP%\winfynd-frames-*</code><p>Still frames from a video while it is read. Deleted when that video is done.</p></div></li>
+            <li class="pv-tree__item k-audio"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="kc"><path d="M10 2.5l7 3.8v7.4l-7 3.8-7-3.8V6.3z"></path><path d="M3 6.3l7 3.9 7-3.9M10 10.2v7.3"></path></svg><div><span class="pv-tree__name pv-tree__name--plain">Ollama's own model folder</span><p>Search and Ask models, like EmbeddingGemma 2 (1.3 GB). Ollama keeps these, not WinFynd.</p></div></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="pv-facts" data-reveal-group>
+        <article class="tile tile--flat pv-fact k-doc reveal">
+          <span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 2.5h6l4 4v10a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z"></path><path d="M11.5 2.5v4h4M7.5 10.5h5M7.5 13.5h5"></path></svg></span>
+          <h3 class="heading">The index holds copies of your text.</h3>
+          <p class="body">To search inside files, WinFynd keeps the text it read from them in passages, the words spoken in recordings and videos, and vectors for search by meaning. Photos and video frames are kept as vectors only, never as pictures. On the example PC, with 51,204 files on drives C: and D:, the index is 2.3 GB.</p>
+        </article>
+        <article class="tile tile--flat pv-fact k-amber reveal">
+          <span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="9" width="12" height="8.5" rx="1.5"></rect><path d="M6.5 9V6.5a3.5 3.5 0 0 1 7 0V9"></path></svg></span>
+          <h3 class="heading">It is not encrypted.</h3>
+          <p class="body">It sits in your Windows profile and is protected like everything else there: by your Windows sign-in, and by BitLocker or Device Encryption if your drive uses it. Anyone who can open files in your profile can open the index.</p>
+        </article>
+        <article class="tile tile--flat pv-fact k-other reveal">
+          <span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"></circle><path d="M10 9v5M10 6.2v.1"></path></svg></span>
+          <h3 class="heading">A roaming profile can copy it.</h3>
+          <p class="body">%APPDATA% is the Roaming part of your profile. If your organization uses roaming profiles, Windows may copy it to their server when you sign out, index included.</p>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ 4. Never -->
+<section class="section pv-never" id="never" aria-labelledby="never-title">
+  <div class="bloom bloom--pink" style="--w: 1000px; --h: 560px; left: 50%; margin-left: -500px; top: 30%"></div>
+  <div class="container">
+    <div class="section-head section-head--center" data-reveal-group>
+      <p class="eyebrow k-sheet reveal"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l6 2.5v4.5c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8V5z"></path><path d="M7.5 10l1.8 1.8 3.4-3.6"></path></svg>Never</p>
+      <h2 id="never-title" class="title reveal">What WinFynd never does.</h2>
+      <p class="lead reveal">Once your models are downloaded, WinFynd works with the internet off. Disconnect and try a search.</p>
+    </div>
+    <ul class="pv-never__grid" data-reveal-group>
+      <li class="tile pv-never__item k-doc reveal">
+        <span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="7" r="3"></circle><path d="M4 17c.8-3 3.2-4.5 6-4.5s5.2 1.5 6 4.5"></path><path d="M3 3l14 14"></path></svg></span>
+        <h3 class="heading">No account</h3>
+        <p class="body">Nothing to sign up for or sign in to. WinFynd has no idea who you are.</p>
+      </li>
+      <li class="tile pv-never__item k-sheet reveal">
+        <span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 16.5h13M6 13.5v-3M10 13.5V8M14 13.5v-6"></path><path d="M3 3l14 14"></path></svg></span>
+        <h3 class="heading">No analytics or telemetry</h3>
+        <p class="body">No usage statistics and no crash reports. There is no setting for it, because there is nothing to turn off.</p>
+      </li>
+      <li class="tile pv-never__item k-code reveal">
+        <span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15.5h8.5a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.6 1.2A3 3 0 0 0 6 15.5z"></path><path d="M3 3l14 14"></path></svg></span>
+        <h3 class="heading">No cloud index</h3>
+        <p class="body">The index is a file on this PC. There is no WinFynd server to upload it to.</p>
+      </li>
+      <li class="tile pv-never__item k-audio reveal">
+        <span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="6" height="10" rx="3"></rect><path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5"></path></svg></span>
+        <h3 class="heading">Voice is transcribed here</h3>
+        <p class="body">Whisper runs inside WinFynd, on your PC's processor. Speech in recordings, videos and voice searches becomes text without a sound leaving the PC.</p>
+      </li>
+      <li class="tile pv-never__item k-ask reveal">
+        <span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2.5l1.7 4.8 4.8 1.7-4.8 1.7L9 15.5l-1.7-4.8L2.5 9l4.8-1.7z"></path><path d="M15.5 13.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"></path></svg></span>
+        <h3 class="heading">Answers are written here</h3>
+        <p class="body">Ask hands your question and the passages it found to a chat model in Ollama, like llama3.2 3B, on 127.0.0.1. The answer is written on this PC.</p>
+      </li>
+      <li class="tile pv-never__item k-img reveal">
+        <span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="M12.5 12.5L17 17"></path></svg></span>
+        <h3 class="heading">Searches stay here</h3>
+        <p class="body">What you type goes to Ollama on this PC to be matched by meaning, and nowhere else.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================================================================ 5. Remove -->
+<section class="section pv-remove" id="remove" aria-labelledby="remove-title">
+  <div class="bloom bloom--orange" style="--w: 900px; --h: 640px; right: -300px; top: 12%"></div>
+  <div class="bloom bloom--violet" style="--w: 700px; --h: 520px; right: 10%; top: 40%"></div>
+  <div class="container pv-split">
+    <div class="pv-split__copy">
+      <div class="pv-split__head" data-reveal-group>
+        <p class="eyebrow k-video reveal"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 5.5h13M8 5.5V3.5h4v2M5.5 5.5l.8 11a1 1 0 0 0 1 1h5.4a1 1 0 0 0 1-1l.8-11"></path></svg>Uninstall</p>
+        <h2 id="remove-title" class="title reveal">Remove it, and everything it kept.</h2>
+        <p class="lead reveal">Uninstall WinFynd like any other app. Its uninstall window asks one question.</p>
+      </div>
+      <ol class="pv-steps" data-reveal-group>
+        <li class="pv-step reveal"><span class="pv-step__n">1</span><div><h3 class="pv-step__t">Open Windows Settings &gt; Apps</h3><p class="body">Find WinFynd in the list and choose Uninstall. WinFynd's uninstall window opens.</p></div></li>
+        <li class="pv-step reveal"><span class="pv-step__n">2</span><div><h3 class="pv-step__t">Tick “Also delete my search index and settings”</h3><p class="body">It is off by default, so a reinstall picks up where you left off. Ticked, it deletes both app.winfynd.desktop folders: the index, your settings, Whisper models and the log.</p></div></li>
+        <li class="pv-step reveal"><span class="pv-step__n">3</span><div><h3 class="pv-step__t">Remove Ollama's models, if you want</h3><p class="body">Search and Ask models stay in Ollama, for other apps that use them. To remove one, run <code class="pv-code">ollama rm embeddinggemma-2</code> in a terminal.</p></div></li>
+      </ol>
+      <p class="pv-safe reveal"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l6 2.5v4.5c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8V5z"></path><path d="M7.5 10l1.8 1.8 3.4-3.6"></path></svg>Ticked or not, your own files are never touched.</p>
+    </div>
+
+    <div class="pv-split__shot">
+      <figure class="shot pv-ushot reveal" aria-label="The Uninstall WinFynd window, version 0.1.0: Remove WinFynd from this PC? An unticked box: Also delete my search index and settings (2.3 GB). Your own files are never touched. Models you downloaded with Ollama stay in Ollama. Buttons: Cancel and Uninstall.">
+        <div class="shot-desk wf auto pv-udesk" inert>
+          <div class="win pv-uwin">
+            <div class="pv-uwin__head">
+              <div class="pv-uwin__caps"><div class="caps" aria-hidden="true"><span class="cap"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10"></path></svg></span><span class="cap"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="9" height="9" rx="1.5"></rect></svg></span><span class="cap"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9"></path></svg></span></div></div>
+              <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" style="flex: none"><defs><linearGradient id="wfgpvu" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b9bff"></stop><stop offset=".45" stop-color="#9a7bff"></stop><stop offset=".75" stop-color="#ff6fb5"></stop><stop offset="1" stop-color="#ff9548"></stop></linearGradient></defs><rect width="48" height="48" rx="12" fill="#ffffff"></rect><circle cx="21" cy="21" r="10" fill="none" stroke="url(#wfgpvu)" stroke-width="4"></circle><path d="M28.5 28.5l8 8" stroke="url(#wfgpvu)" stroke-width="4.5" stroke-linecap="round"></path><path d="M21 15.5l1.4 3.8 3.8 1.4-3.8 1.4L21 26l-1.4-3.9-3.8-1.4 3.8-1.4z" fill="url(#wfgpvu)"></path></svg>
+              <div style="display: flex; flex-direction: column; gap: 2px"><span style="font: 600 22px/28px var(--font-display)">Uninstall WinFynd</span><span style="font-size: 13px; color: rgba(255,255,255,0.86)">Version 0.1.0</span></div>
+            </div>
+            <div class="pv-uwin__body">
+              <span style="font: 600 16px/22px var(--font)">Remove WinFynd from this PC?</span>
+              <span class="pv-uwin__opt"><span class="check pv-check" data-check><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 10.5l3.5 3.5 7.5-8"></path></svg></span>Also delete my search index and settings (2.3 GB)</span>
+              <span class="small muted">Your own files are never touched. Models you downloaded with Ollama stay in Ollama.</span>
+            </div>
+            <div class="pv-uwin__foot"><span style="margin-left: auto"></span><span class="btn big">Cancel</span><span class="btn accent big">Uninstall</span></div>
+          </div>
+        </div>
+      </figure>
+      <div class="pv-outcomes" data-reveal-group>
+        <div class="pv-outcome reveal" data-outcome="off">
+          <p class="pv-outcome__t"><span class="pv-mini-check" aria-hidden="true"></span>Left unticked</p>
+          <p class="pv-outcome__b">Removes the program. Your index and settings stay in AppData, ready if you install again.</p>
+        </div>
+        <div class="pv-outcome reveal" data-outcome="on">
+          <p class="pv-outcome__t"><span class="pv-mini-check is-on" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"></path></svg></span>Ticked</p>
+          <p class="pv-outcome__b">Also deletes both data folders:</p>
+          <ul class="pv-outcome__paths"><li>%APPDATA%\<wbr>app.winfynd.desktop</li><li>%LOCALAPPDATA%\<wbr>app.winfynd.desktop</li></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ 6. This website -->
+<section class="section pv-site" id="website" aria-labelledby="site-title">
+  <div class="bloom bloom--blue" style="--w: 900px; --h: 600px; left: -360px; top: 20%"></div>
+  <div class="container">
+    <div class="pv-site__panel reveal">
+      <div class="pv-site__head" data-reveal-group>
+        <p class="eyebrow k-doc reveal"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="1.5"></rect><path d="M2.5 7.5h15M5 5.5h.01M7 5.5h.01"></path></svg>This website</p>
+        <h2 id="site-title" class="title-s pv-site__title reveal">This website doesn’t track you either.</h2>
+        <p class="body reveal">It is plain HTML, CSS and a little JavaScript, and every file comes from this site.</p>
+      </div>
+      <ul class="pv-site__list" data-reveal-group>
+        <li class="reveal"><span class="pv-tick" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"></path></svg></span><div><h3 class="pv-site__t">No cookies</h3><p class="body">None are set, so there is nothing to accept.</p></div></li>
+        <li class="reveal"><span class="pv-tick" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"></path></svg></span><div><h3 class="pv-site__t">No analytics</h3><p class="body">No counters, pixels or tracking scripts, the host’s included.</p></div></li>
+        <li class="reveal"><span class="pv-tick" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"></path></svg></span><div><h3 class="pv-site__t">Nothing from anyone else</h3><p class="body">No web fonts, CDNs or outside images. The pictures of WinFynd on these pages are drawn with HTML and CSS, not loaded as images.</p></div></li>
+        <li class="reveal"><span class="pv-tick pv-tick--info" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"></circle><path d="M2.5 10h15M10 2.5c2.2 2.2 2.2 12.8 0 15M10 2.5c-2.2 2.2-2.2 12.8 0 15"></path></svg></span><div><h3 class="pv-site__t">Hosted on Vercel</h3><p class="body">Like any web host, Vercel sees each request, including your IP address. Links to GitHub take you to github.com.</p></div></li>
+      </ul>
+      <div class="pv-csp reveal">
+        <p class="fine">Every page arrives with this header, and your browser blocks anything it doesn’t allow, so nothing can load from another site:</p>
+        <pre class="pv-csp__code"><code><span class="pv-csp__k">Content-Security-Policy:</span> <span>default-src 'self';</span> <span>img-src 'self' data:;</span> <span>style-src 'self' 'unsafe-inline';</span> <span>script-src 'self' 'unsafe-inline';</span> <span>frame-ancestors 'none';</span> <span>base-uri 'self';</span> <span>form-action 'none'</span></code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ 7. Check it yourself -->
+<section class="section pv-verify" id="check" aria-labelledby="check-title">
+  <div class="bloom bloom--violet" style="--w: 900px; --h: 560px; left: 50%; margin-left: -450px; top: 6%"></div>
+  <div class="container">
+    <div class="section-head" data-reveal-group>
+      <p class="eyebrow k-code reveal"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4"></path></svg>Source on GitHub</p>
+      <h2 id="check-title" class="title reveal">Check it yourself.</h2>
+      <p class="lead reveal">WinFynd is free, and its source is on GitHub. You don’t have to take this page’s word for any of it.</p>
+    </div>
+    <ul class="pv-verify__grid" data-reveal-group>
+      <li class="tile pv-verify__item k-code reveal">
+        <span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4"></path></svg></span>
+        <div class="pv-verify__text">
+          <h3 class="heading">Read the code</h3>
+          <p class="body"><code class="pv-code">ollama.rs</code> refuses any Ollama address that isn’t this PC. <code class="pv-code">speech.rs</code> downloads Whisper from huggingface.co. Both are in this folder:</p>
+          <p class="pv-cmd"><span class="visually-hidden">Folder: </span>src-tauri/<wbr>src/<wbr>engine</p>
+          <a class="link-arrow pv-verify__link" href="https://github.com/priyansh19/WinFynd/tree/main/src-tauri/src/engine">Open the folder on GitHub<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h11.5M11 5.5l4.5 4.5-4.5 4.5"></path></svg></a>
+        </div>
+      </li>
+      <li class="tile pv-verify__item k-doc reveal">
+        <span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 10h3l2-5 3 10 2.5-7 1.5 2h3"></path></svg></span>
+        <div class="pv-verify__text">
+          <h3 class="heading">Watch it connect</h3>
+          <p class="body">Open Resource Monitor, go to Network and search for something in WinFynd. Under TCP Connections, WinFynd connects to 127.0.0.1, port 11434: Ollama, on this PC.</p>
+          <p class="pv-cmd"><kbd class="pv-kbd">Win</kbd> + <kbd class="pv-kbd">R</kbd>, then type resmon</p>
+        </div>
+      </li>
+      <li class="tile pv-verify__item k-sheet reveal">
+        <span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="10" cy="5" rx="6" ry="2.5"></ellipse><path d="M4 5v10c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V5M4 10c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5"></path></svg></span>
+        <div class="pv-verify__text">
+          <h3 class="heading">Open the index</h3>
+          <p class="body">Quit WinFynd from the tray, then open the index in any SQLite viewer. You’ll find file paths, text passages and vectors.</p>
+          <p class="pv-cmd">%APPDATA%\<wbr>app.winfynd.desktop\<wbr>index.sqlite3</p>
+        </div>
+      </li>
+      <li class="tile pv-verify__item k-other reveal">
+        <span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 2.5h6l4 4v10a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z"></path><path d="M11.5 2.5v4h4M7.5 10.5h5M7.5 13.5h5"></path></svg></span>
+        <div class="pv-verify__text">
+          <h3 class="heading">Read the log</h3>
+          <p class="body">Paste the folder into File Explorer’s address bar and open winfynd.log in Notepad. It is plain text.</p>
+          <p class="pv-cmd">%LOCALAPPDATA%\<wbr>app.winfynd.desktop\<wbr>logs</p>
+        </div>
+      </li>
+    </ul>
+
+    <div class="cta-band pv-cta reveal">
+      <div class="pv-cta__copy">
+        <span class="pv-cta__icon"><svg width="56" height="56" viewBox="0 0 48 48" aria-hidden="true" style="flex: none"><defs><linearGradient id="wfgpvc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b9bff"></stop><stop offset=".45" stop-color="#9a7bff"></stop><stop offset=".75" stop-color="#ff6fb5"></stop><stop offset="1" stop-color="#ff9548"></stop></linearGradient></defs><rect width="48" height="48" rx="12" fill="#ffffff"></rect><circle cx="21" cy="21" r="10" fill="none" stroke="url(#wfgpvc)" stroke-width="4"></circle><path d="M28.5 28.5l8 8" stroke="url(#wfgpvc)" stroke-width="4.5" stroke-linecap="round"></path><path d="M21 15.5l1.4 3.8 3.8 1.4-3.8 1.4L21 26l-1.4-3.9-3.8-1.4 3.8-1.4z" fill="url(#wfgpvc)"></path></svg></span>
+        <h2 class="title">Search your PC without sending it anywhere.</h2>
+        <p class="pv-cta__sub">Free for Windows 10 and 11, with its source on GitHub. It installs for your account, without an admin prompt.</p>
+      </div>
+      <div class="pv-cta__actions">
+        <a class="button button--ink button--large" href="download.html"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v10M5.5 8.5L10 13l4.5-4.5M4 16.5h12"></path></svg>Download for Windows</a>
+        <a class="button button--glass button--large" href="https://github.com/priyansh19/WinFynd">Source on GitHub</a>
+        <p class="pv-cta__fine">Version 0.1.0 · <a href="changelog.html">What’s in it</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a class="brand" href="index.html"><svg width="28" height="28" viewBox="0 0 48 48" aria-hidden="true" style="flex: none"><defs><linearGradient id="wfgftr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b9bff"></stop><stop offset=".45" stop-color="#9a7bff"></stop><stop offset=".75" stop-color="#ff6fb5"></stop><stop offset="1" stop-color="#ff9548"></stop></linearGradient></defs><rect width="48" height="48" rx="12" fill="url(#wfgftr)"></rect><circle cx="21" cy="21" r="10" fill="none" stroke="#ffffff" stroke-width="4"></circle><path d="M28.5 28.5l8 8" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"></path><path d="M21 15.5l1.4 3.8 3.8 1.4-3.8 1.4L21 26l-1.4-3.9-3.8-1.4 3.8-1.4z" fill="#ffffff"></path></svg><span>WinFynd</span></a>
+        <p>Find anything on your PC by describing it. For Windows 10 and 11.</p>
+      </div>
+      <div class="footer-col">
+        <h2>Product</h2>
+        <ul>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="download.html">Download</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h2>Help</h2>
+        <ul>
+          <li><a href="help.html">Shortcuts and FAQ</a></li>
+          <li><a href="help.html#troubleshooting">Troubleshooting</a></li>
+          <li><a href="https://github.com/priyansh19/WinFynd/issues">Report a problem</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h2>GitHub</h2>
+        <ul>
+          <li><a href="https://github.com/priyansh19/WinFynd">Source code</a></li>
+          <li><a href="https://github.com/priyansh19/WinFynd/releases">Releases</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span class="footer-version"><span class="tagver">Version 0.1.0</span>Free, with its source on GitHub</span>
+      <span class="loads-nothing"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l6 2.5v4.5c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8V5z"></path><path d="M7.5 10l1.8 1.8 3.4-3.6"></path></svg>This site loads nothing from anyone else.</span>
+    </div>
+  </div>
+</footer>
+<script src="js/site.js" defer></script>
+<script src="js/privacy.js" defer></script>
+</body>
+</html>

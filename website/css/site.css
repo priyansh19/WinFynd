@@ -376,7 +376,7 @@ button { font: inherit; color: inherit; }
   color: var(--text); text-decoration: none; font-size: 17px; font-weight: 500;
 }
 .site-menu__panel a:not(.button):hover { background: var(--fill); }
-.site-menu__panel a[aria-current="page"] { background: var(--fill); box-shadow: inset 3px 0 0 var(--accent); }
+.site-menu__panel a:not(.button)[aria-current="page"] { background: var(--fill); box-shadow: inset 3px 0 0 var(--accent); }
 .site-menu__panel .button { margin-top: 12px; height: 48px; }
 @keyframes menu-in { from { opacity: 0; transform: translateY(-8px); } }
 

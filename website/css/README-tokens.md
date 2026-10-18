@@ -133,6 +133,8 @@ File kinds come from `wf.css` and work anywhere on the page: add `k-doc`, `k-img
 
 **Product-shot frame.** Product visuals are live HTML built from the artboard markup with wf.css, inside `.wf auto` (follows the visitor's light or dark mode). `.shot` is the figure, `.shot-desk` paints the Windows wallpaper behind a floating window, `.shot-window` gives a bare window the shot shadow. `[data-fit="760"]` says the visual is designed 760 px wide; `js/site.js` zooms it down to fit its parent (`.fit-frame` clips it without JS). `.launcher.static` (wf.css) puts a launcher in normal flow.
 
+Two things to watch with shots. A `.shot` is positioned, so its large shadow draws over plain text placed right after it and dims it; give that copy `position: relative; z-index: 1`. And `[data-fit]` zooms the text too: a window whose 12 px text is zoomed below about 0.92 renders under the 11 px minimum. When the column is much narrower than the design width, let the window resize to its column instead of zooming it.
+
 ```html
 <figure class="shot" aria-label="An answer in WinFynd with three numbered sources">
   <div class="fit-frame"><div class="wf auto" data-fit="760"><div class="launcher static">...</div></div></div>

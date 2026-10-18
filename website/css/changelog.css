@@ -1,0 +1,252 @@
+/* WinFynd website: Changelog page only. Shared pieces live in site.css and wf.css.
+   Layout: a calm timeline. Each version is an <li class="release"> with a sticky rail
+   (version, status, contents) on a vertical line, and its notes grouped by area. */
+
+.cl-hero, .section, .site-footer { overflow-x: clip; }
+
+/* ================================================================ Hero */
+.cl-hero { position: relative; isolation: isolate; padding: clamp(40px, 6vw, 80px) 0 clamp(48px, 6vw, 80px); }
+.cl-hero__inner { display: flex; flex-direction: column; gap: 18px; max-width: 900px; }
+.cl-hero__inner .lead { max-width: 52ch; }
+
+/* ================================================================ Timeline */
+.cl-releases { padding-top: 0; }
+.timeline { list-style: none; margin: 0; padding: 0; }
+
+.release {
+  --pad: 48px;                       /* room for the line and the node */
+  position: relative;
+  padding-left: var(--pad);
+}
+.release + .release { margin-top: clamp(72px, 9vw, 120px); }
+/* The line: calm, it fades out below the oldest entry. */
+.release::before {
+  content: ""; position: absolute; left: 7px; top: 20px; bottom: -56px; width: 2px; border-radius: 1px;
+  background: linear-gradient(180deg, var(--stroke-strong) 0, var(--stroke-strong) calc(100% - 240px), transparent);
+}
+.release-article {
+  display: grid; grid-template-columns: 248px minmax(0, 1fr);
+  column-gap: clamp(32px, 4.5vw, 64px);
+}
+
+/* Rail: sticks while you read the entry, so its node slides down the line. */
+.release-rail { position: sticky; top: calc(var(--header-h) + 32px); align-self: start; }
+.release-node {
+  position: absolute; left: calc(-1 * var(--pad)); top: 16px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 5px var(--bg), 0 0 18px 2px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.release-node::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--accent); }
+/* A published version: the node fills with the spectrum (it means "done"). */
+.release--out .release-node { border: 0; background: var(--spectrum-diag); box-shadow: 0 0 0 5px var(--bg); }
+.release--out .release-node::after { content: none; }
+
+.release-ver { font: 600 48px/52px var(--font-display); letter-spacing: -0.03em; }
+.release-name { margin-top: 4px; font: 600 18px/26px var(--font-display); color: var(--text2); }
+.release-date { margin-top: 2px; font-size: 14px; color: var(--text3); }
+.cl-status {
+  display: inline-flex; align-items: center; gap: 9px;
+  margin-top: 14px; height: 28px; padding: 0 12px 0 11px; border-radius: 14px;
+  font: 600 13px/1 var(--font);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.cl-status .pulse { --k: var(--accent); width: 7px; height: 7px; }
+.cl-status--out { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); border-color: color-mix(in srgb, var(--ok) 28%, transparent); }
+
+/* Contents of the entry. The current area gets the WinUI selection pill. */
+.toc { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--stroke); }
+.toc-label { font: 600 13px/18px var(--font); color: var(--text3); margin-bottom: 8px; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.toc a {
+  position: relative;
+  display: flex; align-items: center; gap: 11px;
+  min-height: 34px; padding: 0 10px; margin-left: -10px;
+  border-radius: var(--radius-s);
+  color: var(--text2); text-decoration: none; font-size: 15px; line-height: 20px;
+  transition: color 150ms var(--ease), background-color 150ms var(--ease);
+}
+.toc a .dot { width: 8px; height: 8px; background: var(--k, var(--text3)); transition: transform 150ms var(--ease); }
+.toc a:hover { color: var(--text); background: var(--fill); }
+.toc a.is-active { color: var(--text); background: var(--fill); }
+.toc a.is-active .dot { transform: scale(1.25); }
+.toc a::before {
+  content: ""; position: absolute; left: 0; top: 50%; height: 16px; margin-top: -8px; width: 3px; border-radius: 2px;
+  background: var(--k, var(--accent));
+  transform: scaleY(0); transition: transform 150ms var(--ease);
+}
+.toc a.is-active::before { transform: none; }
+.toc .toc-limits { --k: var(--text3); }
+
+/* ---------- Entry body ---------- */
+.release-body { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+
+.release-intro {
+  position: relative; overflow: hidden; isolation: isolate;
+  padding: clamp(24px, 3vw, 32px);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--stroke);
+  background:
+    radial-gradient(520px 260px at 100% 0%, color-mix(in srgb, #9a7bff 16%, transparent), transparent 70%),
+    radial-gradient(420px 240px at 0% 100%, color-mix(in srgb, #5b9bff 12%, transparent), transparent 70%),
+    var(--card);
+  box-shadow: var(--shadow-card);
+}
+.release-summary { font-size: clamp(17px, 1.5vw, 19px); line-height: 1.6; color: var(--text); max-width: 62ch; text-wrap: pretty; }
+.release-facts {
+  margin: 22px 0 0; padding-top: 20px; border-top: 1px solid var(--stroke);
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 24px;
+}
+.release-facts div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.release-facts dt { font-size: 13px; line-height: 18px; color: var(--text3); }
+.release-facts dd { margin: 0; font-size: 15px; line-height: 22px; font-weight: 600; color: var(--text); text-wrap: balance; }
+.cl-nowrap { white-space: nowrap; }
+
+/* Areas: one panel, a row per area, each tinted in its colour. */
+.areas {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--stroke);
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.area {
+  display: grid; grid-template-columns: 208px minmax(0, 1fr); gap: 16px clamp(24px, 3vw, 40px);
+  padding: 30px clamp(24px, 3vw, 36px) 32px;
+  background: radial-gradient(380px 200px at 0% 0%, color-mix(in srgb, var(--k) 9%, transparent), transparent 72%);
+  scroll-margin-top: calc(var(--header-h) + 24px);
+}
+.area + .area { border-top: 1px solid var(--stroke); }
+.area-head { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+.area-head .heading { text-wrap: balance; }
+.area-sum { margin-top: 4px; font-size: 14px; line-height: 20px; color: var(--text3); text-wrap: pretty; }
+.area-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.area-list li {
+  position: relative; padding-left: 22px;
+  font-size: 16px; line-height: 1.62; color: var(--text2); text-wrap: pretty;
+}
+.area-list li::before {
+  content: ""; position: absolute; left: 3px; top: 0.66em; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--k);
+}
+
+/* "Done" flash: as an area arrives, its badge pops in its own colour, like a finished file. */
+.js .area .icon-badge { transition: box-shadow 600ms var(--ease); }
+.js .area.is-in .icon-badge { animation: cl-done 520ms cubic-bezier(0.2, 0.9, 0.3, 1.3) 160ms both; }
+@keyframes cl-done {
+  0% { transform: scale(0.6); opacity: 0; box-shadow: 0 0 0 0 color-mix(in srgb, var(--k) 55%, transparent); }
+  55% { transform: scale(1.08); opacity: 1; }
+  100% { transform: none; box-shadow: 0 0 0 12px color-mix(in srgb, var(--k) 0%, transparent); }
+}
+
+/* Inline pieces in the notes */
+.cl-q {
+  quotes: "“" "”";
+  color: var(--text); font-weight: 500;
+}
+.cl-why {
+  display: inline-block;
+  padding: 0 8px; border-radius: 11px;
+  font-size: 13.5px; line-height: 22px; font-weight: 500;
+  color: var(--k, var(--accent));
+  background: color-mix(in srgb, var(--k, var(--accent)) 14%, transparent);
+  white-space: nowrap;
+}
+.cl-reasons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.cl-reasons .cl-why { white-space: normal; }
+.cl-ui { color: var(--text); font-weight: 600; }
+.cl-keys { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; vertical-align: 1px; }
+.cl-plus { font-size: 12px; color: var(--text3); }
+.cl-keys kbd, .cl-kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; height: 23px; padding: 0 7px; box-sizing: border-box;
+  border-radius: 5px;
+  font: 600 12.5px/1 var(--font); color: var(--text);
+  background: var(--fill);
+  border: 1px solid var(--stroke-strong); border-bottom-width: 2px;
+}
+.cl-kbd { vertical-align: 1px; }
+.cl-path { font-family: var(--mono); font-size: 0.9em; color: var(--text); background: var(--fill); padding: 1px 6px; border-radius: 4px; overflow-wrap: anywhere; }
+
+/* ---------- Known limits ---------- */
+.limits { margin-top: 20px; scroll-margin-top: calc(var(--header-h) + 24px); }
+.limits-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.limits-badge { --k: var(--text3); color: var(--text2); background: var(--fill); border-color: var(--stroke-strong); }
+.limits-title { font: 600 24px/30px var(--font-display); letter-spacing: -0.014em; }
+.limits-head .area-sum { margin-top: 2px; }
+.limits-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.limit {
+  display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 14px;
+  padding: 20px 22px 22px;
+  border-radius: var(--radius-l);
+  border: 1px solid var(--stroke);
+  background: var(--card);
+}
+.limit > svg { margin-top: 2px; color: var(--text3); }
+.limit h4 { font: 600 16px/22px var(--font); margin: 0 0 4px; }
+.limit p { font-size: 15px; line-height: 1.55; color: var(--text2); text-wrap: pretty; }
+
+/* ================================================================ Follow */
+.cl-follow { padding-top: clamp(72px, 9vw, 112px); padding-bottom: 0; }
+.follow-card {
+  position: relative; overflow: hidden; isolation: isolate;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px 48px; flex-wrap: wrap;
+  padding: clamp(28px, 4vw, 44px);
+  border-radius: 20px;
+  border: 1px solid var(--stroke);
+  background:
+    radial-gradient(560px 280px at 0% 0%, var(--glow-blue), transparent 70%),
+    radial-gradient(520px 300px at 100% 100%, var(--glow-violet), transparent 70%),
+    var(--card);
+}
+.follow-copy { display: flex; flex-direction: column; gap: 10px; max-width: 620px; }
+.follow-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* ================================================================ Responsive */
+@media (max-width: 1100px) {
+  .release-article { grid-template-columns: 216px minmax(0, 1fr); }
+  .area { grid-template-columns: minmax(0, 1fr); }
+  .area-head { flex-direction: row; align-items: center; }
+}
+@media (max-width: 1023px) {
+  .release { --pad: 36px; }
+  .release-article { grid-template-columns: minmax(0, 1fr); }
+  .release-rail { position: relative; top: auto; margin-bottom: 28px; }
+  .release-node { top: 18px; }
+  .toc { margin-top: 22px; padding-top: 18px; }
+  .toc ol { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+  .toc a {
+    min-height: 32px; margin-left: 0; padding: 0 13px 0 11px; border-radius: 16px;
+    font-size: 14px; background: var(--card); border: 1px solid var(--stroke);
+  }
+  .toc a::before { content: none; }
+  .toc a.is-active { background: var(--card); }
+}
+@media (max-width: 720px) {
+  .release-facts { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .limits-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .release { --pad: 26px; }
+  .release::before { left: 5px; }
+  .release-node { width: 12px; height: 12px; top: 20px; box-shadow: 0 0 0 4px var(--bg); }
+  .release-node::after { inset: 2px; }
+  .release-ver { font-size: 40px; line-height: 46px; }
+  .areas, .release-intro { border-radius: var(--radius-l); }
+  .area { padding: 24px 20px 26px; }
+  .area-list li { font-size: 15.5px; padding-left: 18px; }
+  .area-list li::before { left: 1px; }
+  .toc a { font-size: 13.5px; min-height: 30px; padding: 0 11px 0 10px; gap: 8px; }
+  .limit { padding: 18px 18px 20px; }
+  .follow-actions, .follow-actions .button { width: 100%; }
+}
+
+/* ================================================================ Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .cl-status .pulse::after { animation: none; }
+  .js .area.is-in .icon-badge { animation: none; }
+  .toc a, .toc a::before, .toc a .dot { transition: none; }
+}
