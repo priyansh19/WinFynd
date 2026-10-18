@@ -72,6 +72,16 @@ npm run build:installer   # WinFynd Setup, in dist-installer (Windows only)
 
 Open `setup/ui/index.html` in a browser to preview the screens on sample data, for example `?mode=update` or `?mode=uninstall`.
 
+### Release
+
+The Release workflow (`.github/workflows/release.yml`) builds WinFynd Setup on Windows, installs it once and checks that WinFynd starts, then publishes it to GitHub releases as `v<version>` with `SHA256SUMS.txt`.
+
+1. Set the new version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `setup/Cargo.toml`, `setup/tauri.conf.json` and `package.json`, then run `cargo check` in `src-tauri` and `setup` so the lockfiles follow.
+2. Write the release notes in `docs/releases/<version>.md`.
+3. Merge to main, then run Actions > Release > Run workflow on main (or push the tag `v<version>`).
+
+Pull requests that touch the installer run the same build and check without publishing.
+
 `cargo test` in `src-tauri` runs the engine end to end against a fake Ollama server.
 
 To measure search on a real index, write queries with the file each should find (see `src-tauri/eval/cases.example.json`; an empty `expect` means nothing should match) and run:
