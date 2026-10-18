@@ -190,7 +190,7 @@ export function ShortcutsPage() {
             ) : (
               <>
                 <KeyCombo accelerator={config[r.id]} />
-                <button type="button" className="btn" disabled={recording !== null} onClick={() => setRecording(r.id)}>
+                <button type="button" className="btn" onClick={() => setRecording(r.id)}>
                   Change
                 </button>
               </>

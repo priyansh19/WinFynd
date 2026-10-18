@@ -12,11 +12,11 @@ html[data-backdrop="mica"], html[data-backdrop="mica"] body { background: var(--
 /* Navigation pane */
 .nav { width: 288px; flex: none; padding: 4px 8px 12px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
 .navsearch-wrap { position: relative; margin: 4px 8px 12px; }
-.navsearch { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 4px; background: var(--fill); border: 1px solid var(--stroke); border-bottom-color: var(--stroke-strong); color: var(--text3); }
+.navsearch { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 4px; background: var(--fill); border: 1px solid var(--stroke); border-bottom-color: var(--stroke-strong); color: var(--text3); }
 .navsearch:focus-within { background: var(--card); border-bottom: 2px solid var(--accent); }
 .navsearch input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: none; background: transparent; color: var(--text); font: 14px/20px var(--font); }
 .navsearch input::placeholder { color: var(--text3); }
-.navsearch-menu { position: absolute; left: 0; right: 0; top: 36px; z-index: 20; }
+.navsearch-menu { position: absolute; left: 0; right: 0; top: 38px; z-index: 20; }
 .navsearch-none { display: block; padding: 8px 12px; font-size: 13px; color: var(--text3); }
 .navitems { display: flex; flex-direction: column; gap: 4px; }
 .navitem { position: relative; height: 36px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 12px; border: 0; border-radius: 4px; background: transparent; color: var(--text); font: 14px/20px var(--font); text-align: left; transition: background-color 83ms linear; }

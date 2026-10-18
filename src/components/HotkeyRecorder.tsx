@@ -90,7 +90,7 @@ export function HotkeyRecorder({
             {k}
           </kbd>
         ))}
-        {!combo && <kbd className="kbd">…</kbd>}
+        {!combo && <kbd className="kbd placeholder">…</kbd>}
       </span>
       {combo && (
         <button type="button" className="btn accent" onClick={save}>

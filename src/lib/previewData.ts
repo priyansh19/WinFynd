@@ -41,7 +41,7 @@ export const PREVIEW_RESULTS: { words: string[]; hits: SearchResult[] }[] = [
         kind: "document", name: "Northwind_Order_88412.pdf", path: `${U}\\Documents\\Home\\Receipts\\Northwind_Order_88412.pdf`,
         size: 188_416, modified: t("2026-03-14T18:22:00"), location: "Page 2",
         snippet:
-          "Northwind Home · Order 88412. Harlow 3-seat sofa, navy velvet, 1, $1,240.00. Harlow scatter cushions, set of 2, $64.00. White-glove delivery and setup, $89.00. Subtotal $1,393.00. Total paid $1,393.00. Paid by Visa ending 4417 on 14 March 2026. Delivery booked for 21 March, 8 am to 12 pm.",
+          "Northwind Home · Order 88412\nItem · Qty · Amount\nHarlow 3-seat sofa, navy velvet · 1 · $1,240.00\nHarlow scatter cushions, set of 2 · 1 · $64.00\nWhite-glove delivery and setup · 1 · $89.00\nSubtotal $1,393.00\nTotal paid $1,393.00\nPaid by Visa ending 4417 on 14 March 2026. Delivery booked for 21 March, 8 am to 12 pm.",
         reason: "Exact words on page 2",
       },
       { kind: "image", name: "IMG_2041.jpg", path: `${U}\\Pictures\\Receipts\\IMG_2041.jpg`, size: 2_900_000, modified: t("2026-03-14T18:40:00"), location: null, snippet: null, reason: "Image matches your search" },
@@ -82,6 +82,8 @@ export const PREVIEW_RESULTS: { words: string[]; hits: SearchResult[] }[] = [
       {
         kind: "audio", name: "Budget sync 2026-09-30.m4a", path: `${U}\\Documents\\Recordings\\Budget sync 2026-09-30.m4a`, size: 36_800_000, modified: t("2026-09-30T10:00:00"),
         location: "12:05", snippet: "Priya: Then let's lock it. Q3 budget agreed at 2.4 million, and North gets the extra 150.", reason: "Said at 12:05, exact words",
+        before: { at: "12:01", text: "Marco: So the only open item is the regional split." },
+        after: { at: "12:11", text: "Marco: Agreed. I'll update slide seven before Friday." },
       },
       {
         kind: "slides", name: "Q3 Budget review.pptx", path: `${U}\\Documents\\Work\\Q3 Budget review.pptx`, size: 6_400_000, modified: t("2026-10-01T16:40:00"),

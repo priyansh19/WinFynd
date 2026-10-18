@@ -213,6 +213,13 @@ export function Launcher() {
     refreshKeys();
     const subs = [
       listen("launcher://shown", () => {
+        // The window is shown again, not made anew: play the opening rise again.
+        const el = root.current;
+        if (el) {
+          el.style.animation = "none";
+          void el.offsetHeight;
+          el.style.animation = "";
+        }
         refreshKeys();
         setMenu(null);
         recall.current = -1;
@@ -247,6 +254,8 @@ export function Launcher() {
   const hits = found && query.trim() ? found.hits : [];
   const current = mode === "search" ? hits[selected] : undefined;
   const groups = useMemo(() => groupResults(hits), [hits]);
+  // The photo grid gets a little more height, as in the design.
+  const photoGrid = groups.some((g) => g.key === "image" && g.items.length >= PHOTO_GRID_MIN);
 
   const hide = () => invoke("hide_launcher_cmd").catch(() => {});
   const fail = (e: unknown) => setError(String(e));
@@ -517,7 +526,7 @@ export function Launcher() {
         </>
       ) : hits.length > 0 ? (
         <>
-          <div className="lbody">
+          <div className={`lbody${photoGrid ? " photos" : ""}`}>
             <ResultList
               results={hits}
               selected={selected}

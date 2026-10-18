@@ -20,12 +20,14 @@
   --card: rgba(255, 255, 255, 0.055);
   --fill: rgba(255, 255, 255, 0.07);
   --fill-strong: rgba(255, 255, 255, 0.11);
+  --fill-pressed: rgba(255, 255, 255, 0.045);
   --stroke: rgba(255, 255, 255, 0.075);
   --stroke-strong: rgba(255, 255, 255, 0.14);
   --track: rgba(255, 255, 255, 0.12);
   --text: #ffffff;
   --text2: rgba(255, 255, 255, 0.80);
   --text3: rgba(255, 255, 255, 0.60);
+  --text-disabled: rgba(255, 255, 255, 0.36);
   --ok: #6ccb5f;
   --danger: #ff99a4;
   --amber: #ffb547;
@@ -44,12 +46,14 @@
     --card: rgba(255, 255, 255, 0.74);
     --fill: rgba(0, 0, 0, 0.045);
     --fill-strong: rgba(0, 0, 0, 0.07);
+    --fill-pressed: rgba(0, 0, 0, 0.03);
     --stroke: rgba(0, 0, 0, 0.07);
     --stroke-strong: rgba(0, 0, 0, 0.14);
     --track: rgba(0, 0, 0, 0.10);
     --text: rgba(0, 0, 0, 0.90);
     --text2: rgba(0, 0, 0, 0.66);
     --text3: rgba(0, 0, 0, 0.54);
+    --text-disabled: rgba(0, 0, 0, 0.36);
     --ok: #0f7b0f;
     --danger: #c42b1c;
     --amber: #a35f00;
@@ -154,9 +158,8 @@ h2 { font: 600 16px/22px var(--font); }
 .checkrow input:disabled ~ * { opacity: 0.45; }
 
 /* ---------- Buttons ---------- */
-/* Sized like WinUI: 32 (or 40) px plus the 1 px border. */
+/* Sized like WinUI: 32 (or 40) px including the 1 px border. */
 .btn {
-  box-sizing: content-box;
   height: 32px; padding: 0 12px; border-radius: 4px;
   background: var(--fill); color: var(--text);
   border: 1px solid var(--stroke); border-bottom-color: var(--stroke-strong);
@@ -168,6 +171,7 @@ h2 { font: 600 16px/22px var(--font); }
 .btn.accent:hover { filter: brightness(1.08); }
 .btn.big { height: 40px; padding: 0 20px; }
 .btn:disabled { pointer-events: none; }
+.btn:not(.accent):disabled { background: var(--fill-pressed); color: var(--text-disabled); border-color: var(--stroke); }
 .btn.accent:disabled { opacity: 0.45; }
 
 /* ---------- Progress ---------- */
@@ -203,8 +207,16 @@ kbd {
 @keyframes wf-page { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
 @keyframes wf-sheen { from { background-position: 0% 0; } to { background-position: -200% 0; } }
 
+/* With reduced motion, everything becomes a plain 83 ms fade. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  *, *::before, *::after {
+    animation-duration: 83ms !important;
+    animation-timing-function: linear !important;
+    animation-iteration-count: 1 !important;
+    transition: none !important;
+  }
+  /* Pages fade in without moving. */
+  @keyframes wf-page { from { opacity: 0; } }
   /* Without the moving sheen, show the whole spectrum. */
   .bar > i { background-size: 100% 100%; }
 }

@@ -21,20 +21,23 @@ export function wordsIn(text: string, words: string[]): string[] {
 }
 
 export type Reason =
-  | { kind: "words"; words: string[]; meaning: boolean }
+  | { kind: "words"; words: string[]; meaning: string | null }
   | { kind: "looks"; words: string[] }
-  | { kind: "meaning" }
+  | { kind: "meaning"; concept: string }
   | { kind: "name" };
 
 /** Read the engine's reason for a hit into what the chips say. */
 export function reasonOf(r: SearchResult, query: string): Reason {
   const words = queryWords(query);
   const found = wordsIn(`${r.snippet ?? ""} ${r.name}`, words);
+  // What the meaning matched: the query words that aren't in the text, else all of them.
+  const rest = words.filter((w) => !found.includes(w));
+  const concept = (rest.length ? rest : words).join(", ");
   const visual = r.reason.startsWith("Image matches") || r.reason.startsWith("Shown at");
   if (visual) return { kind: "looks", words };
-  if (found.length) return { kind: "words", words: found, meaning: /meaning|Talked about/.test(r.reason) };
+  if (found.length) return { kind: "words", words: found, meaning: /meaning|Talked about/.test(r.reason) && concept ? concept : null };
   if (/^Name/.test(r.reason)) return { kind: "name" };
-  return { kind: "meaning" };
+  return { kind: "meaning", concept };
 }
 
 /** Split text into plain and highlighted runs for the query words. */
@@ -65,16 +68,27 @@ export function highlight(text: string, words: string[]): { text: string; hit: b
   }, []);
 }
 
-/** A short line of the snippet around the first matched word, for the result row. */
-export function excerpt(snippet: string | null, words: string[], max = 72): string | null {
+/**
+ * A short phrase of the snippet for the result row: from the start of the
+ * clause with the first matched word, cut at a word so the line fits whole.
+ */
+export function excerpt(snippet: string | null, words: string[], max = 40): string | null {
   if (!snippet) return null;
-  const clean = snippet.replace(/\s+/g, " ").replace(/^…\s*/, "").replace(/\s*…$/, "").trim();
+  max = Math.max(8, max);
+  // Lines (table rows, headings) read as clauses of their own.
+  const clean = snippet.trim().replace(/\s*\n\s*/g, " · ").replace(/\s+/g, " ").replace(/^…\s*/, "").replace(/\s*…$/, "");
   const lower = clean.toLowerCase();
   const at = Math.min(...words.map((w) => lower.indexOf(w)).filter((i) => i >= 0), Infinity);
-  if (!isFinite(at) || at < max / 2) return clean.length > max ? clean.slice(0, max).replace(/\s\S*$/, "") : clean;
-  const start = clean.lastIndexOf(" ", at - 12) + 1;
-  const s = clean.slice(start, start + max);
-  return s.length < clean.length - start ? s.replace(/\s\S*$/, "") : s;
+  let start = 0;
+  if (isFinite(at)) {
+    // The clause the word is in, unless it starts too far back to show the word.
+    const clause = Math.max(0, ...[". ", ": ", "; ", "! ", "? ", " · "].map((p) => lower.lastIndexOf(p, at - 1)).filter((i) => i >= 0).map((i) => i + 2));
+    start = at - clause > max / 2 ? at : clause;
+  }
+  const s = clean.slice(start).trim();
+  if (s.length <= max) return s.replace(/[.,;:]$/, "");
+  const cut = s.slice(0, max + 1).replace(/\s+\S*$/, "");
+  return (cut || s.slice(0, max)).replace(/[\s.,;:·-]+$/, "");
 }
 
 /** "12:05" style labels from the engine, used for recordings and videos. */

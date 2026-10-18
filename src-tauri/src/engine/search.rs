@@ -68,10 +68,22 @@ pub struct Hit {
     /// Where in the file: "Page 3", "Slide 7", "Sheet Q1"…
     pub location: Option<String>,
     pub snippet: Option<String>,
+    /// For a moment in a recording, the transcript just before and after it.
+    pub before: Option<Moment>,
+    pub after: Option<Moment>,
     pub reason: String,
     pub score: f32,
     /// False for weaker matches, shown after the confident ones.
     pub confident: bool,
+}
+
+/// A line of transcript next to a matched moment: when it was said, and a
+/// short piece of what.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Moment {
+    pub at: String,
+    pub text: String,
 }
 
 /// A filter read from the query, which the user can remove.
@@ -517,6 +529,12 @@ impl Engine {
                 _ if card => "Name and folder are a close match".to_string(),
                 _ => "Matches the meaning".to_string(),
             };
+            // Spoken moments show the lines around them; video frames don't.
+            let (before, after) = if timed && !chunk.visual && chunk.text.is_some() {
+                (neighbour(&db, v.chunk, false), neighbour(&db, v.chunk, true))
+            } else {
+                (None, None)
+            };
             hits.push(Hit {
                 id: file.id,
                 chunk_id: v.chunk,
@@ -527,6 +545,8 @@ impl Engine {
                 modified: file.mtime,
                 location: chunk.label,
                 snippet: chunk.text.map(|t| snippet(&t, query)),
+                before,
+                after,
                 reason,
                 score: v.score,
                 confident: is_confident,
@@ -593,6 +613,33 @@ impl Engine {
 /// The full chunk text behind a hit (the hit only carries a snippet).
 fn passage_for(db: &rusqlite::Connection, hit: &Hit) -> Option<String> {
     db::chunk_with_file(db, hit.chunk_id).ok().flatten().and_then(|(_, c)| c.text)
+}
+
+/// The transcript chunk said just before (or after) a timed chunk in the same
+/// file, cut to its last (or first) few words. One indexed lookup per hit.
+fn neighbour(conn: &rusqlite::Connection, chunk_id: i64, after: bool) -> Option<Moment> {
+    const LEN: usize = 90;
+    let sql = if after {
+        "SELECT n.label, n.text FROM chunks c JOIN chunks n ON n.file_id = c.file_id AND n.ord > c.ord
+         WHERE c.id = ?1 AND n.visual = 0 AND n.text IS NOT NULL ORDER BY n.ord LIMIT 1"
+    } else {
+        "SELECT n.label, n.text FROM chunks c JOIN chunks n ON n.file_id = c.file_id AND n.ord < c.ord
+         WHERE c.id = ?1 AND n.visual = 0 AND n.text IS NOT NULL ORDER BY n.ord DESC LIMIT 1"
+    };
+    let (at, text): (Option<String>, String) =
+        conn.prepare_cached(sql).ok()?.query_row([chunk_id], |r| Ok((r.get(0)?, r.get(1)?))).ok()?;
+    let at = at.filter(|l| media::is_timestamp(l))?;
+    let chars: Vec<char> = text.trim().chars().collect();
+    let text = if chars.len() <= LEN {
+        chars.iter().collect()
+    } else if after {
+        let s: String = chars[..LEN].iter().collect();
+        format!("{}…", s.rsplit_once(' ').map_or(&s[..], |(a, _)| a).trim_end())
+    } else {
+        let s: String = chars[chars.len() - LEN..].iter().collect();
+        format!("…{}", s.split_once(' ').map_or(&s[..], |(_, b)| b).trim_start())
+    };
+    Some(Moment { at, text })
 }
 
 /// About 220 characters around the first query word found, else the start.

@@ -87,7 +87,7 @@ export function FoldersStep({ config, save, next, back }: StepProps) {
     </span>
   );
   const driveSub = (d: Drive) => {
-    const what = d.system ? (oneDrive ? "your user folders and OneDrive" : "your user folders") : mostly(counts[d.path]?.kinds ?? {});
+    const what = d.system ? (oneDrive ? "your user folders, OneDrive and apps" : "your user folders and apps") : mostly(counts[d.path]?.kinds ?? {});
     return what ? `${driveUsage(d)} · ${what}` : driveUsage(d);
   };
 

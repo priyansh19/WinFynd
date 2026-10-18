@@ -46,7 +46,7 @@ function Chips({ reason, kind }: { reason: Reason; kind: string }) {
       {reason.kind === "words" && <span className="chip">Words: {reason.words.join(", ")}</span>}
       {reason.kind === "words" && reason.meaning && (
         <span className="chip">
-          <Icon name="sparkle" size={12} /> Similar meaning
+          <Icon name="star" size={12} strokeWidth={1.8} /> Meaning: {reason.meaning}
         </span>
       )}
       {reason.kind === "looks" && reason.words.length > 0 && (
@@ -56,7 +56,7 @@ function Chips({ reason, kind }: { reason: Reason; kind: string }) {
       )}
       {reason.kind === "meaning" && (
         <span className="chip">
-          <Icon name="sparkle" size={12} /> Matches the meaning
+          <Icon name="star" size={12} strokeWidth={1.8} /> {reason.concept ? `Meaning: ${reason.concept}` : "Matches the meaning"}
         </span>
       )}
       {reason.kind === "name" && <span className="chip k-other">Name matches</span>}
@@ -64,19 +64,35 @@ function Chips({ reason, kind }: { reason: Reason; kind: string }) {
   );
 }
 
+/**
+ * The paper's header and text. When the passage starts the page with a short
+ * line, that's the page's own heading ("Northwind Home · Order 88412"): its
+ * first part goes on the left and the rest beside the page number. Otherwise
+ * the file's name stands in.
+ */
+function pageHead(r: SearchResult): { title: string; aside: string | null; body: string } {
+  const text = (r.snippet ?? "").replace(/\s*…$/, "");
+  const [first, ...rest] = text.split("\n");
+  const heading = r.kind === "document" && /^Page \d+$/.test(r.location ?? "") && !text.startsWith("…") && rest.length > 0 && first.trim().length <= 48 ? first.trim() : null;
+  if (!heading) return { title: r.name.replace(/\.[^.]+$/, ""), aside: r.location, body: text.replace(/^…\s*/, "") };
+  const [title, ...more] = heading.split(" · ");
+  const where = r.location && more.length ? r.location.charAt(0).toLowerCase() + r.location.slice(1) : r.location;
+  return { title, aside: [...more, where].filter(Boolean).join(" · ") || null, body: rest.join("\n").trim() };
+}
+
 /** The matching passage on a page, its words highlighted; Explorer's thumbnail when there's no text. */
 function Page({ r, words }: { r: SearchResult; words: string[] }) {
   const thumb = useShellImage(r.path, 480, true);
   if (r.snippet) {
-    const stem = r.name.replace(/\.[^.]+$/, "");
+    const { title, aside, body } = pageHead(r);
     return (
       <div className="paper">
         <div className="paper-head">
-          <b>{stem}</b>
-          {r.location && <span>{r.location}</span>}
+          <b>{title}</b>
+          {aside && <span>{aside}</span>}
         </div>
         <div className={`paper-body selectable${r.kind === "code" ? " code" : ""}`}>
-          <Marked text={r.snippet.replace(/^…\s*/, "").replace(/\s*…$/, "")} words={words} />
+          <Marked text={body} words={words} />
         </div>
       </div>
     );
@@ -103,14 +119,25 @@ function useBars(path: string, n = 96): number[] {
     return Array.from({ length: n }, (_, i) => {
       h = Math.imul(h ^ (h >>> 13), 2246822507) >>> 0;
       const swell = 0.55 + 0.45 * Math.sin(i / 7 + (h % 7));
-      return Math.max(0.25, Math.min(1, 0.28 + ((h % 1000) / 1000) * swell * 0.7));
+      return Math.max(0.15, Math.min(1, 0.15 + ((h % 1000) / 1000) * swell * 0.85));
     });
   }, [path, n]);
 }
 
-function Recording({ r, words, controls }: { r: SearchResult; words: string[]; controls: React.MutableRefObject<PreviewControls> }) {
+function Recording({
+  r,
+  words,
+  controls,
+  onDuration,
+}: {
+  r: SearchResult;
+  words: string[];
+  controls: React.MutableRefObject<PreviewControls>;
+  onDuration: (seconds: number | null) => void;
+}) {
   const audio = useRef<HTMLAudioElement>(null);
   const [duration, setDuration] = useState<number | null>(null);
+  useEffect(() => onDuration(duration), [duration]);
   const [playing, setPlaying] = useState(false);
   const at = secondsOf(r.location) ?? 0;
   const src = mediaUrl(r);
@@ -165,10 +192,22 @@ function Recording({ r, words, controls }: { r: SearchResult; words: string[]; c
       </div>
       {r.snippet && (
         <div className="transcript selectable">
+          {r.before && (
+            <>
+              <span className="at ctx">{r.before.at}</span>
+              <span className="ctx">{r.before.text}</span>
+            </>
+          )}
           <span className="at hit">{r.location}</span>
           <span>
             <Marked text={r.snippet.replace(/^…\s*/, "").replace(/\s*…$/, "")} words={words} />
           </span>
+          {r.after && (
+            <>
+              <span className="at ctx">{r.after.at}</span>
+              <span className="ctx">{r.after.text}</span>
+            </>
+          )}
         </div>
       )}
     </>
@@ -220,7 +259,11 @@ export function Preview({
   const words = queryWords(query);
   const reason = reasonOf(r, query);
   const [dims, setDims] = useState<string | null>(null);
-  useEffect(() => setDims(null), [r.path]);
+  const [length, setLength] = useState<number | null>(null);
+  useEffect(() => {
+    setDims(null);
+    setLength(null);
+  }, [r.path]);
   const timed = isTimestamp(r.location);
   const media = mediaUrl(r);
 
@@ -229,7 +272,7 @@ export function Preview({
       {r.kind === "image" ? (
         <Photo r={r} onSize={setDims} />
       ) : r.kind === "audio" ? (
-        <Recording r={r} words={words} controls={controls} />
+        <Recording r={r} words={words} controls={controls} onDuration={setLength} />
       ) : r.kind === "video" && media ? (
         <Clip src={media} controls={controls} />
       ) : (
@@ -256,7 +299,10 @@ export function Preview({
         ) : r.kind === "audio" ? (
           <>
             <dt>Recorded</dt>
-            <dd>{when(r.modified)}</dd>
+            <dd>
+              {when(r.modified)}
+              {length !== null && ` · ${clock(length)}`}
+            </dd>
             <dt>Folder</dt>
             <dd className="selectable" title={r.path}>
               {folderOf(r.path)}

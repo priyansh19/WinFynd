@@ -1,4 +1,4 @@
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { FileIcon } from "../components/FileIcon";
 import { kindClass } from "../lib/kinds";
 import { excerpt, isTimestamp, queryWords, reasonOf } from "../lib/match";
@@ -12,12 +12,13 @@ function metaLine(r: SearchResult, query: string): { lead: string | null; text: 
   if (reason.kind === "looks") {
     return { lead: r.kind === "image" ? "Looks like" : `Shown at ${r.location ?? ""}`.trim(), text: words.join(", ") || null };
   }
-  const line = excerpt(r.snippet, words);
-  if (isTimestamp(r.location)) return { lead: `Said at ${r.location}`, text: line };
-  if (r.location) return { lead: r.location, text: line };
-  if (line) return { lead: null, text: line };
-  return { lead: folderOf(r.path), text: null };
+  const lead = isTimestamp(r.location) ? `Said at ${r.location}` : (r.location ?? (r.snippet ? "Mentions" : null));
+  if (!lead) return { lead: folderOf(r.path), text: null };
+  // About 46 characters fit the row at 12px; the lead and its " · " come first.
+  return { lead, text: excerpt(r.snippet, words, Math.max(16, LINE_CHARS - lead.length - 3)) };
 }
+
+const LINE_CHARS = 46;
 
 function Row({
   r,
@@ -58,7 +59,7 @@ function Row({
         </span>
         <span className="m ellip" title={r.path}>
           {lead}
-          {lead && text && (r.kind === "image" ? " " : " · ")}
+          {lead && text && (r.kind === "image" || lead === "Mentions" ? " " : " · ")}
           {text && <em>{text}</em>}
         </span>
       </div>
@@ -108,8 +109,30 @@ export function ResultList({
     document.getElementById(`result-${selected}`)?.scrollIntoView({ block: "nearest" });
   }, [selected, results]);
 
+  // One highlight that slides to the selected row; new results start it afresh, in place.
+  const [mark, setMark] = useState<{ gen: number; top: number; left: number; width: number; height: number } | null>(null);
+  const shown = useRef(results);
+  const gen = useRef(0);
+  if (shown.current !== results) {
+    shown.current = results;
+    gen.current++;
+  }
+  useLayoutEffect(() => {
+    const el = document.getElementById(`result-${selected}`);
+    const row = el?.classList.contains("row");
+    setMark(el && row ? { gen: gen.current, top: el.offsetTop, left: el.offsetLeft, width: el.offsetWidth, height: el.offsetHeight } : null);
+  }, [selected, results]);
+
   return (
     <div className="llist" id="results" role="listbox" aria-label="Results">
+      {mark?.gen === gen.current && (
+        <div
+          key={mark.gen}
+          className="lmark"
+          aria-hidden="true"
+          style={{ transform: `translateY(${mark.top}px)`, left: mark.left, width: mark.width, height: mark.height }}
+        />
+      )}
       {groupResults(results).map((g) => {
         const grid = g.key === "image" && g.items.length >= PHOTO_GRID_MIN;
         return (

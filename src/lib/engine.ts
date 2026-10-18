@@ -48,6 +48,8 @@ export interface MediaSupport {
   speechModels: SpeechModel[];
   /** Where FFmpeg was found, or null. */
   ffmpeg: string | null;
+  /** FFmpeg's version, such as "7.1", or null. */
+  ffmpegVersion: string | null;
 }
 
 export interface SpeechProgress {
@@ -186,6 +188,7 @@ stubCommands({
       { id: "large-v3-turbo-q5_0", label: "Whisper Large v3 Turbo", sizeMb: 574, note: "Most accurate; slower on CPU", installed: false },
     ],
     ffmpeg: "C:\\ffmpeg\\bin\\ffmpeg.exe",
+    ffmpegVersion: "7.1",
   }),
   download_speech_model: () => undefined,
 });

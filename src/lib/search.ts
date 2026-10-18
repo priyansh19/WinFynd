@@ -16,9 +16,18 @@ export interface SearchResult {
   /** "Page 3", "Slide 7", "Sheet Q1"… */
   location: string | null;
   snippet: string | null;
+  /** For a moment in a recording, the transcript lines just before and after it. */
+  before?: Moment | null;
+  after?: Moment | null;
   reason: string;
   /** False for weaker matches, listed after the confident ones. */
   confident: boolean;
+}
+
+/** A line of transcript: when it was said ("12:01") and a short piece of what. */
+export interface Moment {
+  at: string;
+  text: string;
 }
 
 /** A filter the engine read from the query, like "Photos" from "photo of". */
