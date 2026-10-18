@@ -3,6 +3,7 @@ mod diag;
 mod engine;
 mod hotkeys;
 mod native;
+mod onboarding;
 mod windows;
 
 use std::sync::Arc;
@@ -22,6 +23,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(HotkeyState::default())
         .invoke_handler(tauri::generate_handler![
             hotkeys::get_hotkeys,
@@ -44,6 +46,9 @@ pub fn run() {
             commands::download_speech_model,
             commands::open_path,
             commands::reveal_path,
+            onboarding::finish_onboarding,
+            onboarding::open_ollama_download,
+            onboarding::try_launcher,
         ])
         .setup(|app| {
             let handle = app.handle();
@@ -72,9 +77,10 @@ pub fn run() {
 
             let open = MenuItem::with_id(app, "open", "Open WinFynd", true, None::<&str>)?;
             let control = MenuItem::with_id(app, "control", "Settings", true, None::<&str>)?;
+            let setup = MenuItem::with_id(app, "setup", "Run setup again", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit WinFynd", true, None::<&str>)?;
             let sep = PredefinedMenuItem::separator(app)?;
-            let menu = Menu::with_items(app, &[&open, &control, &sep, &quit])?;
+            let menu = Menu::with_items(app, &[&open, &control, &setup, &sep, &quit])?;
 
             let mut tray = TrayIconBuilder::with_id("main")
                 .tooltip("WinFynd")
@@ -83,6 +89,7 @@ pub fn run() {
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "open" => windows::show_launcher(app),
                     "control" => windows::show_control_center(app),
+                    "setup" => onboarding::show(app),
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -101,6 +108,8 @@ pub fn run() {
             }
             tray.build(app)?;
 
+            onboarding::show_first_window(handle);
+
             Ok(())
         })
         .on_window_event(|window, event| match (window.label(), event) {
@@ -108,8 +117,9 @@ pub fn run() {
             ("launcher", WindowEvent::Focused(false)) => {
                 let _ = window.hide();
             }
-            // Closing the Control Center keeps WinFynd running in the tray.
-            ("control", WindowEvent::CloseRequested { api, .. }) => {
+            // Closing Settings keeps WinFynd running in the tray.
+            // Closing setup early keeps it for next launch; the tray can reopen it.
+            ("control" | "onboarding", WindowEvent::CloseRequested { api, .. }) => {
                 api.prevent_close();
                 let _ = window.hide();
             }

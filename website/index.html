@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WinFynd</title>
+<meta name="description" content="On-device AI search for Windows. WinFynd indexes documents, photos, recordings and video as they land and finds them from a description. Nothing leaves your PC.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:ital,opsz,wght@0,12..96,400..700;1,12..96,400..600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header class="top" id="top-bar">
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <span class="logo" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span>
+      WinFynd
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#index">Live index</a>
+      <a href="#formats">Multimodal</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#setup">Setup</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-bloom btn-sm" href="https://github.com/priyansh19/WinFynd/releases">Download</a>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="hero-glow" aria-hidden="true"></div>
+    <div class="wrap">
+      <div class="hero-head">
+        <h1>
+          <span class="line"><span>Ask your PC for</span></span>
+          <span class="line"><span class="swapper" id="swapper" aria-live="polite">
+            <span class="on">the sofa receipt.</span>
+            <span>that beach photo.</span>
+            <span>the budget call.</span>
+            <span>your lease date.</span>
+            <span>the cabin Wi-Fi.</span>
+          </span></span>
+        </h1>
+        <div class="hero-side">
+          <p class="lead">WinFynd indexes documents, photos, recordings and video the moment they land, then finds them from a description. On-device AI, no cloud, no account.</p>
+          <div class="hero-cta">
+          <div class="hero-actions">
+            <a class="btn btn-bloom" href="https://github.com/priyansh19/WinFynd/releases">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+              Download for Windows
+            </a>
+            <a class="btn" href="https://github.com/priyansh19/WinFynd">Source on GitHub</a>
+          </div>
+          <p class="hero-note"><kbd>Alt</kbd><kbd>Space</kbd> from any app. Windows 10 and 11.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage-wrap">
+        <div class="stage" id="stage">
+          <canvas class="wall" id="wall" aria-hidden="true"></canvas>
+          <div class="desk-icons" aria-hidden="true">
+            <div class="desk-icon"><i style="background:linear-gradient(#e8edf5,#b9c4d6)"></i>This PC</div>
+            <div class="desk-icon"><i style="background:linear-gradient(#ffd56b,#e7a92a)"></i>Projects</div>
+            <div class="desk-icon"><i style="background:linear-gradient(#ffd56b,#e7a92a)"></i>Taxes 2025</div>
+          </div>
+
+          <div class="launcher" id="launcher" role="region" aria-label="WinFynd launcher demo">
+            <div class="l-search">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+              <span class="l-query"><span id="q"></span><span class="caret" aria-hidden="true"></span></span>
+              <span class="l-mode" aria-hidden="true"><span id="mode-search" class="on">SEARCH</span><span id="mode-ask">ASK</span></span>
+            </div>
+            <div class="l-body" id="body"></div>
+            <div class="l-foot">
+              <span><kbd>↵</kbd> Open</span>
+              <span class="hide-sm"><kbd>Ctrl</kbd> <kbd>↵</kbd> Show in folder</span>
+              <span class="hide-sm"><kbd>Tab</kbd> Ask</span>
+              <span class="l-stats" id="stats"></span>
+            </div>
+          </div>
+
+          <div class="taskbar" aria-hidden="true">
+            <span class="tb-btn"><svg width="18" height="18" viewBox="0 0 24 24"><rect x="2" y="2" width="9.5" height="9.5" fill="#4cc2ff"/><rect x="12.5" y="2" width="9.5" height="9.5" fill="#4cc2ff"/><rect x="2" y="12.5" width="9.5" height="9.5" fill="#4cc2ff"/><rect x="12.5" y="12.5" width="9.5" height="9.5" fill="#4cc2ff"/></svg></span>
+            <span class="tb-btn"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="#f5c443"/></svg></span>
+            <span class="tb-btn"><svg width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#2b88d8"/><path d="M6 12a6 6 0 0 1 12 0" stroke="#7fe0ff" stroke-width="3" fill="none"/></svg></span>
+            <span class="tb-btn"><svg width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3" fill="#5b5fc7"/><path d="M8 9h8M12 9v7" stroke="#fff" stroke-width="2"/></svg></span>
+            <span class="tb-btn active"><span class="logo" style="width:20px;height:20px;border-radius:6px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span></span>
+            <span class="tb-tray"><span class="tray-wf"></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M2 9a15 15 0 0 1 20 0M5 13a10 10 0 0 1 14 0M8.5 16.5a5 5 0 0 1 7 0"/></svg><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 9v6h4l5 4V5L8 9z"/></svg></span>
+            <span class="tb-clock" id="clock">9:41 AM<br>18/10/2026</span>
+          </div>
+        </div>
+
+        <div class="chips" id="chips">
+          <span class="chips-label">Try</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="index">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="eyebrow">Live index</span>
+        <h2>Searchable the moment it <em>lands</em>.</h2>
+        <p class="lead">Save a PDF, drop photos off your phone, finish a Teams call. WinFynd hears about it from Windows, reads it, and has it in your results seconds later. Files that haven't changed are never read twice.</p>
+      </div>
+      <div class="pipe">
+        <div class="panel rv">
+          <div class="panel-head"><span class="dot"></span>indexer · watching 4 folders<span class="r" id="count">51,204 files</span></div>
+          <div class="log" id="log" aria-hidden="true"></div>
+        </div>
+        <div class="panel rv d1">
+          <div class="flow" id="flow">
+            <div class="flow-step"><span class="beam"></span><span class="flow-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><div><h3>Detected</h3><p>Windows change notifications flag every save, download and sync. No polling, no battery drain.</p><span class="tag">ReadDirectoryChangesW</span></div></div>
+            <div class="flow-step"><span class="beam"></span><span class="flow-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3h9l4 4v14H6z M9 12h7M9 16h5"/></svg></span><div><h3>Read</h3><p>Text with page and slide labels, the pixels of photos and video frames, and speech transcribed by Whisper.</p><span class="tag">Passages split along sentences and headings</span></div></div>
+            <div class="flow-step"><span class="beam"></span><span class="flow-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg></span><div><h3>Understood</h3><p>EmbeddingGemma 2 places words and images in one space, so a sentence can match a photograph.</p><span class="tag">768-dimension vectors, on your GPU or CPU</span></div></div>
+            <div class="flow-step"><span class="beam"></span><span class="flow-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span><div><h3>Searchable</h3><p>Ranking blends meaning with exact-word full-text search, then explains each match.</p><span class="tag">SQLite + FTS5, stored in your profile</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="formats">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="eyebrow">Multimodal</span>
+        <h2>Text, pixels and sound in <em>one</em> index.</h2>
+        <p class="lead">Every result tells you why it matched and opens at the right spot: the page, the slide, the second a sentence was spoken, the frame a dog ran across.</p>
+      </div>
+      <div class="tabs rv" id="tabs">
+        <div class="tab-list" role="tablist" aria-label="File types"></div>
+        <div class="tab-view" id="tab-view" role="tabpanel"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="privacy">
+    <div class="wrap privacy">
+      <div>
+        <div class="sec-head rv" style="margin-bottom:32px">
+          <span class="eyebrow">Privacy</span>
+          <h2>Private by <em>architecture</em>.</h2>
+          <p class="lead">WinFynd has no servers to send your data to. During search, the only connection it makes is to Ollama on 127.0.0.1.</p>
+        </div>
+        <ul class="promises rv d1">
+          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span><b>No account, no telemetry</b>Nothing to sign in to, and no usage data collected.</span></li>
+          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span><b>Your index is a file you own</b>One SQLite database in your Windows profile. Delete it and it's gone.</span></li>
+          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span><b>Works with the network off</b>Models download once, when you choose them. Then it runs offline.</span></li>
+        </ul>
+      </div>
+      <div class="diagram rv d2" aria-label="Diagram: WinFynd talks only to Ollama on the same PC; the internet path is blocked">
+        <svg viewBox="0 0 460 400" role="img">
+          <ellipse class="orbit" cx="200" cy="235" rx="150" ry="95"/>
+          <g>
+            <rect class="pc" x="120" y="180" width="160" height="110" rx="14"/>
+            <text class="th" x="200" y="222" text-anchor="middle">Your PC</text>
+            <text class="t" x="200" y="244" text-anchor="middle">WinFynd · index.db</text>
+            <text class="t" x="200" y="264" text-anchor="middle">files never leave</text>
+          </g>
+          <g>
+            <rect class="box" x="300" y="300" width="140" height="56" rx="12"/>
+            <text class="th" x="370" y="324" text-anchor="middle">Ollama</text>
+            <text class="t" x="370" y="343" text-anchor="middle">127.0.0.1:11434</text>
+          </g>
+          <g>
+            <rect class="box" x="20" y="300" width="140" height="56" rx="12"/>
+            <text class="th" x="90" y="324" text-anchor="middle">Whisper</text>
+            <text class="t" x="90" y="343" text-anchor="middle">built into the app</text>
+          </g>
+          <path class="cloud" d="M330 90a26 26 0 0 1 50-8a20 20 0 0 1 32 22a18 18 0 0 1-8 34h-80a24 24 0 0 1 6-48z"/>
+          <text class="t" x="368" y="160" text-anchor="middle">the internet</text>
+          <path class="blocked" d="M262 180 C 290 150, 310 140, 330 132"/>
+          <path class="x" d="M288 146l14 14M302 146l-14 14"/>
+          <circle class="packet" r="5"><animateMotion dur="5s" repeatCount="indefinite" path="M50 235a150 95 0 1 0 300 0a150 95 0 1 0 -300 0"/></circle>
+          <circle class="packet" r="4" opacity="0.7"><animateMotion dur="5s" begin="-1.7s" repeatCount="indefinite" path="M50 235a150 95 0 1 0 300 0a150 95 0 1 0 -300 0"/></circle>
+          <circle class="packet" r="3" opacity="0.5"><animateMotion dur="5s" begin="-3.4s" repeatCount="indefinite" path="M50 235a150 95 0 1 0 300 0a150 95 0 1 0 -300 0"/></circle>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="keys">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="eyebrow">Shortcuts</span>
+        <h2>Built for the <em>keyboard</em>.</h2>
+        <p class="lead">Global hotkeys work over any app, even full screen. Rebind any of them during setup or in the Control Center.</p>
+      </div>
+      <div class="keys">
+        <div class="key rv"><div class="key-caps" data-combo><span class="cap">Alt</span><span class="cap">Space</span></div><div><h3>Search</h3><p>Opens the launcher over whatever you're doing. Esc puts it away.</p></div></div>
+        <div class="key rv d1"><div class="key-caps" data-combo><span class="cap">Ctrl</span><span class="cap">Alt</span><span class="cap">Space</span></div><div><h3>Ask</h3><p>Answers questions from your own files, with numbered sources you can open.</p></div></div>
+        <div class="key rv"><div class="key-caps" data-combo><span class="cap">Win</span><span class="cap">Shift</span><span class="cap">F</span></div><div><h3>Search the selection</h3><p>Highlight text in any app and find every file related to it.</p></div></div>
+        <div class="key rv d1"><div class="key-caps" data-combo><span class="cap">Alt</span><span class="cap">Shift</span><span class="cap">Space</span></div><div><h3>Voice</h3><p>Hold to talk or tap to toggle. Speech is processed on your PC.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="setup">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="eyebrow">Setup</span>
+        <h2>Two minutes from install to <em>first search</em>.</h2>
+        <p class="lead">This is the welcome window WinFynd opens on first run. It sets up everything above, then gets out of the way.</p>
+      </div>
+      <div class="setup" id="setup-flow">
+        <ol class="steps rv">
+          <li class="step" aria-current="step"><span class="n">1</span><div><h3>Welcome</h3><p>What WinFynd does with your files, and what it never does.</p></div><span class="prog"></span></li>
+          <li class="step"><span class="n">2</span><div><h3>What to search</h3><p>Documents, Desktop, Downloads and Pictures come pre-selected. Add folders, or switch off photos and video.</p></div><span class="prog"></span></li>
+          <li class="step"><span class="n">3</span><div><h3>Search by meaning</h3><p>Detects Ollama, then downloads EmbeddingGemma 2 in the size that suits your PC.</p></div><span class="prog"></span></li>
+          <li class="step"><span class="n">4</span><div><h3>Shortcuts</h3><p>Try Alt+Space on the spot, or record your own combination.</p></div><span class="prog"></span></li>
+          <li class="step"><span class="n">5</span><div><h3>Warm-up</h3><p>Watch the model download and your files index, or close the window. WinFynd finishes in the tray and tells you when it's ready.</p></div><span class="prog"></span></li>
+        </ol>
+        <div class="window rv d1">
+          <div class="win-bar"><span class="logo" style="width:16px;height:16px;border-radius:4px"></span>Welcome to WinFynd<span class="ctl"><span>&#8212;</span><span>&#10005;</span></span></div>
+          <div class="shots" id="shots">
+            <img class="on" src="assets/setup-1-welcome.webp" alt="Setup step 1: Welcome to WinFynd" width="1200" height="800">
+            <img src="assets/setup-2-folders.webp" alt="Setup step 2: choose folders" width="1200" height="800" loading="lazy">
+            <img src="assets/setup-3-models.webp" alt="Setup step 3: search model" width="1200" height="800" loading="lazy">
+            <img src="assets/setup-4-shortcuts.webp" alt="Setup step 4: shortcuts" width="1200" height="800" loading="lazy">
+            <img src="assets/setup-5-warmup.webp" alt="Setup step 5: warm-up" width="1200" height="800" loading="lazy">
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="faq">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="eyebrow">FAQ</span>
+        <h2>The details.</h2>
+      </div>
+      <div class="faq rv" id="faq-list">
+        <div class="qa"><button type="button" aria-expanded="false">Does WinFynd need an internet connection?<span class="pm" aria-hidden="true"></span></button><div class="a"><div><p>Only to download models the first time. Indexing, search and answers all run on your PC, and WinFynd keeps working with Wi-Fi off.</p></div></div></div>
+        <div class="qa"><button type="button" aria-expanded="false">What is Ollama, and why does WinFynd use it?<span class="pm" aria-hidden="true"></span></button><div class="a"><div><p>Ollama is a free, open-source runtime for AI models on your own hardware. WinFynd uses it to run EmbeddingGemma 2 for search and any chat model you pick for answers. Without it, WinFynd still finds files by exact words and names.</p></div></div></div>
+        <div class="qa"><button type="button" aria-expanded="false">How long does the first index take?<span class="pm" aria-hidden="true"></span></button><div class="a"><div><p>It depends on how much you have. Documents and photos go first, so search is useful within minutes. Recordings and videos are transcribed last because they take the longest. After that, only new or changed files are read.</p></div></div></div>
+        <div class="qa"><button type="button" aria-expanded="false">Does it work with OneDrive?<span class="pm" aria-hidden="true"></span></button><div class="a"><div><p>Yes. Downloaded files are indexed in full. Cloud-only files are found by name until you open them, so WinFynd never pulls gigabytes from OneDrive on its own.</p></div></div></div>
+        <div class="qa"><button type="button" aria-expanded="false">How much disk space does it need?<span class="pm" aria-hidden="true"></span></button><div class="a"><div><p>EmbeddingGemma 2 is 1.3 GB, or 0.7 GB and 0.3 GB for the lighter variants. Whisper adds 150 to 575 MB if you search recordings.</p></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" style="padding-top:40px">
+    <div class="wrap">
+      <div class="cta rv">
+        <div>
+          <h2>Give your PC a memory.</h2>
+          <p>Free and open source. Install it, pick your folders, and search while it indexes.</p>
+          <p class="req">Windows 10/11 · 64-bit · 8 GB RAM recommended · Ollama</p>
+        </div>
+        <a class="btn btn-bloom" href="https://github.com/priyansh19/WinFynd/releases">Download for Windows</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 WinFynd</span>
+    <span>Built with Rust and Tauri · <a href="https://github.com/priyansh19/WinFynd">GitHub</a></span>
+  </div>
+</footer>
+<script src="site.js"></script>
+</body>
+</html>

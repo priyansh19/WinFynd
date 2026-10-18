@@ -1,10 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions for the launcher and Control Center windows",
+  "description": "Permissions for the launcher, Control Center and setup windows",
   "windows": [
     "launcher",
-    "control"
+    "control",
+    "onboarding"
   ],
   "permissions": [
     "core:default",

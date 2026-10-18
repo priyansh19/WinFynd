@@ -1,0 +1,266 @@
+/* First-run setup, styled after Windows 11 setup and Settings: Mica-like
+   surface, layered cards, 4px controls, accent button on the right. It follows
+   the system light or dark theme. */
+
+.ob {
+  --ob-bg: #f3f3f3;
+  --ob-rail: #ebebeb;
+  --ob-card: rgba(255, 255, 255, 0.7);
+  --ob-card-hover: rgba(249, 249, 249, 0.9);
+  --ob-stroke: rgba(0, 0, 0, 0.0578);
+  --ob-stroke-strong: rgba(0, 0, 0, 0.14);
+  --ob-control: rgba(255, 255, 255, 0.7);
+  --ob-control-hover: rgba(249, 249, 249, 0.5);
+  --ob-text: rgba(0, 0, 0, 0.896);
+  --ob-text-2: rgba(0, 0, 0, 0.606);
+  --ob-text-3: rgba(0, 0, 0, 0.45);
+  --ob-accent: #2569d8;
+  --ob-accent-hover: #2f74e0;
+  --ob-on-accent: #fff;
+  --ob-accent-soft: rgba(37, 105, 216, 0.1);
+  --ob-ok: #0f7b0f;
+  --ob-danger: #c42b1c;
+  --ob-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ob {
+    --ob-bg: #202020;
+    --ob-rail: #1c1c1c;
+    --ob-card: rgba(255, 255, 255, 0.0512);
+    --ob-card-hover: rgba(255, 255, 255, 0.0837);
+    --ob-stroke: rgba(255, 255, 255, 0.0698);
+    --ob-stroke-strong: rgba(255, 255, 255, 0.14);
+    --ob-control: rgba(255, 255, 255, 0.0605);
+    --ob-control-hover: rgba(255, 255, 255, 0.0837);
+    --ob-text: #fff;
+    --ob-text-2: rgba(255, 255, 255, 0.786);
+    --ob-text-3: rgba(255, 255, 255, 0.545);
+    --ob-accent: #7cb0ff;
+    --ob-accent-hover: #93bdff;
+    --ob-on-accent: #001433;
+    --ob-accent-soft: rgba(124, 176, 255, 0.14);
+    --ob-ok: #6ccb5f;
+    --ob-danger: #ff99a4;
+    --ob-shadow: none;
+    color-scheme: dark;
+  }
+}
+
+body:has(.ob) { background: var(--ob-bg, #202020); }
+
+.ob {
+  height: 100%;
+  display: flex;
+  background: var(--ob-bg);
+  color: var(--ob-text);
+  font: 14px/20px var(--font-sans);
+  user-select: none;
+}
+.ob :focus-visible { outline: 2px solid var(--ob-text); outline-offset: 1px; border-radius: 4px; }
+
+/* Left rail: where you are in setup. */
+.ob-rail {
+  flex: none;
+  width: 248px;
+  padding: 24px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  background: var(--ob-rail);
+  border-right: 1px solid var(--ob-stroke);
+}
+.ob-brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; font-weight: 600; font-size: 14px; }
+.ob-mark {
+  width: 28px; height: 28px; display: grid; place-items: center; border-radius: 7px;
+  background: linear-gradient(135deg, #2569d8, #5b8ff0); color: #fff;
+}
+.ob-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.ob-step {
+  position: relative;
+  display: flex; align-items: center; gap: 12px;
+  height: 40px; padding: 0 8px; border-radius: 4px;
+  color: var(--ob-text-3);
+}
+.ob-step[data-state="done"] { color: var(--ob-text-2); }
+.ob-step[data-state="current"] { color: var(--ob-text); font-weight: 600; background: var(--ob-control); }
+.ob-step[data-state="current"]::before {
+  content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 2px; background: var(--ob-accent);
+}
+.ob-step-dot {
+  width: 22px; height: 22px; flex: none; display: grid; place-items: center; border-radius: 50%;
+  border: 1px solid var(--ob-stroke-strong); font-size: 11px; font-weight: 600;
+}
+.ob-step[data-state="current"] .ob-step-dot { border-color: var(--ob-accent); color: var(--ob-accent); }
+.ob-step[data-state="done"] .ob-step-dot { background: var(--ob-accent); border-color: var(--ob-accent); color: var(--ob-on-accent); }
+.ob-rail-foot { margin: auto 0 0; padding: 0 8px; display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 16px; color: var(--ob-text-2); }
+.ob-rail-foot svg { flex: none; margin-top: 1px; }
+
+/* Step content. */
+.ob-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 32px 40px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  animation: ob-in 0.25s cubic-bezier(0, 0, 0, 1);
+}
+@keyframes ob-in { from { opacity: 0; transform: translateX(12px); } }
+@media (prefers-reduced-motion: reduce) { .ob-main { animation: none; } }
+
+.ob-header { display: flex; flex-direction: column; gap: 6px; }
+.ob-header h1 { margin: 0; font: 600 26px/34px "Segoe UI Variable Display", var(--font-sans); }
+.ob-header p { margin: 0; color: var(--ob-text-2); max-width: 560px; }
+.ob-section { display: flex; flex-direction: column; gap: 8px; }
+.ob-section h2 { margin: 0; font-size: 14px; font-weight: 600; }
+.ob-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ob-muted { font-size: 12px; line-height: 16px; color: var(--ob-text-2); }
+.ob-center { text-align: center; margin: 0; }
+.ob-error { margin: 0; font-size: 12px; color: var(--ob-danger); }
+.ob-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ob-push { margin-left: auto; }
+.ob-footnote { margin: 0; text-align: right; }
+
+.ob-card {
+  background: var(--ob-card);
+  border: 1px solid var(--ob-stroke);
+  border-radius: 8px;
+  box-shadow: var(--ob-shadow);
+}
+.ob-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ob-row { display: flex; align-items: center; gap: 16px; padding: 10px 16px; min-height: 56px; }
+.ob-list .ob-row + .ob-row { border-top: 1px solid var(--ob-stroke); }
+.ob-row[aria-disabled="true"] .ob-row-title { color: var(--ob-text-3); }
+.ob-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ob-row-title { font-weight: 400; }
+.ob-row-icon { color: var(--ob-accent); display: grid; }
+.ob-hotkey { display: flex; align-items: center; gap: 12px; }
+
+/* Buttons, after WinUI: 32px, 4px radius, accent for the main action. */
+.ob-btn {
+  height: 32px;
+  min-width: 96px;
+  padding: 0 12px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border-radius: 4px;
+  border: 1px solid var(--ob-stroke);
+  border-bottom-color: var(--ob-stroke-strong);
+  background: var(--ob-control);
+  color: var(--ob-text);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.ob-btn:hover:not(:disabled) { background: var(--ob-control-hover); }
+.ob-btn:active:not(:disabled) { color: var(--ob-text-2); }
+.ob-btn:disabled { color: var(--ob-text-3); cursor: default; }
+.ob-btn-accent { background: var(--ob-accent); border-color: transparent; color: var(--ob-on-accent); font-weight: 600; }
+.ob-btn-accent:hover:not(:disabled) { background: var(--ob-accent-hover); }
+.ob-btn-accent:disabled { background: var(--ob-stroke-strong); color: var(--ob-text-3); }
+.ob-btn-subtle { background: transparent; border-color: transparent; color: var(--ob-text); }
+
+/* Shared controls from the Control Center, recoloured for the system theme. */
+.ob .btn { height: 32px; border-radius: 4px; background: var(--ob-control); border: 1px solid var(--ob-stroke); color: var(--ob-text); font-weight: 400; font-size: 14px; }
+.ob .btn-primary { background: var(--ob-accent); color: var(--ob-on-accent); font-weight: 600; border-color: transparent; }
+.ob .keycap { color: var(--ob-text); background: var(--ob-control); border-color: var(--ob-stroke-strong); font: 600 12px var(--font-sans); padding: 3px 8px; border-radius: 4px; }
+.ob .toggle { width: 40px; height: 20px; padding: 0 3px; align-items: center; background: transparent; border: 1px solid var(--ob-text-2); }
+.ob .toggle .toggle-knob { width: 12px; height: 12px; background: var(--ob-text-2); }
+.ob .toggle[aria-checked="true"] { background: var(--ob-accent); border-color: var(--ob-accent); }
+.ob .toggle[aria-checked="true"] .toggle-knob { background: var(--ob-on-accent); }
+.ob .segmented { background: var(--ob-control); border: 1px solid var(--ob-stroke); border-radius: 6px; padding: 2px; }
+.ob .segmented-option { height: 28px; border-radius: 4px; color: var(--ob-text-2); font-size: 13px; }
+.ob .segmented-option[aria-checked="true"] { background: var(--ob-accent); color: var(--ob-on-accent); }
+.ob .recorder-field { border-color: var(--ob-accent); background: var(--ob-accent-soft); border-radius: 4px; }
+.ob .recorder-label { color: var(--ob-text-2); }
+
+/* Folder checkboxes. */
+.ob-check { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; cursor: pointer; }
+.ob-check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ob-checkbox {
+  width: 20px; height: 20px; flex: none; display: grid; place-items: center; border-radius: 4px;
+  border: 1px solid var(--ob-text-2); color: transparent;
+}
+.ob-check input:checked + .ob-checkbox { background: var(--ob-accent); border-color: var(--ob-accent); color: var(--ob-on-accent); }
+.ob-check input:focus-visible + .ob-checkbox { outline: 2px solid var(--ob-text); outline-offset: 1px; }
+
+/* Welcome. */
+.ob-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding-top: 12px; }
+.ob-hero-mark {
+  width: 72px; height: 72px; display: grid; place-items: center; border-radius: 18px; margin-bottom: 6px;
+  background: linear-gradient(135deg, #2569d8, #5b8ff0 60%, #f0a040); color: #fff;
+  box-shadow: 0 8px 24px rgba(37, 105, 216, 0.35);
+}
+.ob-hero h1 { margin: 0; font: 600 32px/40px "Segoe UI Variable Display", var(--font-sans); }
+.ob-hero p { margin: 0; max-width: 520px; color: var(--ob-text-2); }
+.ob-promises { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.ob-promise { padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+.ob-promise-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; background: var(--ob-accent-soft); color: var(--ob-accent); margin-bottom: 4px; }
+.ob-promise-title { font-weight: 600; }
+
+/* Models. */
+.ob-callout { display: flex; align-items: center; gap: 16px; padding: 16px; flex-wrap: wrap; }
+.ob-callout-icon { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 8px; background: var(--ob-accent-soft); color: var(--ob-accent); }
+.ob-callout-icon[data-done] { color: var(--ob-ok); background: transparent; border: 1px solid var(--ob-stroke-strong); }
+.ob-callout-actions { display: flex; gap: 8px; align-items: center; }
+.ob-choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ob-choice { padding: 12px; display: flex; flex-direction: column; gap: 4px; text-align: left; color: inherit; font: inherit; }
+.ob-choice:hover:not(:disabled) { background: var(--ob-card-hover); }
+.ob-choice[aria-checked="true"] { border-color: var(--ob-accent); box-shadow: inset 0 0 0 1px var(--ob-accent); }
+.ob-choice:disabled { cursor: default; }
+.ob-choice-head { display: flex; align-items: center; gap: 8px; }
+.ob-radio { width: 18px; height: 18px; flex: none; border-radius: 50%; border: 1px solid var(--ob-text-2); }
+.ob-choice[aria-checked="true"] .ob-radio { border: 5px solid var(--ob-accent); }
+.ob-ready { display: inline-flex; align-items: center; gap: 6px; color: var(--ob-ok); font-weight: 600; min-width: 96px; justify-content: center; }
+.ob-progress { display: block; height: 4px; margin-top: 8px; border-radius: 2px; background: var(--ob-stroke-strong); overflow: hidden; }
+.ob-progress-fill { display: block; height: 100%; border-radius: 2px; background: var(--ob-accent); transition: width 0.3s; }
+
+/* Shortcuts. */
+.ob-try { display: flex; align-items: center; gap: 16px; padding: 16px 20px; flex-wrap: wrap; }
+.ob-try-keys { margin: 6px 0; }
+.ob-try-keys .keycap { font-size: 18px; padding: 8px 14px; border-bottom-width: 3px; border-radius: 6px; }
+
+/* Done. */
+.ob-ideas { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.ob-idea {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px;
+  background: var(--ob-card); border: 1px solid var(--ob-stroke); color: var(--ob-text-2);
+}
+.ob-idea svg { color: var(--ob-accent); flex: none; }
+.ob-tray { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; }
+
+/* Warm-up: checklist with a quiet feed of files in the corner. */
+.ob-warm-icon { width: 24px; height: 24px; flex: none; display: grid; place-items: center; border-radius: 50%; color: var(--ob-on-accent); }
+.ob-warm-row[data-state="done"] .ob-warm-icon { background: var(--ob-ok); }
+.ob-warm-row[data-state="wait"] .ob-row-title { color: var(--ob-text-2); }
+.ob-ring { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ob-stroke-strong); border-top-color: var(--ob-accent); animation: ob-spin 0.9s linear infinite; }
+.ob-wait { width: 14px; height: 14px; border-radius: 50%; border: 1.5px dashed var(--ob-text-3); }
+@keyframes ob-spin { to { transform: rotate(1turn); } }
+.ob-inline { margin-top: 8px; align-self: flex-start; }
+.ob-warm-row .ob-muted { display: flex; flex-direction: column; }
+.ob-drops { flex: none; width: 210px; display: flex; flex-direction: column; gap: 3px; align-self: center; }
+.ob-drop {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  padding: 3px 8px; border-radius: 4px; font-size: 11px; color: var(--ob-text-2);
+  background: var(--ob-control); border: 1px solid var(--ob-stroke);
+  animation: ob-drop-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: opacity 0.4s;
+}
+.ob-drop:first-child { color: var(--ob-text); }
+.ob-drop-kind { flex: none; font: 600 9px var(--font-mono); color: var(--ob-accent); }
+@keyframes ob-drop-in { from { opacity: 0; transform: translateY(-10px); } }
+@media (prefers-reduced-motion: reduce) { .ob-ring, .ob-drop { animation: none; } }
+
+.ob-footer {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding: 16px 0 24px;
+  background: var(--ob-bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ob-footer-actions { display: flex; align-items: center; gap: 8px; }
