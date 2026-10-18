@@ -20,7 +20,7 @@ export function EmptyState({ status, searched }: { status: EngineStatus | null; 
     <div className="launcher-empty">
       <Icon name="lock" size={18} />
       <span>{line}</span>
-      {status && status.state !== "idle" && (
+      {status && status.state !== "idle" && status.state !== "loading" && (
         <span className="empty-progress">
           Indexing · {status.files.toLocaleString()} files done · {status.queued.toLocaleString()} to go
         </span>

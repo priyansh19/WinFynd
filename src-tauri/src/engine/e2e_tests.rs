@@ -10,7 +10,7 @@ use super::config::EngineConfig;
 use super::*;
 
 /// Wide enough that unrelated words rarely share a slot in the fake model.
-const DIMS: usize = 512;
+pub(super) const DIMS: usize = 512;
 
 /// Bag-of-words vector, so texts sharing words land close together.
 fn fake_embedding(text: &str) -> Vec<f32> {
@@ -33,7 +33,7 @@ fn strip_prompt(s: &str) -> String {
 }
 
 /// A tiny HTTP server that speaks just enough of the Ollama API.
-fn fake_ollama() -> String {
+pub(super) fn fake_ollama() -> String {
     fake_ollama_with(true)
 }
 
@@ -109,8 +109,11 @@ fn fake_ollama_with(images: bool) -> String {
     format!("http://{addr}")
 }
 
-fn temp_dir(name: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("winfynd-test-{name}-{}", std::process::id()));
+/// A fresh folder for a test. Not the system temp folder: on Windows that's
+/// under AppData, which the indexer skips.
+pub(super) fn temp_dir(name: &str) -> PathBuf {
+    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-scratch");
+    let d = base.join(format!("winfynd-test-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(&d).unwrap();
     d
@@ -371,24 +374,32 @@ fn text_still_indexes_when_the_model_rejects_images() {
 fn reports_each_file_as_it_is_indexed() {
     let root = temp_dir("activity");
     std::fs::write(root.join("plan.txt"), "Quarterly roadmap planning").unwrap();
+    std::fs::write(root.join("notes.md"), "Team offsite notes").unwrap();
     let engine = engine_for(&root, fake_ollama());
     let seen = Arc::new(Mutex::new(Vec::new()));
     let sink = seen.clone();
-    engine.on_activity(move |a| sink.lock().unwrap().push((a.name.clone(), a.kind, a.stage, a.chunks)));
-    let files = engine.walk_roots();
-    files.iter().for_each(|p| engine.index_file(p));
-    let first: Vec<_> = seen.lock().unwrap().drain(..).collect();
+    engine.on_activity(move |batch| {
+        sink.lock().unwrap().push(batch.iter().map(|a| (a.name.clone(), a.kind, a.stage, a.chunks)).collect::<Vec<_>>())
+    });
+    let mut files = engine.walk_roots();
+    files.sort();
+    engine.index_file(&files[0]);
+    engine.publish_activity();
+    engine.index_file(&files[1]);
+    engine.publish_activity();
+    engine.publish_activity();
+    // One batch per send, each file at its latest stage.
     assert_eq!(
-        first,
+        *seen.lock().unwrap(),
         vec![
-            ("plan.txt".to_string(), "document", "reading", None),
-            ("plan.txt".to_string(), "document", "embedding", None),
-            ("plan.txt".to_string(), "document", "done", Some(2)),
+            vec![("notes.md".to_string(), "document", "done", Some(2))],
+            vec![("plan.txt".to_string(), "document", "done", Some(2))],
         ]
     );
     // Unchanged files are skipped silently on the next scan.
     files.iter().for_each(|p| engine.index_file(p));
-    assert!(seen.lock().unwrap().is_empty());
+    engine.publish_activity();
+    assert_eq!(seen.lock().unwrap().len(), 2);
     let _ = std::fs::remove_dir_all(&root);
 }
 

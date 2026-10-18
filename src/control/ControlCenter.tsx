@@ -12,7 +12,13 @@ const PAGES = [
 
 type PageId = (typeof PAGES)[number]["id"];
 
-const STATE_LABEL = { idle: "Up to date", scanning: "Looking for changes", indexing: "Indexing", error: "Indexing stopped" };
+const STATE_LABEL = {
+  loading: "Opening the index",
+  idle: "Up to date",
+  scanning: "Looking for changes",
+  indexing: "Indexing",
+  error: "Indexing stopped",
+};
 
 export function ControlCenter() {
   const [page, setPage] = useState<PageId>("overview");
