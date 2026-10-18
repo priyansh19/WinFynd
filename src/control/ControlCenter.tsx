@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Icon, type IconName } from "../components/Icon";
 import { ProgressBar } from "../components/Progress";
 import { useEngineStatus } from "../lib/engine";
+import { IndexingFeed } from "./IndexingFeed";
 import { HotkeysPage } from "./pages/Hotkeys";
 import { ModelsPage } from "./pages/Models";
 import { OverviewPage } from "./pages/Overview";
@@ -65,6 +66,7 @@ export function ControlCenter() {
               {status.ollama !== "ok" && " · search by meaning is off"}
             </span>
             {status.queued > 0 && <ProgressBar label="Indexing" value={(status.files / (status.files + status.queued)) * 100} />}
+            <IndexingFeed />
           </div>
         )}
       </nav>

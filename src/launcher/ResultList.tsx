@@ -1,5 +1,5 @@
 import { folderOf, GROUP_LABEL, groupResults, type SearchResult } from "../lib/search";
-import { FileIcon } from "./FileIcon";
+import { FileIcon } from "../components/FileIcon";
 
 export function ResultList({
   results,

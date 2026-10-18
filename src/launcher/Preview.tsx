@@ -1,7 +1,7 @@
 import { Icon } from "../components/Icon";
 import { useShellImage } from "../lib/native";
 import { folderOf, formatSize, GROUP_LABEL, mediaUrl, thumbnailUrl, type SearchResult } from "../lib/search";
-import { FileIcon } from "./FileIcon";
+import { FileIcon } from "../components/FileIcon";
 
 /** The details pane: what the file looks like, why it matched, and its properties. */
 export function Preview({ result }: { result: SearchResult }) {
