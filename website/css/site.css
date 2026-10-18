@@ -427,6 +427,14 @@ button { font: inherit; color: inherit; }
 }
 .footer-bottom .loads-nothing { display: inline-flex; align-items: center; gap: 8px; color: var(--text2); }
 .footer-bottom .loads-nothing svg { color: var(--ok); }
+.footer-end { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
+.motion-toggle {
+  font: inherit; color: var(--text2); background: none; border: 0; padding: 0; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--stroke-strong, currentColor); text-underline-offset: 4px;
+}
+.motion-toggle:hover { color: var(--text); text-decoration-color: currentColor; }
+/* "Pause animations" in the footer: freeze every CSS loop too */
+.is-paused *, .is-paused *::before, .is-paused *::after { animation-play-state: paused !important; }
 .footer-version { display: inline-flex; align-items: center; gap: 10px; }
 .footer-version .tagver {
   display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px;

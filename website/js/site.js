@@ -3,7 +3,7 @@
    - scroll reveal (.reveal, [data-reveal-group]); #anchor targets are shown at once so links land exactly
    - header state on scroll, mobile menu niceties
    - [data-fit] scaling for product shots
-   - WinFynd.whenActive(el, cb): run demos only while visible and the tab is shown
+   - WinFynd.whenActive(el, cb): run demos only while visible, the tab is shown and animations aren't paused
    Everything degrades to fully visible, static content without JavaScript. */
 (function () {
   "use strict";
@@ -109,6 +109,7 @@
     }
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(true); });
     document.addEventListener("click", function (e) { if (!menu.contains(e.target)) close(false); });
+    menu.addEventListener("focusout", function (e) { if (e.relatedTarget && !menu.contains(e.relatedTarget)) close(false); });
     menu.querySelectorAll("a").forEach(function (a) { a.addEventListener("click", function () { close(false); }); });
     var wide = window.matchMedia("(min-width: 861px)");
     var onWide = function () { if (wide.matches) close(false); };
@@ -138,13 +139,38 @@
   /* ---------- Demo visibility helper ----------
      WinFynd.whenActive(el, function (active) { ... })
      active is true only while el is on screen and the tab is visible. */
+  /* ---------- Pause animations ----------
+     The footer's "Pause animations" button stops every demo and CSS loop on the site
+     (html.is-paused), and the choice is remembered on this device. */
+  var PAUSE_KEY = "winfynd-paused", pauseListeners = [];
+  try { if (localStorage.getItem(PAUSE_KEY) === "1") root.classList.add("is-paused"); } catch (e) {}
+  WF.paused = function () { return root.classList.contains("is-paused"); };
+  function initPause() {
+    var btn = document.querySelector("[data-motion-toggle]");
+    if (!btn) return;
+    function sync() {
+      var paused = WF.paused();
+      btn.setAttribute("aria-pressed", paused ? "true" : "false");
+      btn.textContent = paused ? "Play animations" : "Pause animations";
+    }
+    btn.hidden = false;
+    sync();
+    btn.addEventListener("click", function () {
+      root.classList.toggle("is-paused");
+      try { localStorage.setItem(PAUSE_KEY, WF.paused() ? "1" : "0"); } catch (e) {}
+      sync();
+      pauseListeners.forEach(function (fn) { fn(); });
+    });
+  }
+
   WF.whenActive = function (el, cb, options) {
     var inView = false, last = null;
     var threshold = (options && options.threshold) || 0.15;
     function emit() {
-      var active = inView && !document.hidden;
+      var active = inView && !document.hidden && !WF.paused();
       if (active !== last) { last = active; cb(active); }
     }
+    pauseListeners.push(emit);
     if ("IntersectionObserver" in window) {
       new IntersectionObserver(function (entries) {
         entries.forEach(function (e) { inView = e.isIntersecting; });
@@ -158,7 +184,7 @@
   /* ---------- Small helpers shared by page scripts ---------- */
   WF.fmt = function (n) { return Number(n).toLocaleString("en-US"); };
 
-  function init() { initReveal(); initAnchors(); initHeader(); initFit(); }
+  function init() { initReveal(); initAnchors(); initHeader(); initFit(); initPause(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
