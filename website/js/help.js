@@ -13,9 +13,9 @@
   var reduced = function () { return WF.reducedMotion ? WF.reducedMotion() : false; };
 
   /* ---------- Open a question when it is linked to ----------
-     The target shows at once (no rise, so the browser's scroll lands where it should),
-     a question opens, and once the page has settled the target is lined up under the
-     header again, unless the visitor has started scrolling. */
+     site.js has already shown the target (WinFynd.revealNow), so the browser's scroll lands
+     where it should. A question opens, and once the page has settled the target is lined up
+     under the header again, unless the visitor has started scrolling. */
   var userMoved = false;
   ["wheel", "touchstart", "keydown", "mousedown"].forEach(function (type) {
     window.addEventListener(type, function () { userMoved = true; }, { passive: true, capture: true });
@@ -25,15 +25,9 @@
     try { id = decodeURIComponent((location.hash || "").slice(1)); } catch (e) { return null; }
     return id ? doc.getElementById(id) : null;
   }
-  function showNow(el) {
-    var list = Array.prototype.slice.call(el.querySelectorAll(".reveal"));
-    for (var r = el.closest(".reveal"); r; r = r.parentElement && r.parentElement.closest(".reveal")) list.push(r);
-    list.forEach(function (x) { x.style.transition = "none"; x.classList.add("is-in"); });
-  }
   function openFromHash(settle) {
     var el = targetFromHash();
     if (!el) return;
-    showNow(el);
     if (el.tagName === "DETAILS") el.open = true;
     if (!settle) return;
     userMoved = false;
@@ -44,6 +38,13 @@
   openFromHash(false);
   window.addEventListener("load", function () { openFromHash(true); });
   window.addEventListener("hashchange", function () { openFromHash(true); });
+  // A link to the address's own #hash fires no hashchange, so a question the visitor
+  // closed would stay shut: open it again after the browser's jump.
+  doc.addEventListener("click", function (e) {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (a && a.getAttribute("href") === location.hash) setTimeout(function () { openFromHash(true); }, 0);
+  });
 
   /* ---------- Table of contents ---------- */
   var toc = doc.querySelector("[data-toc]");

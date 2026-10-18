@@ -63,19 +63,22 @@
     }, { threshold: 0.3 });
   }
 
-  /* ---------- Setup Welcome: sample searches (SetupWelcome artboard data) ---------- */
+  /* ---------- Setup Welcome: sample searches ----------
+     The SetupWelcome artboard's result lines, as on How it works. Left out: the artboard's
+     "Row 14" and "Line 48" (the app labels sheets by name and has no line numbers) and
+     "03:42" (the app writes 3:42). */
   var BADGE = { PDF: "#e5484d", DOC: "#2f6ce5", XLS: "#1d8f53", PPT: "#d9622b", MP4: "#c43d6a", M4A: "#7a4ae0", MD: "#6b7280", JPG: "#c03d8a" };
   var DEMOS = [
     ["receipt for the blue sofa", [
       ["PDF", "Northwind_Order_88412.pdf", "Page 2 · sofa, navy, total paid", "k-doc"],
-      ["JPG", "IMG_2041.jpg", "Image matches your search", "k-img"],
+      ["JPG", "IMG_2041.jpg", "Looks like a printed receipt", "k-img"],
       ["XLS", "Living room budget.xlsx", "Sheet Furniture · Sofa $1,240", "k-sheet"]]],
     ["when did we agree the Q3 budget", [
-      ["M4A", "Budget sync 2026-09-30.m4a", "Talked about at 12:05", "k-audio"],
+      ["M4A", "Budget sync 2026-09-30.m4a", "Said at 12:05", "k-audio"],
       ["PPT", "Q3 Budget review.pptx", "Slide 7 · budget by region", "k-slide"],
-      ["MD", "Q3 planning notes.md", "Mentions the Q3 budget sign-off", "k-doc"]]],
+      ["MD", "Q3 planning notes.md", "Mentions budget signed off", "k-doc"]]],
     ["dog on the beach at sunset", [
-      ["JPG", "PXL_20250812_191422.jpg", "Image matches your search", "k-img"],
+      ["JPG", "PXL_20250812_191422.jpg", "Looks like dog, beach, sunset", "k-img"],
       ["MP4", "Cornwall day 3.mp4", "Shown at 3:42", "k-video"],
       ["DOC", "Cornwall trip plan.docx", "Mentions beach walk with Biscuit", "k-doc"]]]
   ];

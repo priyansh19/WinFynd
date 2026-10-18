@@ -44,6 +44,21 @@ code.mono { overflow-wrap: anywhere; }
 .dl-card__button { width: 100%; }
 .dl-card__file { margin-top: -12px; text-align: center; font-size: 13px; color: var(--text3); }
 .dl-card__file .mono { font-size: 13px; }
+/* Until 0.1.0 is on GitHub (release switch in site.css): a status pill like the Changelog's,
+   the Watch button and a short note in place of the file name. */
+.dl-card__status {
+  display: inline-flex; align-items: center; gap: 9px;
+  margin-top: 12px; height: 28px; padding: 0 12px 0 11px; border-radius: 14px;
+  font: 600 13px/1 var(--font);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.dl-card__status .pulse { --k: var(--accent); width: 7px; height: 7px; }
+@media (prefers-color-scheme: light) {
+  .dl-card__status { background: color-mix(in srgb, var(--accent) 10%, #fff); } /* solid, so the pink glow behind the card can't thin it out */
+}
+.dl-card__soon { margin-top: -12px; text-align: center; font-size: 14px; line-height: 1.5; color: var(--text2); text-wrap: balance; }
 
 .dl-card__facts {
   list-style: none; margin: 0; padding: 40px 44px 36px;
@@ -58,15 +73,13 @@ code.mono { overflow-wrap: anywhere; }
 
 .dl-card__note {
   grid-column: 1 / -1;
-  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px;
+  display: flex; align-items: center;
   padding: 16px 44px;
   border-top: 1px solid var(--stroke);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
-  font-size: 15px; line-height: 1.5; color: var(--text2);
+  font-size: 15px; line-height: 1.5;
 }
-.dl-card__note > svg { color: var(--accent); flex: none; }
-.dl-card__note > span { flex: 1 1 320px; }
-.dl-card__note .link-arrow { margin-left: auto; font-size: 15px; white-space: nowrap; }
+.dl-card__note .link-arrow { font-size: 15px; }
 
 /* ================================================================ 2. What you need */
 .need-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 20px; align-items: start; }
@@ -127,7 +140,7 @@ code.mono { overflow-wrap: anywhere; }
 .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 64px 32px; }
 .step { min-width: 0; display: flex; flex-direction: column; gap: 28px; }
 .step__shot { margin-top: auto; }
-.step__copy { position: relative; z-index: 1; display: flex; align-items: flex-start; gap: 18px; }
+.step__copy { display: flex; align-items: flex-start; gap: 18px; }
 .step__copy .body { margin-top: 8px; max-width: 54ch; }
 .step__link { margin-top: 10px; font-size: 15px; }
 .step__copy code.mono { font-size: 14px; padding: 1px 5px; border-radius: 4px; background: var(--fill); color: var(--text); }
@@ -169,7 +182,7 @@ code.mono { overflow-wrap: anywhere; }
 .inst-icon { flex: none; }
 .inst-titles { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .inst-title { font: 600 22px/28px var(--font-display); }
-.inst-sub { font-size: 13px; color: rgba(255, 255, 255, 0.86); }
+.inst-sub { font-size: 13px; color: rgba(255, 255, 255, 0.92); }
 .inst-body { flex: 1; min-height: 0; padding: 22px 28px 0; display: flex; flex-direction: column; gap: 12px; }
 .inst-loc { min-height: 60px; padding: 10px 16px; }
 .inst-opt { display: flex; align-items: center; gap: 10px; }
@@ -193,7 +206,7 @@ code.mono { overflow-wrap: anywhere; }
     linear-gradient(170deg, #2a4fd6 0%, #5a3fd1 58%, #3b2a8f 100%);
 }
 .setup-rail__brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; font: 600 16px/22px var(--font-display); }
-.setup-rail__step { display: flex; align-items: center; gap: 12px; height: 40px; color: rgba(255, 255, 255, 0.72); }
+.setup-rail__step { display: flex; align-items: center; gap: 12px; height: 40px; color: rgba(255, 255, 255, 0.8); }
 .setup-rail__step.is-on { color: #fff; font-weight: 600; }
 .setup-rail__n {
   width: 24px; height: 24px; flex: none; box-sizing: border-box; border-radius: 50%;
@@ -271,7 +284,7 @@ code.mono { overflow-wrap: anywhere; }
 .upd .section-head { max-width: 980px; }
 .upd-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 56px 32px; }
 .upd-item { min-width: 0; display: flex; flex-direction: column; gap: 28px; }
-.upd-copy { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 10px; }
+.upd-copy { display: flex; flex-direction: column; gap: 10px; }
 .upd-copy .title-s { margin-bottom: 2px; }
 
 /* ================================================================ 6. More */
@@ -326,10 +339,7 @@ code.mono { overflow-wrap: anywhere; }
   .dl-card__name { font-size: 28px; line-height: 34px; }
   .dl-card__meta { font-size: 15px; }
   .dl-card__facts { padding: 24px 20px; gap: 20px; }
-  .dl-card__note { padding: 14px 20px; align-items: flex-start; column-gap: 10px; }
-  .dl-card__note > svg { margin-top: 3px; }
-  .dl-card__note > span { flex: 1 1 0; min-width: 0; }
-  .dl-card__note .link-arrow { margin-left: 26px; flex-basis: calc(100% - 26px); }
+  .dl-card__note { padding: 14px 20px; }
 
   .req { padding: 18px 16px; gap: 14px; }
   .req .icon-badge { width: 36px; height: 36px; border-radius: 9px; }
@@ -369,4 +379,5 @@ code.mono { overflow-wrap: anywhere; }
 /* ================================================================ Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .more-link__t svg, .more-link:hover .more-link__t svg { transition: none; transform: none; }
+  .dl-card__status .pulse::after { animation: none; }
 }
