@@ -108,7 +108,12 @@ pub fn run() {
             }
             tray.build(app)?;
 
-            onboarding::show_first_window(handle);
+            // Started at sign-in (setup adds --background to the Run key): stay
+            // in the tray, unless first-run setup still needs finishing.
+            let background = std::env::args().any(|arg| arg == "--background");
+            if !background || !onboarding::is_complete(handle) {
+                onboarding::show_first_window(handle);
+            }
 
             Ok(())
         })
