@@ -3,13 +3,15 @@ import { useEffect, useState } from "react";
 import { invoke, listen, stubCommands } from "./tauri";
 
 export interface EngineStatus {
-  state: "idle" | "scanning" | "indexing" | "error";
+  state: "loading" | "idle" | "scanning" | "indexing" | "error";
   files: number;
   chunks: number;
   queued: number;
   current: string | null;
   ollama: "ok" | "offline" | "modelMissing";
   message: string | null;
+  /** Files that couldn't be read and were indexed by name only. */
+  unreadable: number;
 }
 
 export interface EngineConfig {
@@ -99,7 +101,7 @@ let previewConfig: EngineConfig = {
   indexVideoFrames: true,
 };
 stubCommands({
-  engine_status: () => ({ state: "idle", files: 12840, chunks: 96211, queued: 0, current: null, ollama: "ok", message: null }),
+  engine_status: () => ({ state: "idle", files: 12840, chunks: 96211, queued: 0, current: null, ollama: "ok", message: null, unreadable: 0 }),
   get_engine_config: () => previewConfig,
   set_engine_config: ({ config }) => (previewConfig = config as EngineConfig),
   rescan: () => undefined,
