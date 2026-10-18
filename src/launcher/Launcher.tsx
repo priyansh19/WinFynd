@@ -538,7 +538,7 @@ export function Launcher() {
       ) : nothing ? (
         <>
           <NothingFound
-            roots={config?.roots ?? []}
+            roots={config?.wholePc ? null : (config?.roots ?? [])}
             onAsk={() => {
               switchMode("ask");
               runAsk(query);

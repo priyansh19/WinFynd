@@ -43,6 +43,7 @@ html[data-backdrop="mica"], html[data-backdrop="mica"] body { background: var(--
 .h1row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .h1row .btn { margin-top: 2px; }
 .page .infobar strong { font-weight: 600; }
+.toggle-target { display: inline-flex; border-radius: 999px; }
 .flash { animation: wf-flash 1.6s var(--ease-std); }
 @keyframes wf-flash { 0%, 45% { box-shadow: 0 0 0 2px var(--accent); } 100% { box-shadow: 0 0 0 2px transparent; } }
 

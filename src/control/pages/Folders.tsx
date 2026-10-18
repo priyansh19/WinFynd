@@ -151,7 +151,10 @@ export function FoldersPage({ status }: { status: EngineStatus | null }) {
               {whole ? "Search all of C: and every other drive. Turn off to choose folders instead." : "Off. WinFynd searches only the folders below."}
             </span>
           </span>
-          <Toggle label="Allow full OS context" checked={whole} onChange={setWhole} />
+          {/* With the whole PC on there's no folder to add: "Add a folder" points here, where it turns off. */}
+          <span className="toggle-target" data-setting={whole ? "Add a folder" : undefined}>
+            <Toggle label="Allow full OS context" checked={whole} onChange={setWhole} />
+          </span>
         </div>
         {whole &&
           drives?.map((d) => {

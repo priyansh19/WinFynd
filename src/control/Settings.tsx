@@ -26,12 +26,13 @@ const PAGES: { id: PageId; label: string; icon: IconName; k: string }[] = [
 /** Every setting "Find a setting" knows, with the words people might type for it. */
 const FINDABLE: { label: string; page: PageId; words?: string }[] = [
   { label: "Pause reading files", page: "home", words: "pause indexing progress stop" },
-  { label: "Add a folder", page: "folders", words: "folder watch index directory drive" },
+  { label: "Allow full OS context", page: "folders", words: "whole pc computer every drive all files everything access" },
+  { label: "Add a folder", page: "folders", words: "folder watch index directory choose" },
   { label: "What's in photos", page: "folders", words: "images pictures understand describe" },
   { label: "Speech in recordings and videos", page: "folders", words: "audio transcript whisper meeting" },
   { label: "Frames in videos", page: "folders", words: "ffmpeg video moment" },
   { label: "OneDrive files that are only online", page: "folders", words: "cloud onedrive download" },
-  { label: "System and app folders", page: "folders", words: "skip exclude ignore node_modules hidden" },
+  { label: "System and app folders", page: "folders", words: "skip exclude ignore node_modules hidden drive edit list" },
   { label: "Search model", page: "models", words: "embeddinggemma embedding ollama meaning" },
   { label: "Ask model", page: "models", words: "chat llama answers question" },
   { label: "Whisper", page: "models", words: "speech model download transcribe" },
