@@ -60,6 +60,26 @@ pub struct Status {
     pub message: Option<String>,
 }
 
+/// One file moving through the indexer, sent as `engine://activity`. Files
+/// that are unchanged since the last scan send nothing.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Activity {
+    pub path: String,
+    pub name: String,
+    /// Same kinds as search results: document, slides, spreadsheet, code,
+    /// image, video, audio or other.
+    pub kind: &'static str,
+    /// reading, embedding, done, or skipped (stored without vectors because
+    /// the model wasn't reachable; it's embedded on a later scan).
+    pub stage: &'static str,
+    /// Chunks stored, on done and skipped.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chunks: Option<usize>,
+}
+
+type ActivitySink = Box<dyn Fn(&Activity) + Send + Sync>;
+
 pub(crate) enum Job {
     Scan,
     Upsert(PathBuf),
@@ -77,6 +97,7 @@ pub struct Engine {
     jobs: Sender<Job>,
     watcher: Mutex<Option<watch::Watcher>>,
     emit: Box<dyn Fn(&Status) + Send + Sync>,
+    activity: RwLock<Option<ActivitySink>>,
     /// Where Whisper models are downloaded.
     pub(crate) speech_dir: PathBuf,
     /// The loaded speech model and its id, kept between files.
@@ -100,6 +121,10 @@ impl Engine {
         let (engine, rx) = Self::open(conn, config, config_path, data.join("speech"), move |s| {
             let _ = handle.emit("engine://status", s);
         })?;
+        let handle = app.clone();
+        engine.on_activity(move |a| {
+            let _ = handle.emit("engine://activity", a);
+        });
 
         engine.allow_thumbnails(app);
         engine.restart_watcher();
@@ -151,6 +176,7 @@ impl Engine {
             jobs: tx,
             watcher: Mutex::new(None),
             emit: Box::new(emit),
+            activity: RwLock::new(None),
             speech_dir,
             speech: Mutex::new(None),
             ffmpeg: RwLock::new(media::find_ffmpeg()),
@@ -172,6 +198,16 @@ impl Engine {
 
     pub(crate) fn ollama(&self) -> Result<Ollama, String> {
         Ollama::new(&self.config.read().unwrap().ollama_url)
+    }
+
+    pub(crate) fn on_activity(&self, f: impl Fn(&Activity) + Send + Sync + 'static) {
+        *self.activity.write().unwrap() = Some(Box::new(f));
+    }
+
+    fn report(&self, path: &str, name: &str, kind: Kind, stage: &'static str, chunks: Option<usize>) {
+        if let Some(f) = self.activity.read().unwrap().as_ref() {
+            f(&Activity { path: path.into(), name: name.into(), kind: kind.as_str(), stage, chunks });
+        }
     }
 
     fn update_status(&self, f: impl FnOnce(&mut Status)) {
@@ -386,6 +422,7 @@ impl Engine {
         }
 
         let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        self.report(&key, &name, kind, "reading", None);
         // Cloud-only OneDrive files would be downloaded just to read them:
         // index those by name until they're on disk.
         let extracted = if cloud_only {
@@ -397,6 +434,7 @@ impl Engine {
         };
 
         let (inputs, mut chunks) = plan_chunks(path, &name, kind, mtime, extracted);
+        self.report(&key, &name, kind, "embedding", None);
         let embedded = self.embed_all(&cfg, inputs);
         let stamp = match &embedded {
             Ok(vectors) => {
@@ -415,12 +453,15 @@ impl Engine {
             }
         };
 
+        let stored = chunks.len();
+        let stage = if embedded.is_ok() { "done" } else { "skipped" };
         let result = db::upsert_file(&mut self.db.lock().unwrap(), &key, &name, kind.as_str(), size, mtime, &stamp, chunks);
         if let Ok((removed, added)) = result {
             let mut v = self.vectors.write().unwrap();
             removed.into_iter().for_each(|id| v.remove(id));
             added.iter().for_each(|(id, vec, visual)| v.insert(*id, vec, *visual));
         }
+        self.report(&key, &name, kind, stage, Some(stored));
     }
 
     /// What a file's stored vectors depend on. Media also depends on the

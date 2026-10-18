@@ -368,6 +368,31 @@ fn text_still_indexes_when_the_model_rejects_images() {
 }
 
 #[test]
+fn reports_each_file_as_it_is_indexed() {
+    let root = temp_dir("activity");
+    std::fs::write(root.join("plan.txt"), "Quarterly roadmap planning").unwrap();
+    let engine = engine_for(&root, fake_ollama());
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let sink = seen.clone();
+    engine.on_activity(move |a| sink.lock().unwrap().push((a.name.clone(), a.kind, a.stage, a.chunks)));
+    let files = engine.walk_roots();
+    files.iter().for_each(|p| engine.index_file(p));
+    let first: Vec<_> = seen.lock().unwrap().drain(..).collect();
+    assert_eq!(
+        first,
+        vec![
+            ("plan.txt".to_string(), "document", "reading", None),
+            ("plan.txt".to_string(), "document", "embedding", None),
+            ("plan.txt".to_string(), "document", "done", Some(2)),
+        ]
+    );
+    // Unchanged files are skipped silently on the next scan.
+    files.iter().for_each(|p| engine.index_file(p));
+    assert!(seen.lock().unwrap().is_empty());
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn eval_reports_rank_and_empty_answers() {
     let root = temp_dir("eval");
     std::fs::write(root.join("lease-renewal.txt"), "The apartment lease renewal is due in January.").unwrap();
