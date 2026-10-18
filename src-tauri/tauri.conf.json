@@ -15,32 +15,28 @@
         "label": "launcher",
         "title": "WinFynd",
         "url": "launcher.html",
-        "width": 880,
-        "height": 548,
-        "center": true,
+        "width": 760,
+        "height": 64,
+        "center": false,
         "resizable": false,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "visible": false,
-        "shadow": true,
-        "windowEffects": {
-          "effects": [
-            "acrylic"
-          ]
-        }
+        "shadow": true
       },
       {
         "label": "control",
-        "title": "WinFynd Control Center",
+        "title": "WinFynd Settings",
         "url": "index.html",
-        "width": 1120,
-        "height": 760,
-        "minWidth": 720,
-        "minHeight": 520,
+        "width": 1040,
+        "height": 740,
+        "minWidth": 640,
+        "minHeight": 480,
         "center": true,
-        "visible": true
+        "visible": true,
+        "transparent": true
       }
     ],
     "security": {

@@ -70,27 +70,20 @@ export function useVoice({ onTranscript }: { onTranscript: (text: string, final:
   return useMemo(() => ({ listening, level, press, release, cancel }), [listening, level, press, release, cancel]);
 }
 
-const BARS = [10, 18, 28, 36, 22, 30, 40, 26, 16, 32, 38, 24, 14, 20, 30, 18, 10, 8];
+const BARS = [10, 18, 28, 36, 22, 30, 40, 26, 16, 32, 38, 24, 14, 20];
 
 export function VoiceBar({ level, mode }: { level: number; mode: VoiceMode }) {
   return (
     <div className="voice-bar" role="status">
-      <span className="voice-pulse" aria-hidden="true" />
-      <div className="voice-copy">
-        <span className="voice-label">Listening</span>
-        <span className="voice-hint">
-          {mode === "hold" ? (
-            <>Release the voice key to search</>
-          ) : (
-            <>Press the voice key again to search</>
-          )}
-          <span className="voice-sep">·</span>
-          <Keycap>Esc</Keycap> to cancel
-        </span>
-      </div>
+      <span className="voice-dot" aria-hidden="true" />
+      <span className="voice-label">Listening</span>
+      <span className="voice-hint">
+        {mode === "hold" ? "Release the voice key to search" : "Press the voice key again to search"} ·{" "}
+        <Keycap small>Esc</Keycap> to cancel
+      </span>
       <div className="voice-wave" aria-hidden="true">
         {BARS.map((h, i) => (
-          <span key={i} style={{ height: Math.max(4, h * (0.25 + level)) }} />
+          <span key={i} style={{ height: Math.max(3, h * 0.6 * (0.2 + level)) }} />
         ))}
       </div>
     </div>

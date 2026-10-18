@@ -2,6 +2,7 @@ mod commands;
 mod diag;
 mod engine;
 mod hotkeys;
+mod native;
 mod windows;
 
 use std::sync::Arc;
@@ -29,6 +30,8 @@ pub fn run() {
             hotkeys::suspend_hotkeys,
             windows::hide_launcher_cmd,
             windows::open_control_center,
+            native::appearance,
+            native::shell_image,
             commands::search,
             commands::ask,
             commands::engine_status,
@@ -44,6 +47,7 @@ pub fn run() {
         ])
         .setup(|app| {
             let handle = app.handle();
+            native::apply(handle);
 
             let config = hotkeys::load(handle);
             hotkeys::register_all(handle, &config);
@@ -67,7 +71,7 @@ pub fn run() {
             });
 
             let open = MenuItem::with_id(app, "open", "Open WinFynd", true, None::<&str>)?;
-            let control = MenuItem::with_id(app, "control", "Control Center", true, None::<&str>)?;
+            let control = MenuItem::with_id(app, "control", "Settings", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit WinFynd", true, None::<&str>)?;
             let sep = PredefinedMenuItem::separator(app)?;
             let menu = Menu::with_items(app, &[&open, &control, &sep, &quit])?;
@@ -109,6 +113,8 @@ pub fn run() {
                 api.prevent_close();
                 let _ = window.hide();
             }
+            // Light/dark switches also change the accent shades the page uses.
+            (_, WindowEvent::ThemeChanged(_)) => native::theme_changed(window),
             _ => {}
         })
         .run(tauri::generate_context!())

@@ -31,3 +31,6 @@ reqwest = { version = "0.13.5", default-features = false, features = ["blocking"
 tauri-plugin-dialog = "2.8.3"
 whisper-rs = "0.16"
 symphonia = { version = "0.5", features = ["aac", "alac", "flac", "isomp4", "mkv", "mp3", "ogg", "vorbis", "wav", "pcm"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Graphics_Gdi", "Win32_System_Com", "Win32_System_Registry", "Win32_UI_Shell"] }

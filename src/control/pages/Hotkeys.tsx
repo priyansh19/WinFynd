@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { HotkeyRecorder } from "../../components/HotkeyRecorder";
+import { Icon, type IconName } from "../../components/Icon";
 import { KeyCombo } from "../../components/Keycap";
-import { Segmented, Toggle } from "../../components/Toggle";
+import { SettingsCard } from "../../components/SettingsCard";
+import { ComboBox, Toggle } from "../../components/Toggle";
 import {
   ACTIONS,
   getHotkeys,
@@ -11,6 +13,13 @@ import {
   type HotkeyConfig,
   type VoiceMode,
 } from "../../lib/hotkeys";
+
+const ACTION_ICON: Record<HotkeyAction, IconName> = {
+  launcher: "search",
+  voice: "mic",
+  ask: "ask",
+  selection: "copy",
+};
 
 export function HotkeysPage() {
   const [config, setConfig] = useState<HotkeyConfig | null>(null);
@@ -40,69 +49,80 @@ export function HotkeysPage() {
   };
 
   return (
-    <>
-      <header className="cc-header">
-        <h1>Hotkeys &amp; voice</h1>
-        <p>Click Change, then press the keys you want. Hotkeys work everywhere in Windows, even in full-screen apps.</p>
-      </header>
+    <div className="cc-page-inner">
+      <h1 className="cc-title">Hotkeys &amp; voice</h1>
+      <p className="cc-lead">Shortcuts work everywhere in Windows, even over full-screen apps.</p>
 
-      <div className="card list">
+      <h2 className="cc-section">Shortcuts</h2>
+      <div className="cc-stack">
         {ACTIONS.map((a) => (
-          <div key={a.id} className={`list-row ${recording === a.id ? "is-recording" : ""}`}>
-            <div className="list-text">
-              <span className="list-title">{a.label}</span>
-              <span className="cc-muted">{a.hint(config.voiceMode)}</span>
-              {unavailable.includes(a.id) && (
-                <span className="text-danger">Another app is using this combo. Pick a different one.</span>
-              )}
-            </div>
+          <SettingsCard
+            key={a.id}
+            icon={ACTION_ICON[a.id]}
+            header={a.label}
+            className={recording === a.id ? "is-recording" : undefined}
+            description={
+              unavailable.includes(a.id) ? (
+                <span className="is-error">Another app is using this shortcut. Pick a different one.</span>
+              ) : (
+                a.hint(config.voiceMode)
+              )
+            }
+          >
             {recording === a.id ? (
               <HotkeyRecorder onSave={(acc) => save(a.id, acc)} onCancel={cancel} />
             ) : (
               <div className="hotkey-current">
                 <KeyCombo accelerator={config[a.id]} />
-                <button type="button" className="btn" disabled={recording !== null} onClick={() => setRecording(a.id)}>
-                  Change
+                <button
+                  type="button"
+                  className="btn btn-subtle btn-icon"
+                  aria-label={`Change shortcut for ${a.label}`}
+                  title="Change shortcut"
+                  disabled={recording !== null}
+                  onClick={() => setRecording(a.id)}
+                >
+                  <Icon name="edit" size={16} />
                 </button>
               </div>
             )}
-          </div>
+          </SettingsCard>
         ))}
       </div>
 
-      <h2 className="cc-subhead">Voice input</h2>
-      <div className="card list">
-        <div className="list-row">
-          <div className="list-text">
-            <span className="list-title">How the voice key works</span>
-            <span className="cc-muted">
-              {config.voiceMode === "hold"
-                ? "Hold the voice key while you speak, like a walkie-talkie"
-                : "Tap the voice key to start listening, tap again to stop"}
-            </span>
-          </div>
-          <Segmented
-            label="Voice key mode"
+      <h2 className="cc-section">Voice input</h2>
+      <div className="cc-stack">
+        <SettingsCard
+          icon="speech"
+          header="How the voice key works"
+          description={
+            config.voiceMode === "hold"
+              ? "Hold the voice key while you speak, like a walkie-talkie."
+              : "Tap the voice key to start listening, and tap it again to stop."
+          }
+        >
+          <ComboBox
+            label="How the voice key works"
             value={config.voiceMode}
             onChange={(m) => updateVoice(m, config.autoSubmit)}
             options={[
               { value: "hold", label: "Hold to talk" },
-              { value: "toggle", label: "Press to start / stop" },
+              { value: "toggle", label: "Press to start and stop" },
             ]}
           />
-        </div>
-        <div className="list-row">
-          <div className="list-text">
-            <span className="list-title">Search automatically when I stop talking</span>
-            <span className="cc-muted">Off means you review the text first.</span>
-          </div>
+        </SettingsCard>
+        <SettingsCard
+          icon="search"
+          header="Search when I stop talking"
+          description="Off means you can check the words before searching."
+        >
           <Toggle
-            label="Search automatically when I stop talking"
+            label="Search when I stop talking"
             checked={config.autoSubmit}
             onChange={(v) => updateVoice(config.voiceMode, v)}
           />
-        </div>
+        </SettingsCard>
       </div>
-    </>
+    </div>
   );
 }

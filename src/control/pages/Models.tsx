@@ -13,6 +13,12 @@ import {
   type PullProgress,
   type SpeechProgress,
 } from "../../lib/engine";
+import { Icon } from "../../components/Icon";
+import { InfoBar } from "../../components/InfoBar";
+import { ProgressBar } from "../../components/Progress";
+import { SettingsCard } from "../../components/SettingsCard";
+import { ComboBox, Toggle } from "../../components/Toggle";
+import { confirmNative } from "../../lib/native";
 import { listen } from "../../lib/tauri";
 
 // EmbeddingGemma 2 sizes available in Ollama. Only the vision-capable ones
@@ -72,7 +78,15 @@ export function ModelsPage() {
   if (!config) return null;
 
   const save = async (next: EngineConfig, confirmRebuild = false) => {
-    if (confirmRebuild && !window.confirm("Changing this re-indexes all your files with the new setting. Continue?")) return;
+    if (
+      confirmRebuild &&
+      !(await confirmNative(
+        "Changing this setting re-indexes all your files. Search keeps working while it runs, but results may be incomplete until it finishes.",
+        "Re-index your files?",
+        "Re-index",
+      ))
+    )
+      return;
     try {
       setLocal(await setConfig(next));
       setError(null);
@@ -102,158 +116,116 @@ export function ModelsPage() {
   };
 
   const chatModels = (installed ?? []).filter((m) => !m.name.includes("embed"));
+  const imagesSupported = !!EMBED_TAGS.find((m) => m.tag === config.embedModel)?.images;
 
   return (
-    <>
-      <header className="cc-header">
-        <h1>On-device models</h1>
-        <p>Every model runs on this PC. Nothing you search, say or index is sent anywhere.</p>
-      </header>
+    <div className="cc-page-inner">
+      <h1 className="cc-title">Models</h1>
+      <p className="cc-lead">Every model runs on this PC. Nothing you search, say or index is sent anywhere.</p>
 
       {ollamaError && (
-        <div className="card notice" role="alert">
-          <div className="list-text">
-            <span className="list-title">Ollama isn't running</span>
-            <span className="cc-muted">
-              Install Ollama from ollama.com and start it, then come back here. Until then WinFynd searches exact words and
-              file names.
-            </span>
-          </div>
-          <button type="button" className="btn" onClick={refresh}>
-            Check again
-          </button>
-        </div>
+        <InfoBar
+          severity="error"
+          title="Ollama isn't running"
+          action={
+            <button type="button" className="btn" onClick={refresh}>
+              Check again
+            </button>
+          }
+        >
+          Install Ollama from ollama.com and start it. Until then WinFynd searches exact words and file names.
+        </InfoBar>
       )}
 
-      <h2 className="cc-subhead">Embedding model</h2>
-      <p className="cc-muted section-lead">
+      <h2 className="cc-section">Embedding model</h2>
+      <p className="cc-section-lead">
         EmbeddingGemma 2 places text and images in one space, so a typed description finds matching photos as well as documents.
       </p>
-      <div className="card list">
+      <div className="cc-stack">
         {EMBED_TAGS.map((m) => {
           const active = config.embedModel === m.tag;
           const have = installed ? installedHas(installed, m.tag) : false;
           const pulling = pull && pull.model === m.tag && !pull.done;
           return (
-            <div key={m.tag} className="list-row">
-              <div className="model-tag" style={{ color: m.images ? "#8fe0aa" : "#8db8ff" }}>
-                {m.images ? "IMG" : "TXT"}
-              </div>
-              <div className="list-text">
-                <span className="list-title">{m.label}</span>
-                <span className="cc-muted">{m.note}</span>
-              </div>
+            <SettingsCard key={m.tag} icon={m.images ? "imageSearch" : "document"} header={m.label} description={m.note}>
               {pulling ? (
-                <div className="pull-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100}
-                  aria-valuenow={pull.total ? Math.round((pull.completed / pull.total) * 100) : 0}>
-                  <div className="meter">
-                    <div className="meter-fill meter-accent" style={{ width: `${pull.total ? (pull.completed / pull.total) * 100 : 3}%` }} />
-                  </div>
-                  <span className="cc-muted">
-                    {pull.total ? `${formatBytes(pull.completed)} of ${formatBytes(pull.total)}` : pull.status}
-                  </span>
-                </div>
+                <Progress label={`Downloading ${m.label}`} completed={pull.completed} total={pull.total} status={pull.status} />
               ) : (
-                <span className={`pill ${active && have ? "pill-active" : have ? "pill-ready" : "pill-missing"}`}>
-                  {active && have ? "In use" : have ? "Downloaded" : "Not downloaded"}
-                </span>
+                <ModelState active={active && have} have={have} />
               )}
               {!have ? (
-                <button type="button" className="btn btn-primary model-action" disabled={!!ollamaError || !!pulling} onClick={() => download(m.tag)}>
+                <button
+                  type="button"
+                  className="btn btn-accent model-action"
+                  disabled={!!ollamaError || !!pulling}
+                  onClick={() => download(m.tag)}
+                >
                   Download
                 </button>
               ) : (
-                <button
-                  type="button"
-                  className="btn model-action"
-                  disabled={active}
-                  onClick={() => save({ ...config, embedModel: m.tag, indexImages: m.images && config.indexImages }, true)}
-                >
-                  {active ? "In use" : "Use"}
-                </button>
+                !active && (
+                  <button
+                    type="button"
+                    className="btn model-action"
+                    onClick={() => save({ ...config, embedModel: m.tag, indexImages: m.images && config.indexImages }, true)}
+                  >
+                    Use
+                  </button>
+                )
               )}
-            </div>
+            </SettingsCard>
           );
         })}
-      </div>
-      {pull?.error && <span className="text-danger">Download failed: {pull.error}</span>}
-
-      <div className="card list">
-        <div className="list-row">
-          <div className="list-text">
-            <span className="list-title">Vector size</span>
-            <span className="cc-muted">Smaller vectors use less memory and disk, with a little less accuracy.</span>
-          </div>
-          <label className="field">
-            <span className="sr-only">Vector size</span>
-            <select
-              value={config.dimensions}
-              onChange={(e) => save({ ...config, dimensions: Number(e.target.value) as EngineConfig["dimensions"] }, true)}
-            >
-              {DIMENSIONS.map((d) => (
-                <option key={d.value} value={d.value}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className="list-row">
-          <div className="list-text">
-            <span className="list-title">Understand photos</span>
-            <span className="cc-muted">Embed what's in your images. Off means photos are found by name only.</span>
-          </div>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={config.indexImages}
-              disabled={!EMBED_TAGS.find((m) => m.tag === config.embedModel)?.images}
-              onChange={(e) => save({ ...config, indexImages: e.target.checked }, true)}
-            />
-            <span>Index image content</span>
-          </label>
-        </div>
+        {pull?.error && <p className="cc-error">Download failed: {pull.error}</p>}
+        <SettingsCard icon="cube" header="Vector size" description="Smaller vectors use less memory and disk, with a little less accuracy.">
+          <ComboBox
+            label="Vector size"
+            value={config.dimensions}
+            options={DIMENSIONS.map((d) => ({ value: d.value, label: d.label }))}
+            onChange={(v) => save({ ...config, dimensions: v as EngineConfig["dimensions"] }, true)}
+          />
+        </SettingsCard>
+        <SettingsCard
+          icon="image"
+          header="Understand photos"
+          description={
+            imagesSupported
+              ? "Embed what's in your images. Off means photos are found by name only."
+              : "The model in use reads text only, so photos are found by name."
+          }
+        >
+          <Toggle
+            label="Understand photos"
+            checked={config.indexImages && imagesSupported}
+            disabled={!imagesSupported}
+            onChange={(v) => save({ ...config, indexImages: v }, true)}
+          />
+        </SettingsCard>
       </div>
 
-      <h2 className="cc-subhead">Audio and video</h2>
-      <p className="cc-muted section-lead">
-        Whisper turns what's said in recordings and videos into searchable text, and video frames are embedded like photos,
-        so results open at the moment that matches.
+      <h2 className="cc-section">Audio and video</h2>
+      <p className="cc-section-lead">
+        Whisper turns what's said in recordings and videos into searchable text, and video frames are embedded like photos, so
+        results open at the moment that matches.
       </p>
-      <div className="card list">
+      <div className="cc-stack">
         {media?.speechModels.map((m) => {
           const active = config.speechModel === m.id && m.installed;
           const pulling = speechPull && speechPull.id === m.id && !speechPull.done;
           return (
-            <div key={m.id} className="list-row">
-              <div className="model-tag" style={{ color: "#f0c080" }}>
-                ASR
-              </div>
-              <div className="list-text">
-                <span className="list-title">{m.label}</span>
-                <span className="cc-muted">
-                  {m.note} · {m.sizeMb} MB
-                </span>
-              </div>
+            <SettingsCard key={m.id} icon="speech" header={m.label} description={`${m.note} · ${m.sizeMb} MB`}>
               {pulling ? (
-                <div className="pull-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100}
-                  aria-valuenow={speechPull.total ? Math.round((speechPull.completed / speechPull.total) * 100) : 0}>
-                  <div className="meter">
-                    <div className="meter-fill meter-accent"
-                      style={{ width: `${speechPull.total ? (speechPull.completed / speechPull.total) * 100 : 3}%` }} />
-                  </div>
-                  <span className="cc-muted">
-                    {speechPull.total ? `${formatBytes(speechPull.completed)} of ${formatBytes(speechPull.total)}` : "Starting"}
-                  </span>
-                </div>
+                <Progress label={`Downloading ${m.label}`} completed={speechPull.completed} total={speechPull.total} status="Starting" />
               ) : (
-                <span className={`pill ${active ? "pill-active" : m.installed ? "pill-ready" : "pill-missing"}`}>
-                  {active ? "In use" : m.installed ? "Downloaded" : "Not downloaded"}
-                </span>
+                <ModelState active={active} have={m.installed} />
               )}
               {!m.installed ? (
-                <button type="button" className="btn btn-primary model-action" disabled={!!speechPull && !speechPull.done}
-                  onClick={() => downloadSpeech(m.id)}>
+                <button
+                  type="button"
+                  className="btn btn-accent model-action"
+                  disabled={!!speechPull && !speechPull.done}
+                  onClick={() => downloadSpeech(m.id)}
+                >
                   Download
                 </button>
               ) : (
@@ -261,66 +233,74 @@ export function ModelsPage() {
                   {active ? "Turn off" : "Use"}
                 </button>
               )}
-            </div>
+            </SettingsCard>
           );
         })}
-      </div>
-      {speechPull?.error && <span className="text-danger">Download failed: {speechPull.error}</span>}
-
-      <div className="card list">
-        <div className="list-row">
-          <div className="list-text">
-            <span className="list-title">Search what's shown in videos</span>
-            <span className="cc-muted">
-              {media?.ffmpeg ? (
-                `Uses FFmpeg (${media.ffmpeg}) to sample frames.`
-              ) : (
-                <>
-                  Needs FFmpeg. Install it with <code>winget install Gyan.FFmpeg</code>, then press Check again.
-                </>
-              )}
-            </span>
-          </div>
+        {speechPull?.error && <p className="cc-error">Download failed: {speechPull.error}</p>}
+        <SettingsCard
+          icon="filmstrip"
+          header="Search what's shown in videos"
+          description={
+            media?.ffmpeg ? (
+              `Uses FFmpeg (${media.ffmpeg}) to sample frames.`
+            ) : (
+              <>
+                Needs FFmpeg. Install it with <code>winget install Gyan.FFmpeg</code>, then check again.
+              </>
+            )
+          }
+        >
           {!media?.ffmpeg && (
             <button type="button" className="btn" onClick={() => mediaSupport(true).then(setMedia)}>
               Check again
             </button>
           )}
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={config.indexVideoFrames && !!media?.ffmpeg && config.indexImages}
-              disabled={!media?.ffmpeg || !config.indexImages}
-              onChange={(e) => save({ ...config, indexVideoFrames: e.target.checked })}
-            />
-            <span>Index video frames</span>
-          </label>
-        </div>
+          <Toggle
+            label="Search what's shown in videos"
+            checked={config.indexVideoFrames && !!media?.ffmpeg && config.indexImages}
+            disabled={!media?.ffmpeg || !config.indexImages}
+            onChange={(v) => save({ ...config, indexVideoFrames: v })}
+          />
+        </SettingsCard>
       </div>
 
-      <h2 className="cc-subhead">Answer model</h2>
-      <div className="card list">
-        <div className="list-row">
-          <div className="list-text">
-            <span className="list-title">Model for Ask mode</span>
-            <span className="cc-muted">
-              Any chat model you've pulled in Ollama. It only sees the passages WinFynd finds for your question.
-            </span>
-          </div>
-          <label className="field">
-            <span className="sr-only">Model for Ask mode</span>
-            <select value={config.chatModel} onChange={(e) => save({ ...config, chatModel: e.target.value })}>
-              <option value="">Automatic (first installed)</option>
-              {chatModels.map((m) => (
-                <option key={m.name} value={m.name}>
-                  {m.name} · {formatBytes(m.size)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+      <h2 className="cc-section">Answers</h2>
+      <div className="cc-stack">
+        <SettingsCard
+          icon="ask"
+          header="Model for Ask"
+          description="Any chat model you've pulled in Ollama. It only sees the passages WinFynd finds for your question."
+        >
+          <ComboBox
+            label="Model for Ask"
+            value={config.chatModel}
+            options={[
+              { value: "", label: "Automatic (first installed)" },
+              ...chatModels.map((m) => ({ value: m.name, label: `${m.name} · ${formatBytes(m.size)}` })),
+            ]}
+            onChange={(v) => save({ ...config, chatModel: v })}
+          />
+        </SettingsCard>
       </div>
-      {error && <span className="text-danger">{error}</span>}
-    </>
+      {error && <p className="cc-error">{error}</p>}
+    </div>
+  );
+}
+
+function ModelState({ active, have }: { active: boolean; have: boolean }) {
+  return (
+    <span className={`model-state ${active ? "is-active" : ""}`}>
+      {active && <Icon name="success" size={16} />}
+      {active ? "In use" : have ? "Downloaded" : "Not downloaded"}
+    </span>
+  );
+}
+
+function Progress({ label, completed, total, status }: { label: string; completed: number; total: number; status: string }) {
+  return (
+    <div className="pull-progress">
+      <ProgressBar label={label} value={total ? (completed / total) * 100 : undefined} />
+      <span>{total ? `${formatBytes(completed)} of ${formatBytes(total)}` : status}</span>
+    </div>
   );
 }

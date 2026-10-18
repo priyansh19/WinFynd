@@ -1,51 +1,233 @@
-.keycap {
-  font: 500 13px var(--font-mono);
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-bottom-width: 3px;
-  border-radius: 6px;
-  padding: 3px 9px;
+/* WinUI 3 control styles, shared by the launcher and Settings. */
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 11px 5px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--control-stroke);
+  border-bottom-color: var(--control-stroke-bottom);
+  background: var(--control-fill);
+  background-clip: padding-box;
+  color: var(--text-primary);
+  font: 400 14px/20px var(--font-text);
   white-space: nowrap;
 }
-.key-combo { display: inline-flex; gap: 6px; align-items: center; }
+.btn:hover { background-color: var(--control-fill-hover); }
+.btn:active { background-color: var(--control-fill-pressed); color: var(--text-secondary); border-bottom-color: var(--control-stroke); }
+.btn:disabled { background-color: var(--control-fill-disabled); color: var(--text-disabled); border-color: var(--control-stroke); }
 
-.btn {
-  height: 36px;
-  padding: 0 14px;
-  border-radius: var(--radius-s);
+.btn-accent {
+  background: var(--accent-fill);
+  color: var(--text-on-accent);
+  border-color: rgba(255, 255, 255, 0.08);
+  border-bottom-color: var(--accent-stroke-bottom);
+}
+.btn-accent:hover { background-color: var(--accent-fill-hover); }
+.btn-accent:active { background-color: var(--accent-fill-pressed); color: var(--text-on-accent); opacity: 0.9; }
+.btn-accent:disabled { background-color: var(--accent-fill-disabled); color: var(--text-disabled); border-color: transparent; }
+
+.btn-subtle { background: transparent; border-color: transparent; }
+.btn-subtle:hover { background-color: var(--subtle-fill-hover); }
+.btn-subtle:active { background-color: var(--subtle-fill-pressed); border-color: transparent; }
+.btn-icon { width: 32px; padding: 0; color: var(--text-primary); }
+.btn-icon[aria-pressed="true"] { background: var(--accent-fill); color: var(--text-on-accent); }
+
+.hyperlink {
   border: 0;
-  background: var(--raised);
-  color: var(--text);
-  font-weight: 500;
-  font-size: 13px;
+  background: none;
+  padding: 0;
+  color: var(--accent-text);
+  font: inherit;
+  cursor: pointer;
 }
-.btn:hover { background: var(--raised-hover); }
-.btn-primary { background: var(--primary); color: #fff; font-weight: 600; }
-.btn-primary:hover { background: #2f78ea; }
-.btn:disabled { opacity: 0.45; cursor: default; }
+.hyperlink:hover { text-decoration: underline; }
 
-.toggle {
-  width: 48px; height: 28px; padding: 3px; border-radius: 999px; border: 0;
-  background: var(--border-strong); display: flex; justify-content: flex-start;
+/* ToggleSwitch, with its On/Off label on the left like Windows Settings. */
+.toggle { display: inline-flex; align-items: center; gap: 12px; border: 0; background: none; padding: 0; color: var(--text-primary); }
+.toggle-state { min-width: 22px; text-align: right; }
+.toggle-track {
+  position: relative;
+  width: 40px;
+  height: 20px;
+  border-radius: 10px;
+  border: 1px solid var(--control-strong-stroke);
+  background: var(--subtle-fill-pressed);
+  transition: background 83ms linear;
 }
-.toggle[aria-checked="true"] { background: var(--primary); justify-content: flex-end; }
-.toggle-knob { width: 22px; height: 22px; border-radius: 50%; background: #fff; }
+.toggle-knob {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  transform: translateY(-50%);
+  transition: left 167ms cubic-bezier(0, 0, 0, 1), width 83ms, height 83ms;
+}
+.toggle:hover .toggle-track { background: var(--subtle-fill-hover); }
+.toggle:hover .toggle-knob { width: 14px; height: 14px; left: 2px; }
+.toggle[aria-checked="true"] .toggle-track { background: var(--accent-fill); border-color: var(--accent-fill); }
+.toggle[aria-checked="true"] .toggle-knob { left: 23px; background: var(--text-on-accent); }
+.toggle[aria-checked="true"]:hover .toggle-knob { left: 22px; }
+.toggle:disabled { color: var(--text-disabled); }
+.toggle:disabled .toggle-track { border-color: var(--text-disabled); background: transparent; }
+.toggle:disabled .toggle-knob { background: var(--text-disabled); width: 12px; height: 12px; left: 3px; }
+.toggle[aria-checked="true"]:disabled .toggle-track { background: var(--accent-fill-disabled); border-color: transparent; }
+.toggle[aria-checked="true"]:disabled .toggle-knob { left: 23px; background: var(--text-on-accent); }
+.toggle:focus-visible { outline: none; box-shadow: none; }
+.toggle:focus-visible .toggle-track { outline: 2px solid var(--focus-outer); outline-offset: 2px; }
 
-.segmented { display: flex; padding: 3px; border-radius: 10px; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-strong); }
-.segmented-option { height: 36px; padding: 0 14px; border-radius: var(--radius-s); border: 0; background: transparent; color: var(--text-2); font-size: 13px; font-weight: 500; }
-.segmented-option[aria-checked="true"] { background: var(--primary); color: #fff; }
+/* ComboBox */
+.combo { position: relative; display: inline-flex; min-width: 200px; }
+.combo select {
+  appearance: none;
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 34px 6px 11px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--control-stroke);
+  border-bottom-color: var(--control-stroke-bottom);
+  background: var(--control-fill);
+  color: var(--text-primary);
+  font: 400 14px/20px var(--font-text);
+}
+.combo select:hover { background: var(--control-fill-hover); }
+.combo select:disabled { color: var(--text-disabled); background: var(--control-fill-disabled); }
+.combo option { background: var(--flyout-fill); color: var(--text-primary); }
+.combo svg { position: absolute; right: 11px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-secondary); }
 
+/* Shortcut keys. Accent boxes like PowerToys' shortcut control; .keycap-small
+   is the quiet variant used for hints. */
+.key-combo { display: inline-flex; gap: 4px; align-items: center; }
+.keycap {
+  display: inline-grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: var(--radius-control);
+  background: var(--accent-fill);
+  color: var(--text-on-accent);
+  border-bottom: 1px solid var(--accent-stroke-bottom);
+  font: 600 14px/20px var(--font-text);
+  white-space: nowrap;
+}
+.keycap-small {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  background: var(--control-fill);
+  color: var(--text-secondary);
+  border: 1px solid var(--control-stroke);
+  border-bottom-color: var(--control-stroke-bottom);
+  font: 400 12px/16px var(--font-small);
+}
+
+/* ProgressBar */
+.progress { position: relative; height: 3px; display: flex; align-items: center; }
+.progress::before { content: ""; position: absolute; inset: 1px 0; background: var(--control-strong-stroke); border-radius: 1px; }
+.progress-fill { position: relative; height: 3px; border-radius: 1.5px; background: var(--accent-fill); transition: width 167ms; }
+.progress-indeterminate { overflow: hidden; }
+.progress-indeterminate .progress-fill { width: 40%; animation: progress-slide 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+@keyframes progress-slide { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+
+/* ProgressRing (small, indeterminate) */
+.ring {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--accent-fill);
+  border-right-color: var(--accent-fill);
+  animation: ring-spin 1s linear infinite;
+  flex: none;
+}
+@keyframes ring-spin { to { transform: rotate(360deg); } }
+
+/* InfoBar */
+.infobar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px 12px;
+  padding: 13px 16px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--card-stroke);
+  background: var(--attention-bg);
+}
+.infobar-icon { flex: none; margin-top: 2px; color: var(--accent-fill); }
+.infobar-text { flex: 1 1 240px; min-width: 0; display: flex; flex-wrap: wrap; column-gap: 12px; }
+.infobar-title { font-weight: 600; }
+.infobar-action { margin: -6px 0; align-self: center; }
+.infobar-warning { background: var(--caution-bg); }
+.infobar-warning .infobar-icon { color: var(--caution); }
+.infobar-error { background: var(--critical-bg); }
+.infobar-error .infobar-icon { color: var(--critical); }
+.infobar-success { background: var(--success-bg); }
+.infobar-success .infobar-icon { color: var(--success); }
+
+/* MenuFlyout */
+.menu {
+  position: absolute;
+  z-index: 10;
+  min-width: 220px;
+  padding: 4px 0;
+  border-radius: var(--radius-overlay);
+  border: 1px solid var(--flyout-stroke);
+  background: var(--flyout-fill);
+  box-shadow: var(--shadow-flyout);
+  animation: menu-in 167ms cubic-bezier(0, 0, 0, 1);
+}
+.menu:focus-visible { outline: none; box-shadow: var(--shadow-flyout); }
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: calc(100% - 8px);
+  margin: 2px 4px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+}
+.menu-item:hover, .menu-item[data-active="true"] { background: var(--subtle-fill-hover); }
+.menu-item svg { color: var(--text-primary); flex: none; }
+.menu-item-label { flex: 1; }
+.menu-item-key { color: var(--text-tertiary); font: 400 12px/16px var(--font-small); }
+.menu-separator { height: 1px; margin: 2px 0; background: var(--divider); }
+@keyframes menu-in { from { opacity: 0; transform: translateY(-8px); } }
+
+/* HotkeyRecorder */
 .recorder { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
 .recorder-field {
-  display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 240px; min-height: 40px;
-  padding: 6px 10px; border-radius: 10px; border: 1px dashed var(--accent); background: rgba(240, 160, 64, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 240px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--control-stroke);
+  border-bottom: 2px solid var(--accent-fill);
+  background: var(--control-fill-input-active);
 }
-.recorder-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); animation: pulse 1.2s infinite; }
-.recorder-label { font-size: 12px; color: var(--text-2); margin-right: 4px; }
+.recorder-label { color: var(--text-secondary); margin-right: 8px; }
 .recorder-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.recorder-warning { font-size: 12px; color: var(--warn); }
-.recorder-error { font-size: 12px; color: var(--danger); }
+.recorder-warning { color: var(--caution); font: 400 12px/16px var(--font-small); }
+.recorder-error { color: var(--critical); font: 400 12px/16px var(--font-small); }
 
-@keyframes pulse { 50% { opacity: 0.3; } }
-@media (prefers-reduced-motion: reduce) { .recorder-dot { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .toggle-knob, .toggle-track, .progress-fill { transition: none; }
+  .menu { animation: none; }
+  .ring, .progress-indeterminate .progress-fill { animation-duration: 3s; }
+}
