@@ -19,7 +19,6 @@
    query is typed, then the new results arrive. It never collapses. */
 .hero-demo { margin-top: clamp(40px, 5vw, 60px); }
 .demo-stage {
-  --z: 1;
   display: flex; justify-content: center; align-items: flex-start;
   padding: 44px 24px 92px;            /* 92 = 48 px taskbar + 44 px of desktop */
   border-radius: var(--radius-l);
@@ -27,13 +26,6 @@
   box-shadow: var(--shadow-shot);
   color: var(--text);
 }
-/* No-JS fallback steps; js/home.js sets --z to fit exactly. */
-@media (max-width: 1023px) { .demo-stage { --z: .94; } }
-@media (max-width: 959px)  { .demo-stage { --z: .86; } }
-@media (max-width: 879px)  { .demo-stage { --z: .78; } }
-@media (max-width: 799px)  { .demo-stage { --z: .71; } }
-@media (max-width: 739px)  { .demo-stage { --z: .67; } }
-
 .demo-bloom { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .demo-bloom .petals ellipse { mix-blend-mode: screen; stroke: rgba(186, 208, 255, 0.22); stroke-width: 1; }
 .demo-bloom .petals .thin { stroke: none; opacity: 0.7; }
@@ -47,10 +39,11 @@
 .demo-bloom .bp1 { stop-color: #b84a8e; stop-opacity: 0.38; }
 .demo-bloom .bp2 { stop-color: #ffa6d2; stop-opacity: 0.7; }
 
+/* Never zoomed, so its text stays at 11 px or more: 880 px wide where it fits,
+   otherwise as wide as the stage, with the list narrowing first. */
 .demo-launcher {
   position: relative; left: auto; top: auto; flex: none;
-  width: 880px; height: 520px;
-  zoom: var(--z);
+  width: 100%; max-width: 880px; height: 520px;
 }
 .demo-scenes { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .demo-scene { flex: 1; min-height: 0; display: flex; flex-direction: column; transition: opacity 200ms var(--ease); }
@@ -182,12 +175,12 @@
 /* Without JavaScript the chips and Pause would do nothing, so they are left out. */
 html:not(.js) .demo-controls { display: none; }
 
-/* ---------- Phones: the same launcher, stacked ----------
-   Search box, the top results, then the preview, then the footer, at 1:1 so the
-   text stays readable. The height is fixed so the page never jumps between searches. */
-@media (max-width: 699px) {
-  .demo-stage { padding: 12px; }
-  .demo-launcher { width: 100%; height: 600px; zoom: 1; }
+/* ---------- Under 900 px: the same launcher, stacked ----------
+   Side by side it would be narrower than its design and cut the preview, so it stacks:
+   search box, the top results, then the preview, then the footer, at 1:1 so the text
+   stays at 11 px or more. The height is fixed so the page never jumps between searches. */
+@media (max-width: 899px) {
+  .demo-launcher { height: 600px; }
   .demo-launcher .lsearch { height: 52px; gap: 10px; padding: 0 6px 0 14px; }
   .demo-launcher .lsearch .q { font-size: 17px; }
   .demo-launcher .lsearch .caret { height: 20px; vertical-align: -4px; }
@@ -213,6 +206,10 @@ html:not(.js) .demo-controls { display: none; }
   .demo-launcher .ask-body { padding: 14px 16px 12px !important; gap: 12px !important; overflow: hidden; }
   .demo-launcher .ask-answer { font-size: 14px !important; line-height: 21px !important; }
   .demo-launcher .ask-sources .src { min-height: 48px !important; padding: 6px 12px !important; }
+}
+/* Phones: the launcher fills the stage, and the taskbar and long chip labels go. */
+@media (max-width: 699px) {
+  .demo-stage { padding: 12px; }
   .demo-taskbar { display: none; }
   .demo-controls { justify-content: flex-start; }
   .demo-chip__long { display: none; }
@@ -314,14 +311,15 @@ html:not(.js) .demo-controls { display: none; }
 .split-copy > [data-reveal-group] { display: flex; flex-direction: column; gap: 18px; }
 .split .title { font-size: clamp(32px, 3.6vw, 48px); }
 .split .shot { min-width: 0; }
-/* Once js/site.js has zoomed a shot to fit, let its window shadow show (no-JS keeps the clip). */
-.js .fit-frame { overflow: visible; }
-.fit-frame { width: 100%; }
-/* Without JavaScript nothing zooms the three window shots, so they take the frame's width
-   at 1:1 and reflow instead of being cut off on the right. */
-html:not(.js) .ask-shot .wf[data-fit], html:not(.js) .live-shot .wf[data-fit], html:not(.js) .priv-shot .wf[data-fit] { width: 100% !important; }
-html:not(.js) .ask-launcher .lsearch { height: auto; min-height: 60px; padding-top: 12px; padding-bottom: 12px; }
-html:not(.js) .ask-launcher .lsearch .q, html:not(.js) .priv-card .s { white-space: normal; }
+/* The three window shots are never zoomed, so their text stays at 11 px or more. Each is
+   its design width where that fits, otherwise the column's width, and reflows. */
+.fit-frame { width: 100%; overflow: visible; }
+.ask-shot .fit-frame > .wf { width: 100%; max-width: 760px; }
+.live-shot .fit-frame > .wf, .priv-shot .fit-frame > .wf { width: 100%; max-width: 640px; }
+.ask-launcher .lsearch { height: auto; min-height: 60px; padding-top: 12px; padding-bottom: 12px; }
+.ask-launcher .lsearch .q, .priv-card .s { white-space: normal; }
+.ask-launcher .lsearch .q { text-wrap: balance; }
+.ask-answer strong { white-space: nowrap; }
 @media (max-width: 1099px) {
   .split, .split--shot-left { grid-template-columns: minmax(0, 1fr); }
   .split--shot-left .shot { order: 2; }
@@ -332,7 +330,6 @@ html:not(.js) .ask-launcher .lsearch .q, html:not(.js) .priv-card .s { white-spa
 /* ---------- Ask ---------- */
 .model-line { display: flex; gap: 12px; align-items: flex-start; font-size: 15px; line-height: 1.55; color: var(--text2); padding: 14px 16px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--stroke); }
 .model-line svg { flex: none; margin-top: 2px; color: var(--accent); }
-.ask-shot .wf[data-fit] { width: 760px; }
 .ask-launcher { width: 100%; height: auto; }
 .cite { cursor: default; transition: background-color 150ms var(--ease), color 150ms var(--ease); }
 .cite.is-hot { background: var(--k); color: var(--on-accent); }
@@ -347,7 +344,6 @@ html:not(.js) .ask-launcher .lsearch .q, html:not(.js) .priv-card .s { white-spa
   .live-grid .shot { max-width: 680px; width: 100%; }
   .live-grid .story { max-width: 680px; }
 }
-.live-shot .wf[data-fit] { width: 640px; }
 .live-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .live-kinds { flex: 1; }
 .live-scope { min-height: 0; padding: 12px 14px; gap: 12px; }
@@ -387,7 +383,6 @@ html:not(.js) .ask-launcher .lsearch .q, html:not(.js) .priv-card .s { white-spa
 .promises { list-style: none; margin: 6px 0 4px; padding: 0; display: flex; flex-direction: column; gap: 20px; }
 .promise { display: flex; gap: 16px; align-items: flex-start; }
 .promise-t { font: 600 17px/24px var(--font); margin-bottom: 2px; }
-.priv-shot .wf[data-fit] { width: 640px; }
 .priv-body { padding: 0 24px 24px; }
 .priv-banner { padding: 18px 22px; display: flex; align-items: center; gap: 18px; background: linear-gradient(120deg, rgba(61, 214, 140, 0.14), rgba(91, 155, 255, 0.08) 60%, transparent), var(--card); }
 .priv-card { gap: 14px; padding: 12px 16px; }
@@ -395,12 +390,8 @@ html:not(.js) .ask-launcher .lsearch .q, html:not(.js) .priv-card .s { white-spa
 
 .priv-banner__title { font: 600 20px/28px var(--font-display); }
 
-/* ---------- Phones: the three window shots reflow at 1:1 instead of shrinking ----------
-   Zoomed to phone width their text would be 6 to 8 px, so they keep their
-   real type size and stack. !important beats the zoom js/site.js sets inline. */
+/* ---------- Phones: the three window shots stack and tighten ---------- */
 @media (max-width: 599px) {
-  .ask-shot .wf[data-fit], .live-shot .wf[data-fit], .priv-shot .wf[data-fit] { width: 100% !important; zoom: 1 !important; }
-
   .ask-launcher .lsearch { height: auto; min-height: 52px; padding: 13px 14px; gap: 10px; align-items: flex-start; }
   .ask-launcher .lsearch .q { font-size: 16px; line-height: 24px; white-space: normal; }
   .ask-launcher .lsearch > svg { margin-top: 2px; }

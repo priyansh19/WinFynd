@@ -170,7 +170,7 @@
 }
 
 .sv-understand { gap: 8px; }
-.sv-space { width: 100%; height: auto; display: block; overflow: visible; }
+.sv-space { width: 100%; height: auto; min-height: 0; display: block; overflow: visible; } /* min-height 0: on wide phones it shrinks to fit the card instead of being cut off */
 .sv-grid { stroke: var(--stroke); stroke-width: 1; fill: none; }
 .sv-dot { fill: var(--k); }
 .sv-dot.is-faint { opacity: 0.45; }
@@ -496,16 +496,18 @@
 .cta-band :focus-visible { outline-color: #0b0c21; }
 @media (max-width: 560px) { .cta-actions { min-width: 0; width: 100%; } }
 
-/* ================================================================ Without JavaScript: fixed zoom steps instead of fitting */
+/* ================================================================ Without JavaScript: fixed zoom steps instead of fitting
+   Each step is the largest zoom that fits the narrowest width of its band (checked from 700 to 1920 px).
+   Under 700 px the shots reflow at full size (see the phone rules above). */
 html:not(.js) .hero-wf { zoom: 0.87; }
 html:not(.js) .model-visual__inner { zoom: 1; }
 html:not(.js) .fr-wf { zoom: 0.8; }
-@media (max-width: 1279px) { html:not(.js) .hero-wf { zoom: 0.76; } html:not(.js) .model-visual__inner { zoom: 0.9; } html:not(.js) .fr-wf { zoom: 0.68; } }
-@media (max-width: 1099px) { html:not(.js) .hero-wf { zoom: 0.9; } html:not(.js) .model-visual__inner { zoom: 1; } html:not(.js) .fr-wf { zoom: 0.92; } }
-@media (max-width: 1023px) { html:not(.js) .hero-wf { zoom: 0.82; } html:not(.js) .model-visual__inner { zoom: 0.96; } html:not(.js) .fr-wf { zoom: 0.84; } }
-@media (max-width: 899px) { html:not(.js) .hero-wf { zoom: 0.72; } html:not(.js) .model-visual__inner { zoom: 0.8; } html:not(.js) .fr-wf { zoom: 0.72; } }
-@media (max-width: 767px) { html:not(.js) .hero-wf { zoom: 0.66; } html:not(.js) .model-visual__inner { zoom: 0.7; } html:not(.js) .fr-wf { zoom: 0.6; } }
-@media (max-width: 699px) { html:not(.js) .match-wf { zoom: 1; } }
+@media (max-width: 1279px) { html:not(.js) .hero-wf { zoom: 0.81; } html:not(.js) .match-wf { zoom: 0.96; } html:not(.js) .fr-wf { zoom: 0.71; } }
+@media (max-width: 1199px) { html:not(.js) .hero-wf { zoom: 0.73; } html:not(.js) .match-wf { zoom: 0.87; } html:not(.js) .model-visual__inner { zoom: 0.99; } html:not(.js) .fr-wf { zoom: 0.61; } }
+@media (max-width: 1099px) { html:not(.js) .hero-wf { zoom: 1; } html:not(.js) .match-wf { zoom: 1; } html:not(.js) .model-visual__inner { zoom: 1; } html:not(.js) .fr-wf { zoom: 0.93; } }
+@media (max-width: 1023px) { html:not(.js) .hero-wf { zoom: 0.94; } html:not(.js) .fr-wf { zoom: 0.81; } }
+@media (max-width: 899px) { html:not(.js) .hero-wf { zoom: 0.8; } html:not(.js) .fr-wf { zoom: 0.69; } }
+@media (max-width: 767px) { html:not(.js) .hero-wf { zoom: 0.73; } html:not(.js) .fr-wf { zoom: 0.62; } }
 
 /* ================================================================ Reduced motion */
 @media (prefers-reduced-motion: reduce) {

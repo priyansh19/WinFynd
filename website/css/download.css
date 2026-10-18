@@ -55,6 +55,9 @@ code.mono { overflow-wrap: anywhere; }
   border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
 }
 .dl-card__status .pulse { --k: var(--accent); width: 7px; height: 7px; }
+@media (prefers-color-scheme: light) {
+  .dl-card__status { background: color-mix(in srgb, var(--accent) 10%, #fff); } /* solid, so the pink glow behind the card can't thin it out */
+}
 .dl-card__soon { margin-top: -12px; text-align: center; font-size: 14px; line-height: 1.5; color: var(--text2); text-wrap: balance; }
 
 .dl-card__facts {
