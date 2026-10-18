@@ -520,6 +520,12 @@
   .hero-step, .hero-step__arrow { transition: none; transform: none; }
 }
 
+/* The narrowest phones: smaller queries, so "receipt for the blue sofa" shows whole. */
+@media (max-width: 340px) {
+  .hero-launcher .lsearch .q, .match-launcher .lsearch .q { font-size: 15px; }
+  .sv-search .sv-q { gap: 8px; padding: 0 10px; font-size: 14px; }
+}
+
 /* Warm-up chips flash their kind colour as files of that kind finish. */
 [data-warm-kinds] .chip.is-flash { animation: hiw-flash 700ms var(--ease) both; }
 @keyframes hiw-flash { 0% { background: color-mix(in srgb, var(--k) 48%, transparent); transform: scale(1.08); } 100% { transform: none; } }
