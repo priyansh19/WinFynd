@@ -504,7 +504,6 @@ main { view-transition-name: main; }
 }
 
 /* ---------- Release switch ----------
-   Until 0.1.0 is published on GitHub, content that only makes sense after the release
-   (.after-release) is hidden and its "coming soon" twin (.until-release) shows.
-   At release, change the selector below to .until-release. Works without JavaScript. */
-.after-release { display: none !important; }
+   0.1.0 was published on 18 October 2026, so the "coming soon" variants (.until-release)
+   are hidden and the released ones (.after-release) show. Works without JavaScript. */
+.until-release { display: none !important; }
