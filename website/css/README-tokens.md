@@ -163,7 +163,7 @@ Two things to watch with shots. A `.shot` is positioned, so its large shadow dra
 - `WinFynd.revealNow(el)`: show `el`'s reveal content (and everything before it) at once, without the rise. site.js already calls it for `#hash` loads, same-page `#links` and `hashchange`; call it yourself before scrolling to something with `scrollIntoView`.
 - `WinFynd.fmt(51204)` gives `"51,204"`.
 
-**Release switch.** Until 0.1.0 is published, `css/site.css` hides `.after-release`, so its `.until-release` twin shows ("Coming soon" on the Download card, Home's hero note and the Changelog status). At release, change that one selector to `.until-release`.
+**Release switch.** Flipped on 18 October 2026 when 0.1.0 was published: site.css now hides `.until-release`. Primary Download buttons link straight to the installer; update that URL for each new version. Before that: Until 0.1.0 is published, `css/site.css` hides `.after-release`, so its `.until-release` twin shows ("Coming soon" on the Download card, Home's hero note and the Changelog status). At release, change that one selector to `.until-release`.
 
 ```html
 <span class="until-release">0.1.0 coming soon</span><span class="after-release">Version 0.1.0</span>
