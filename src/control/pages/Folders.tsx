@@ -18,6 +18,7 @@ const SKIPPED = [
   "Recovery, Windows.old, update leftovers and the page file",
   "node_modules, vendor, venv, site-packages and other dependencies",
   "Build output: target, bin, obj, dist, build, coverage",
+  "Test data and fixtures, Go and conda package caches, Scoop and Python installs",
   "Game libraries from Steam, Epic Games and Xbox",
   "Office lock files (~$…) and OneDrive's temporary folder",
 ];

@@ -148,7 +148,7 @@ export function FoldersStep({ config, save, next, back }: StepProps) {
       {whole ? (
         <div className="small muted always-skipped">
           <Icon name="lock" size={14} strokeWidth={1.5} />
-          <span>Always skipped: Windows, Program Files, AppData, the Recycle Bin, folders that start with a dot, node_modules, build output and caches. Change the list in Settings.</span>
+          <span>Always skipped: Windows, Program Files, AppData, the Recycle Bin, folders that start with a dot, node_modules, build output, test data, package caches and Python installs. Change the list in Settings.</span>
         </div>
       ) : (
         <div>

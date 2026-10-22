@@ -7,6 +7,7 @@ name: Release
 # Publish: merge a new version (with its notes) to main, and the push publishes it if
 # v<version> isn't released yet. Actions > Release > Run workflow on main, or pushing a tag like
 # v0.1.0, does the same. Runs on other branches build and check the installer without publishing.
+# Fixing the notes of a version that's out already and merging that to main updates its release.
 # On a pull request that touches the installer it builds and checks it without publishing.
 on:
   workflow_dispatch:
@@ -61,6 +62,11 @@ jobs:
           echo "notes=$notes" >> "$GITHUB_OUTPUT"
           echo "released=$released" >> "$GITHUB_OUTPUT"
           echo "WinFynd $version, released already: $released"
+      - name: Update the notes of a version that's out already
+        if: steps.version.outputs.released == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "v${{ steps.version.outputs.version }}" --repo "$GITHUB_REPOSITORY" --notes-file "${{ steps.version.outputs.notes }}"
 
   installer:
     name: WinFynd Setup
