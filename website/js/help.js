@@ -117,7 +117,7 @@
 
   /* ---------- Copy ---------- */
   var TEMPLATE = [
-    "**WinFynd version:** 0.1.0",
+    "**WinFynd version:** 0.1.1",
     "**Windows version:** ",
     "",
     "**What I did:** ",
