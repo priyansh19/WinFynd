@@ -4,6 +4,7 @@ mod engine;
 mod hotkeys;
 mod native;
 mod onboarding;
+mod startup;
 mod stats;
 mod windows;
 
@@ -73,6 +74,8 @@ pub fn run() {
             stats::ollama_info,
             stats::pause_indexing,
             stats::delete_index,
+            startup::start_with_windows,
+            startup::set_start_with_windows,
         ])
         .setup(|app| {
             let handle = app.handle();
@@ -87,6 +90,17 @@ pub fn run() {
             }
 
             let engine = engine::Engine::start(handle)?;
+            // The search model setup picked, run by WinFynd itself, isn't on
+            // this PC yet (an update from a version that ran it in Ollama, or
+            // a download that was cut off): fetch it now so indexing finishes
+            // without anyone opening Settings.
+            let cfg = engine.config();
+            if onboarding::is_complete(handle)
+                && cfg.builtin()
+                && engine.local_model().is_some_and(|m| m.has_runtime() && !m.is_installed(&cfg.embed_model))
+            {
+                let _ = commands::download_search_model(handle.clone(), engine.clone(), cfg.embed_model);
+            }
             let watched = Arc::downgrade(&engine);
             app.manage(engine);
             // If the windows ever stop answering, the log says what the
@@ -146,12 +160,10 @@ pub fn run() {
             ("launcher", WindowEvent::Focused(false)) => {
                 let _ = window.hide();
             }
-            // Closing Settings keeps WinFynd running in the tray.
-            // Closing setup early keeps it for next launch; the tray can reopen it.
-            ("control" | "onboarding", WindowEvent::CloseRequested { api, .. }) => {
-                api.prevent_close();
-                let _ = window.hide();
-            }
+            // Closing Settings or setup keeps WinFynd running in the tray. The
+            // window itself goes, so the tray process stays small; it's built
+            // again when it's next opened. Setup closed early shows again at
+            // the next launch.
             // Light/dark switches also change the accent shades the page uses.
             (_, WindowEvent::ThemeChanged(_)) => native::theme_changed(window),
             _ => {}

@@ -25,6 +25,7 @@ struct Running {
 fn start(root: &Path, ollama_url: String) -> Running {
     let config = EngineConfig {
         roots: vec![root.to_path_buf()],
+        embed_backend: super::config::OLLAMA.into(),
         ollama_url,
         dimensions: DIMS,
         ..EngineConfig::default()

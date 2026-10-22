@@ -129,8 +129,13 @@ function FindSetting({ onPick }: { onPick: (label: string, page: PageId) => void
 }
 
 /** The Settings window: a coloured navigation pane with the live corner, and one page at a time. */
+// Settings is built when it's opened; a page asked for then (the launcher's
+// "Set up models") arrives with it instead of as an event.
+const openedAt = (window as { __WINFYND_PAGE__?: string }).__WINFYND_PAGE__;
+const firstPage: PageId = PAGES.some((x) => x.id === openedAt) ? (openedAt as PageId) : "home";
+
 export function Settings() {
-  const [page, setPage] = useState<PageId>("home");
+  const [page, setPage] = useState<PageId>(firstPage);
   const [focus, setFocus] = useState<string | null>(null);
   const status = useEngineStatus();
   const main = useRef<HTMLElement>(null);

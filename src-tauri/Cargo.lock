@@ -6426,6 +6426,7 @@ dependencies = [
  "walkdir",
  "whisper-rs",
  "windows",
+ "winreg",
  "zip 9.0.5",
 ]
 

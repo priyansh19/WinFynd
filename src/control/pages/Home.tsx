@@ -90,7 +90,14 @@ export function HomePage({ status, go }: { status: EngineStatus | null; go: (pag
           <span className="grow">
             <strong>Search by meaning is off.</strong>{" "}
             <span className="muted">
-              {status.ollama === "offline" ? "Ollama isn't running on this PC." : "The search model isn't downloaded yet."} File names and exact words still
+              {status.ollama === "offline"
+                ? config?.embedBackend === "ollama"
+                  ? "Ollama isn't running on this PC."
+                  : "The search model couldn't start."
+                : status.message?.startsWith("Downloading")
+                  ? `${status.message}.`
+                  : "The search model isn't downloaded yet."}{" "}
+              File names and exact words still
               work.
             </span>
           </span>

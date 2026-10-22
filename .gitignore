@@ -8,3 +8,5 @@ src-tauri/gen
 setup/target
 setup/gen
 dist-installer
+/src-tauri/llama/*
+!/src-tauri/llama/README.md

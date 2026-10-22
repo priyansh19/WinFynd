@@ -17,6 +17,9 @@ pub struct EngineConfig {
     pub roots: Vec<PathBuf>,
     /// Folders never read, on top of what's always skipped (`is_excluded`).
     pub skip: Vec<PathBuf>,
+    /// Who runs the embedding model: "builtin" (WinFynd itself, with
+    /// llama.cpp) or "ollama". Ask mode always uses Ollama.
+    pub embed_backend: String,
     /// Local Ollama server. Only loopback is ever contacted.
     pub ollama_url: String,
     /// EmbeddingGemma 2 by default: text and images share one vector space.
@@ -42,6 +45,7 @@ impl Default for EngineConfig {
             whole_pc: true,
             roots: Vec::new(),
             skip: Vec::new(),
+            embed_backend: BUILTIN.into(),
             ollama_url: "http://127.0.0.1:11434".into(),
             embed_model: "embeddinggemma-2".into(),
             dimensions: 768,
@@ -54,7 +58,14 @@ impl Default for EngineConfig {
     }
 }
 
+pub const BUILTIN: &str = "builtin";
+pub const OLLAMA: &str = "ollama";
+
 impl EngineConfig {
+    pub fn builtin(&self) -> bool {
+        self.embed_backend != OLLAMA
+    }
+
     pub fn load(path: &Path) -> Option<Self> {
         fs::read_to_string(path).ok().and_then(|s| serde_json::from_str(&s).ok())
     }

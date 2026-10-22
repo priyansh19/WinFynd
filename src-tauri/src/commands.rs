@@ -99,17 +99,30 @@ pub async fn rescan(engine: EngineState<'_>) -> Result<(), String> {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelsSnapshot {
-    /// Null when Ollama isn't reachable.
+    /// The models on this PC. Null when the search model runs in Ollama and
+    /// Ollama isn't reachable.
     installed: Option<Vec<InstalledModel>>,
     error: Option<String>,
+    /// Whether Ollama answered. Ask mode needs it either way.
+    ollama: bool,
 }
 
 #[tauri::command]
 pub async fn list_models(engine: EngineState<'_>) -> Result<ModelsSnapshot, String> {
     let engine = engine.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || match engine.ollama().and_then(|o| o.models()) {
-        Ok(m) => ModelsSnapshot { installed: Some(m), error: None },
-        Err(e) => ModelsSnapshot { installed: None, error: Some(e) },
+    tauri::async_runtime::spawn_blocking(move || {
+        let from_ollama = engine.ollama().and_then(|o| o.models());
+        let ollama = from_ollama.is_ok();
+        if engine.config().builtin() {
+            // WinFynd's own search model, plus Ollama's chat models for Ask.
+            let mut installed = engine.local_model().map(|m| m.installed()).unwrap_or_default();
+            installed.extend(from_ollama.unwrap_or_default().into_iter().filter(|m| !m.name.contains("embed")));
+            return ModelsSnapshot { installed: Some(installed), error: None, ollama };
+        }
+        match from_ollama {
+            Ok(m) => ModelsSnapshot { installed: Some(m), error: None, ollama },
+            Err(e) => ModelsSnapshot { installed: None, error: Some(e), ollama },
+        }
     })
     .await
     .map_err(|e| e.to_string())
@@ -126,10 +139,15 @@ struct PullProgress {
     error: Option<String>,
 }
 
-/// Download a model into Ollama in the background; progress arrives as
-/// `models://pull` events. Indexing resumes with the new model afterwards.
+/// Download a model in the background; progress arrives as `models://pull`
+/// events. The search model goes to WinFynd's own folder unless it runs in
+/// Ollama; chat models always go to Ollama. Indexing resumes with the new
+/// model afterwards.
 #[tauri::command]
 pub async fn pull_model<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, model: String) -> Result<(), String> {
+    if engine.config().builtin() && model.starts_with("embeddinggemma") {
+        return download_search_model(app, engine.inner().clone(), model);
+    }
     let client = engine.ollama()?;
     let engine = engine.inner().clone();
     std::thread::spawn(move || {
@@ -147,6 +165,37 @@ pub async fn pull_model<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, 
             done: true,
             error: result.err(),
         });
+        engine.enqueue(Job::Scan);
+    });
+    Ok(())
+}
+
+/// Download EmbeddingGemma 2 for WinFynd to run itself, reporting progress
+/// like an Ollama pull. Also called at startup when the model setup picked
+/// isn't on this PC yet (an update from a version that used Ollama).
+pub fn download_search_model<R: Runtime>(app: AppHandle<R>, engine: Arc<Engine>, model: String) -> Result<(), String> {
+    let local = engine.local_model().ok_or("WinFynd's model engine isn't available")?;
+    if local.is_downloading() {
+        // Progress is already arriving.
+        return Ok(());
+    }
+    std::thread::spawn(move || {
+        let emit = |status: &str, completed: u64, total: u64, done: bool, error: Option<String>| {
+            let _ = app.emit(
+                "models://pull",
+                PullProgress { model: model.clone(), status: status.into(), completed, total, done, error },
+            );
+        };
+        emit("starting", 0, 0, false, None);
+        let result = local.download(&model, |completed, total| {
+            emit("downloading", completed, total, false, None);
+            engine.note_model_download(completed, total);
+        });
+        if let Err(e) = &result {
+            crate::diag::warn(&format!("downloading the search model failed: {e}"));
+        }
+        let ok = result.is_ok();
+        emit(if ok { "success" } else { "failed" }, 0, 0, true, result.err());
         engine.enqueue(Job::Scan);
     });
     Ok(())

@@ -22,6 +22,7 @@ on:
       - .github/workflows/release.yml
       - docs/releases/**
       - scripts/build-installer.mjs
+      - scripts/fetch-llama.mjs
       - setup/**
       - src-tauri/tauri.conf.json
       - src-tauri/windows/**
@@ -109,9 +110,14 @@ jobs:
           $dir = $entry.InstallLocation.Trim().Trim('"')
           $binary = if ($entry.MainBinaryName) { $entry.MainBinaryName } else { 'WinFynd.exe' }
           Get-ChildItem $dir | Format-Table Name, Length
-          foreach ($f in (Join-Path $dir $binary), (Join-Path $dir 'uninstall-ui.exe')) {
+          $llama = Join-Path $dir 'llama\llama-server.exe'
+          foreach ($f in (Join-Path $dir $binary), (Join-Path $dir 'uninstall-ui.exe'), $llama) {
             if (-not (Test-Path $f)) { throw "The installer didn't put $f in place" }
           }
+          # The engine that runs the search model has to start from where it's installed, DLLs and all.
+          $out = & $llama --version 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0) { throw "llama-server didn't start: $out" }
+          Write-Host "llama-server: $($out.Trim())"
 
           # Started the way it starts at sign-in, it should stay running in the tray. (If the
           # installer already started it, this second copy hands over to it and exits.)

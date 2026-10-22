@@ -560,8 +560,8 @@ impl Engine {
 
     fn query_vector(&self, query: &str) -> Result<Vec<f32>, String> {
         let cfg = self.config();
-        self.ollama()?
-            .embed(&cfg.embed_model, &[EmbedInput::Query(query.to_string())], cfg.dimensions)?
+        self.embedder(&cfg)?
+            .embed(&[&EmbedInput::Query(query.to_string())], cfg.dimensions)?
             .pop()
             .ok_or_else(|| "No query embedding".to_string())
     }

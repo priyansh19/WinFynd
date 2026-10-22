@@ -39,22 +39,27 @@ fn backdrop_for(label: &str) -> &'static str {
 }
 
 pub fn apply<R: Runtime>(app: &AppHandle<R>) {
-    for (label, window) in app.webview_windows() {
-        let effect = match backdrop_for(&label) {
-            "acrylic" => Some(Effect::Acrylic),
-            "mica" => Some(Effect::Mica),
-            _ => None,
-        };
-        if let Some(effect) = effect {
-            let _ = window.set_effects(EffectsBuilder::new().effect(effect).build());
-        }
-        // A borderless window gets square corners unless it asks DWM for round
-        // ones. Every window draws its own title bar, so all of them ask.
-        #[cfg(windows)]
-        {
-            if let Ok(hwnd) = window.hwnd() {
-                win::round_corners(hwnd);
-            }
+    for window in app.webview_windows().values() {
+        apply_window(window);
+    }
+}
+
+/// The backdrop and corners for one window, as it's created.
+pub fn apply_window<R: Runtime>(window: &WebviewWindow<R>) {
+    let effect = match backdrop_for(window.label()) {
+        "acrylic" => Some(Effect::Acrylic),
+        "mica" => Some(Effect::Mica),
+        _ => None,
+    };
+    if let Some(effect) = effect {
+        let _ = window.set_effects(EffectsBuilder::new().effect(effect).build());
+    }
+    // A borderless window gets square corners unless it asks DWM for round
+    // ones. Every window draws its own title bar, so all of them ask.
+    #[cfg(windows)]
+    {
+        if let Ok(hwnd) = window.hwnd() {
+            win::round_corners(hwnd);
         }
     }
 }
