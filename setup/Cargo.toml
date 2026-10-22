@@ -1,6 +1,6 @@
 [package]
 name = "winfynd-setup"
-version = "0.1.0"
+version = "0.1.1"
 description = "WinFynd Setup: installs, updates and uninstalls WinFynd"
 edition = "2021"
 
