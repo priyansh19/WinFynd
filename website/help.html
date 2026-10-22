@@ -25,7 +25,7 @@
         <a href="help.html" aria-current="page">Help</a>
         <a href="changelog.html">Changelog</a>
     </nav>
-    <a class="button button--primary button--small" href="https://github.com/priyansh19/WinFynd/releases/download/v0.1.0/WinFynd-Setup-0.1.0.exe"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v10M5.5 8.5L10 13l4.5-4.5M4 16.5h12"></path></svg>Download</a>
+    <a class="button button--primary button--small" href="https://github.com/priyansh19/WinFynd/releases/download/v0.1.1/WinFynd-Setup-0.1.1.exe"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v10M5.5 8.5L10 13l4.5-4.5M4 16.5h12"></path></svg>Download</a>
     <details class="site-menu">
       <summary aria-label="Menu"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="menu-open"><path d="M3.5 6h13M3.5 10h13M3.5 14h13"></path></svg><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="menu-close"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9"></path></svg></summary>
       <nav class="site-menu__panel" aria-label="Main">
@@ -33,7 +33,7 @@
         <a href="privacy.html">Privacy</a>
         <a href="help.html" aria-current="page">Help</a>
         <a href="changelog.html">Changelog</a>
-        <a class="button button--primary" href="https://github.com/priyansh19/WinFynd/releases/download/v0.1.0/WinFynd-Setup-0.1.0.exe"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v10M5.5 8.5L10 13l4.5-4.5M4 16.5h12"></path></svg>Download for Windows</a>
+        <a class="button button--primary" href="https://github.com/priyansh19/WinFynd/releases/download/v0.1.1/WinFynd-Setup-0.1.1.exe"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v10M5.5 8.5L10 13l4.5-4.5M4 16.5h12"></path></svg>Download for Windows</a>
       </nav>
     </details>
   </div>
@@ -246,7 +246,7 @@
           <div class="help-head__text" data-reveal-group>
             <p class="eyebrow k-doc reveal"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"></circle><path d="M7.9 7.9a2.2 2.2 0 0 1 4.2.8c0 1.5-2.1 1.9-2.1 3.2M10 14.2v.1"></path></svg>Questions</p>
             <h2 id="questions-title" class="title reveal">What it reads, what it needs, where it keeps things.</h2>
-            <p class="lead reveal">Each answer is about version 0.1.0. Open one for the details.</p>
+            <p class="lead reveal">Each answer is about version 0.1.1. Open one for the details.</p>
           </div>
           <button type="button" class="button button--secondary button--small help-qa-all" data-qa-all hidden><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg><span data-qa-all-label>Open all</span></button>
         </div>
@@ -257,7 +257,7 @@
             <div class="help-qa__body">
               <p>Reading your files, searching them and answering questions all happen on your PC, so WinFynd works offline once its models are downloaded. It connects to the internet only:</p>
               <ul class="help-list">
-                <li>when you click <span class="ui">Download</span> for a model. Search and Ask models come through Ollama from ollama.com; Whisper, for speech, comes from huggingface.co.</li>
+                <li>to download a model. The search model comes from huggingface.co once, in setup, or on the first start after an update from 0.1.0. Whisper, for speech, comes from huggingface.co too, and Ask models come through Ollama from ollama.com, when you click <span class="ui">Download</span>.</li>
                 <li>once a day, to check GitHub for a new version. You can turn this off.</li>
                 <li>during install, if Windows is missing the WebView2 runtime that WinFynd’s windows need.</li>
               </ul>
@@ -266,17 +266,17 @@
           </details>
 
           <details class="help-qa k-audio reveal" id="q-ollama" data-find>
-            <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l7 3.8v7.4l-7 3.8-7-3.8V6.3z"></path><path d="M3 6.3l7 3.9 7-3.9M10 10.2v7.3"></path></svg></span><h3 class="help-qa__q">Does it work without Ollama?</h3><span class="help-qa__a">Yes, by exact words and file names. Ollama adds meaning, photos and Ask.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
+            <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l7 3.8v7.4l-7 3.8-7-3.8V6.3z"></path><path d="M3 6.3l7 3.9 7-3.9M10 10.2v7.3"></path></svg></span><h3 class="help-qa__q">Does it work without Ollama?</h3><span class="help-qa__a">Yes. Search by meaning and photos run inside WinFynd. Only Ask needs Ollama.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
             <div class="help-qa__body">
-              <p>Without Ollama, WinFynd still finds files by the exact words in them and by their names, and Whisper still turns speech in recordings and videos into words you can search. The result count at the bottom of the search window then ends in “exact words only”.</p>
-              <p>Ollama is free, from ollama.com. With it and the EmbeddingGemma 2 search model, you also get:</p>
+              <p>WinFynd runs its search model, EmbeddingGemma 2, itself. Without Ollama you still get:</p>
               <ul class="help-list">
                 <li>search by meaning, so “receipt for the blue sofa” finds an order confirmation that never says “receipt”</li>
                 <li>photos found by what is in them</li>
                 <li>moments in videos, found by what is on screen (with FFmpeg)</li>
-                <li>Ask: answers from your files, with numbered sources</li>
+                <li>exact words, file names, and speech in recordings and videos, with Whisper</li>
               </ul>
-              <p>Install it later and WinFynd catches up by itself: its next full check adds the files it already read to search by meaning. That check runs right after you download a model, and every 20&nbsp;minutes.</p>
+              <p>Ollama is free, from ollama.com. It adds Ask: answers from your files, with numbered sources. Install it any time, then download a chat model like llama3.2&nbsp;3B in <span class="ui">Settings&nbsp;&gt; Models</span>.</p>
+              <p>Rather run search in Ollama too? Set <span class="ui">Run the search model with</span> to Ollama in <span class="ui">Settings&nbsp;&gt; Models</span>. WinFynd then reads your files again for it, and search keeps working meanwhile.</p>
             </div>
           </details>
 
@@ -292,29 +292,29 @@
                 <div class="k-audio"><dt><span class="kind-chip">Recordings</span></dt><dd>MP3, WAV, M4A, FLAC, OGG, AAC, WMA and Opus</dd></div>
                 <div class="k-video"><dt><span class="kind-chip">Videos</span></dt><dd>MP4, MKV, MOV, AVI, WebM, WMV and M4V</dd></div>
               </dl>
-              <p>Every other file is found by its name, folder, kind and year. Not read inside in 0.1.0: old .doc and .ppt files, HEIC, TIFF and RAW photos, and scanned PDFs with no text in them. Less common audio, like WMA and Opus, needs FFmpeg. <a class="help-link" href="how-it-works.html#kinds">How each kind is read</a></p>
+              <p>Every other file is found by its name, folder, kind and year. Not read inside in 0.1.1: old .doc and .ppt files, HEIC, TIFF and RAW photos, and scanned PDFs with no text in them. Less common audio, like WMA and Opus, needs FFmpeg. <a class="help-link" href="how-it-works.html#kinds">How each kind is read</a></p>
             </div>
           </details>
 
           <details class="help-qa k-img reveal" id="q-screenshots" data-find>
-            <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="1.5"></rect><circle cx="7" cy="8" r="1.5"></circle><path d="M2.5 14l4.5-4 4 3.5 2.5-2 4 3.5"></path></svg></span><h3 class="help-qa__q">Why doesn’t it find text in my screenshots?</h3><span class="help-qa__a">Version 0.1.0 doesn’t read text inside images.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
+            <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="1.5"></rect><circle cx="7" cy="8" r="1.5"></circle><path d="M2.5 14l4.5-4 4 3.5 2.5-2 4 3.5"></path></svg></span><h3 class="help-qa__q">Why doesn’t it find text in my screenshots?</h3><span class="help-qa__a">Version 0.1.1 doesn’t read text inside images.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
             <div class="help-qa__body">
-              <p>Screenshots, photos of documents and scanned PDFs are not read for their words; there is no text recognition (OCR) in 0.1.0. With Ollama, images are matched by what they look like, so describe the picture rather than the words in it.</p>
+              <p>Screenshots, photos of documents and scanned PDFs are not read for their words; there is no text recognition (OCR) in 0.1.1. With the Text and photos search model, images are matched by what they look like, so describe the picture rather than the words in it.</p>
               <p>Kind and date still narrow it down. “screenshots last week” lists the pictures from the last two weeks, newest first, with “Photos” and “Last 2 weeks” as filters you can remove.</p>
             </div>
           </details>
 
           <details class="help-qa k-other reveal" id="q-disk" data-find>
-            <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 11.5l2-7h11l2 7v4a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"></path><path d="M2.5 11.5h4l1 2h5l1-2h4"></path></svg></span><h3 class="help-qa__q">How much disk space does it use?</h3><span class="help-qa__a">On the example PC: 4.1&nbsp;GB of models and a 2.3&nbsp;GB index.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
+            <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 11.5l2-7h11l2 7v4a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"></path><path d="M2.5 11.5h4l1 2h5l1-2h4"></path></svg></span><h3 class="help-qa__q">How much disk space does it use?</h3><span class="help-qa__a">On the example PC: 3.4&nbsp;GB of models and a 2.3&nbsp;GB index.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
             <div class="help-qa__body">
               <p>Most of it is models, and you choose which ones you download:</p>
               <ul class="help-list">
-                <li><b>Search model</b>, EmbeddingGemma 2: 1.3&nbsp;GB for Most accurate, 0.7&nbsp;GB for Balanced, or 0.3&nbsp;GB for Smallest, which reads text only.</li>
+                <li><b>Search model</b>, EmbeddingGemma 2: 865&nbsp;MB for Text and photos, or 310&nbsp;MB for Text only.</li>
                 <li><b>Speech</b>, Whisper: 488&nbsp;MB for Small, the one setup offers. Base is 148&nbsp;MB, Large v3 Turbo 574&nbsp;MB.</li>
                 <li><b>Ask model</b>, any chat model in Ollama: llama3.2 3B, for example, is 2.0&nbsp;GB.</li>
                 <li><b>The index</b>, which grows with your files.</li>
               </ul>
-              <p>The example PC used across this site has 51,204 files on C: and D:. Its index is 2.3&nbsp;GB and its models take 4.1&nbsp;GB.</p>
+              <p>The example PC used across this site has 51,204 files on C: and D:. Its index is 2.3&nbsp;GB and its models take 3.4&nbsp;GB.</p>
             </div>
           </details>
 
@@ -326,7 +326,7 @@
               <p>Reading the whole PC means the index holds text from files anywhere on it. All of it stays on this PC.</p>
               <ul class="help-list">
                 <li>New, changed, moved and deleted files are picked up within a couple of seconds, and a full check every 20&nbsp;minutes catches anything missed.</li>
-                <li>Always skipped: Windows, Program Files, AppData, the Recycle Bin, folders that start with a dot (like .git), node_modules, build output and caches.</li>
+                <li>Always skipped: Windows, Program Files, AppData, the Recycle Bin, folders that start with a dot (like .git), node_modules, build output, caches, test data, and Python, conda and Scoop installs.</li>
                 <li>OneDrive files that live only in the cloud are found by name. Switch on <span class="ui">OneDrive files that are only online</span> in <span class="ui">Settings&nbsp;&gt; Folders</span> to download and read them.</li>
               </ul>
             </div>
@@ -336,19 +336,19 @@
             <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l6 2.5v4.5c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8V5z"></path><path d="M7.5 10l1.8 1.8 3.4-3.6"></path></svg></span><h3 class="help-qa__q">Where is my data?</h3><span class="help-qa__a">On your PC, in your Windows user folder.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
             <div class="help-qa__body">
               <dl class="help-paths">
-                <div><dt><span class="help-path"><code>%APPDATA%\app.winfynd.desktop</code><button type="button" class="help-copy" data-copy="%APPDATA%\app.winfynd.desktop" aria-label="Copy %APPDATA%\app.winfynd.desktop"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"></rect><path d="M13 7V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3"></path></svg></button></span></dt><dd>The index (index.sqlite3), the Whisper models and your settings.</dd></div>
-                <div><dt><span class="help-path"><code>%LOCALAPPDATA%\app.winfynd.desktop</code><button type="button" class="help-copy" data-copy="%LOCALAPPDATA%\app.winfynd.desktop" aria-label="Copy %LOCALAPPDATA%\app.winfynd.desktop"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"></rect><path d="M13 7V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3"></path></svg></button></span></dt><dd>The log file.</dd></div>
+                <div><dt><span class="help-path"><code>%APPDATA%\app.winfynd.desktop</code><button type="button" class="help-copy" data-copy="%APPDATA%\app.winfynd.desktop" aria-label="Copy %APPDATA%\app.winfynd.desktop"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"></rect><path d="M13 7V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3"></path></svg></button></span></dt><dd>The index (index.sqlite3), the search and Whisper models, and your settings.</dd></div>
+                <div><dt><span class="help-path"><code>%LOCALAPPDATA%\app.winfynd.desktop</code><button type="button" class="help-copy" data-copy="%LOCALAPPDATA%\app.winfynd.desktop" aria-label="Copy %LOCALAPPDATA%\app.winfynd.desktop"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"></rect><path d="M13 7V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3"></path></svg></button></span></dt><dd>The log files.</dd></div>
                 <div><dt><span class="help-path"><code>%LOCALAPPDATA%\WinFynd</code><button type="button" class="help-copy" data-copy="%LOCALAPPDATA%\WinFynd" aria-label="Copy %LOCALAPPDATA%\WinFynd"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"></rect><path d="M13 7V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3"></path></svg></button></span></dt><dd>The app itself.</dd></div>
               </dl>
-              <p>Paste a path into the File Explorer address bar to open it. The index holds copies of the text WinFynd read from your files, plus their vectors. It isn’t encrypted; it sits in your user folder like other apps’ data. Search and Ask models are kept by Ollama, in its own folder.</p>
+              <p>Paste a path into the File Explorer address bar to open it. The index holds copies of the text WinFynd read from your files, plus their vectors. It isn’t encrypted; it sits in your user folder like other apps’ data. Ask models are kept by Ollama, in its own folder.</p>
             </div>
           </details>
 
           <details class="help-qa k-audio reveal" id="q-gpu" data-find>
             <summary><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="10" height="10" rx="1.5"></rect><path d="M8 8h4v4H8zM8 2.5V5M12 2.5V5M8 15v2.5M12 15v2.5M2.5 8H5M2.5 12H5M15 8h2.5M15 12h2.5"></path></svg></span><h3 class="help-qa__q">Does it use my GPU?</h3><span class="help-qa__a">It doesn’t need one.</span><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="help-qa__chev"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></summary>
             <div class="help-qa__body">
-              <p>Whisper turns speech into text on the processor, using all its cores but one, up to eight, so the PC stays responsive. Search by meaning and Ask run inside Ollama, which decides whether to use your graphics card.</p>
-              <p>The Most accurate search model works best on a PC with 16&nbsp;GB of memory. Balanced and Smallest are smaller models, 0.7&nbsp;GB and 0.3&nbsp;GB.</p>
+              <p>The search model and Whisper both run on the processor. The search model uses half its cores at below-normal priority, and Whisper all its cores but one, up to eight, so the PC stays responsive. Ask runs inside Ollama, which decides whether to use your graphics card.</p>
+              <p>The Text and photos search model works best on a PC with 8&nbsp;GB of memory or more. Text only is smaller and lighter, at 310&nbsp;MB.</p>
             </div>
           </details>
 
@@ -365,8 +365,8 @@
               <p>Open Windows <span class="ui">Settings&nbsp;&gt; Apps</span> (Installed apps on Windows 11, Apps &amp; features on Windows 10), find WinFynd and choose <span class="ui">Uninstall</span>.</p>
               <ul class="help-list">
                 <li>Your own files are never touched.</li>
-                <li>Your index and settings stay unless you tick “Also delete my search index and settings”. Keep them and a reinstall picks up where you left off.</li>
-                <li>Models you downloaded with Ollama stay in Ollama. To get the space back, remove them there, for example with <code class="help-code">ollama rm embeddinggemma-2</code>.</li>
+                <li>Your index, settings and the search model stay unless you tick “Also delete my search index and settings”. Keep them and a reinstall picks up where you left off.</li>
+                <li>Ask models you downloaded with Ollama stay in Ollama. To get the space back, remove them there, for example with <code class="help-code">ollama rm llama3.2:3b</code>.</li>
               </ul>
             </div>
           </details>
@@ -394,29 +394,30 @@
 
           <article class="help-fix k-audio reveal" id="fix-meaning" aria-labelledby="fix-meaning-t" data-find>
             <div class="help-fix__head"><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l7 3.8v7.4l-7 3.8-7-3.8V6.3z"></path><path d="M3 6.3l7 3.9 7-3.9M10 10.2v7.3"></path></svg></span><h3 id="fix-meaning-t" class="heading">Results only match names or exact words</h3></div>
-            <p class="help-fix__why">Search by meaning needs Ollama running and the search model downloaded. Until then the search window says “exact words only” next to the result count.</p>
+            <p class="help-fix__why">Search by meaning needs the search model downloaded. Until then the search window says “exact words only” next to the result count.</p>
             <ol class="help-steps">
               <li>Open <span class="ui">Settings&nbsp;&gt; Models</span>.</li>
-              <li>If it says “Ollama isn’t running”, start Ollama from the Start menu, then click <span class="ui">Check again</span>. Not installed yet? It’s free from ollama.com.</li>
-              <li>If EmbeddingGemma 2 shows a <span class="ui">Download</span> button, click it.</li>
+              <li>If EmbeddingGemma 2 shows a <span class="ui">Download</span> button, click it. It needs an internet connection, once.</li>
+              <li>If <span class="ui">Run the search model with</span> is set to Ollama, start Ollama from the Start menu and click <span class="ui">Check again</span>, or set it back to WinFynd.</li>
+              <li>If <span class="ui">Settings&nbsp;&gt; Home</span> says “The search model couldn’t start”, run the installer again. Your index is kept.</li>
             </ol>
-            <figure class="shot help-crop" role="img" aria-label="Settings, Models, when search by meaning works: Ollama is running on this PC, version 0.12.3. EmbeddingGemma 2 is in use, set to Most accurate (740M).">
+            <figure class="shot help-crop" role="img" aria-label="Settings, Models, when search by meaning works: the search model runs inside WinFynd, no Ollama needed. EmbeddingGemma 2 is in use, set to Text and photos, 865&nbsp;MB.">
               <div class="wf auto win help-crop__win">
                   <div class="titlebar"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true" style="flex: none"><defs><linearGradient id="wfghm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b9bff"></stop><stop offset=".45" stop-color="#9a7bff"></stop><stop offset=".75" stop-color="#ff6fb5"></stop><stop offset="1" stop-color="#ff9548"></stop></linearGradient></defs><rect width="48" height="48" rx="12" fill="url(#wfghm)"></rect><circle cx="21" cy="21" r="10" fill="none" stroke="#ffffff" stroke-width="4"></circle><path d="M28.5 28.5l8 8" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"></path><path d="M21 15.5l1.4 3.8 3.8 1.4-3.8 1.4L21 26l-1.4-3.9-3.8-1.4 3.8-1.4z" fill="#ffffff"></path></svg><span>WinFynd Settings</span><div class="caps"><span class="cap" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M5 10h10"></path></svg></span><span class="cap" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><rect x="5.5" y="5.5" width="9" height="9" rx="1.5"></rect></svg></span><span class="cap" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9"></path></svg></span></div></div>
                   <div class="help-crop__body">
                     <div class="h1">Models</div>
                     <p class="lede">Every model runs on this PC. Nothing you search, say or index leaves it.</p>
-                    <div class="infobar"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--ok); flex: none"><path d="M4.5 10.5l3.5 3.5 7.5-8"></path></svg><span><strong>Ollama is running</strong> <span class="muted">on this PC, version 0.12.3</span></span></div>
+                    <div class="infobar"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--ok); flex: none"><path d="M4.5 10.5l3.5 3.5 7.5-8"></path></svg><span><strong>The search model runs inside WinFynd</strong> <span class="muted">· no Ollama needed. It loads when there are files to read and unloads after 5&nbsp;idle minutes.</span></span></div>
                     <div class="h2">Search</div>
-                    <div class="card"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="k-audio kc" style="flex: none"><path d="M10 2.5l7 3.8v7.4l-7 3.8-7-3.8V6.3z"></path><path d="M3 6.3l7 3.9 7-3.9M10 10.2v7.3"></path></svg><div class="grow"><span class="t">EmbeddingGemma 2</span><span class="s">Understands text and photos so you can search by meaning · 1.3&nbsp;GB</span></div>
+                    <div class="card"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="k-audio kc" style="flex: none"><path d="M10 2.5l7 3.8v7.4l-7 3.8-7-3.8V6.3z"></path><path d="M3 6.3l7 3.9 7-3.9M10 10.2v7.3"></path></svg><div class="grow"><span class="t">EmbeddingGemma 2</span><span class="s">Understands text and photos so you can search by meaning · 865&nbsp;MB</span></div>
                       <span style="display: inline-flex; align-items: center; gap: 6px" class="small muted help-crop__state"><span class="dot" style="background: var(--ok)"></span>In use</span>
-                      <span class="combo help-crop__combo" style="min-width: 220px">Most accurate (740M)<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></span></div>
+                      <span class="combo help-crop__combo" style="min-width: 220px">Text and photos<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M5.5 8l4.5 4.5L14.5 8"></path></svg></span></div>
                   </div>
                 </div>
               
               <figcaption>What you want to see in Settings&nbsp;&gt; Models.</figcaption>
             </figure>
-            <p class="help-fix__after">You don’t need to start over. The next full check, right after the download and then every 20&nbsp;minutes, adds the files WinFynd already read to search by meaning. Finding photos by what’s in them also needs Most accurate or Balanced; Smallest reads text only.</p>
+            <p class="help-fix__after">You don’t need to start over. The next full check, right after the download and then every 20&nbsp;minutes, adds the files WinFynd already read to search by meaning. Finding photos by what’s in them also needs the Text and photos size; Text only leaves photos to their names.</p>
           </article>
 
           <article class="help-fix k-video reveal" id="fix-frames" aria-labelledby="fix-frames-t" data-find>
@@ -445,7 +446,7 @@
 
           <article class="help-fix k-amber reveal" id="fix-smartscreen" aria-labelledby="fix-smartscreen-t" data-find>
             <div class="help-fix__head"><span class="icon-badge"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l6 2.5v4.5c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8V5z"></path><path d="M10 7v3.6M10 13.2v.1"></path></svg></span><h3 id="fix-smartscreen-t" class="heading">Windows says “Windows protected your PC”</h3></div>
-            <p class="help-fix__why">WinFynd 0.1.0 isn’t code-signed yet, so Microsoft Defender SmartScreen warns the first time you run the installer.</p>
+            <p class="help-fix__why">WinFynd 0.1.1 isn’t code-signed yet, so Microsoft Defender SmartScreen warns the first time you run the installer.</p>
             <ol class="help-steps">
               <li>Check that the installer came from <a href="https://github.com/priyansh19/WinFynd/releases">github.com/<wbr>priyansh19/<wbr>WinFynd/<wbr>releases</a>.</li>
               <li>Click <span class="ui">More info</span>, then <span class="ui">Run anyway</span>.</li>
@@ -495,7 +496,7 @@
             <p class="body">Include these four things, so the problem can be reproduced without a round of questions.</p>
           </div>
           <ol class="help-report__list">
-            <li><span class="help-report__n">1</span><div><b>Your WinFynd version</b><span>In Settings&nbsp;&gt; About. It’s in the installer’s name too, like WinFynd-Setup-0.1.0.exe.</span></div></li>
+            <li><span class="help-report__n">1</span><div><b>Your WinFynd version</b><span>In Settings&nbsp;&gt; About. It’s in the installer’s name too, like WinFynd-Setup-0.1.1.exe.</span></div></li>
             <li><span class="help-report__n">2</span><div><b>Your Windows version</b><span>Press Win&nbsp;+&nbsp;R, type winver and press Enter.</span></div></li>
             <li><span class="help-report__n">3</span><div><b>What happened</b><span>What you did, what you expected and what you got. For a search, the words you typed.</span></div></li>
             <li><span class="help-report__n">4</span><div><b>The log file</b><span class="help-report__path">%LOCALAPPDATA%\<wbr>app.winfynd.desktop\<wbr>logs\<wbr>winfynd.log</span></div></li>
@@ -546,7 +547,7 @@
       </div>
     </div>
     <div class="footer-bottom">
-      <span class="footer-version"><span class="tagver">Version 0.1.0</span>Free, with its source on GitHub</span>
+      <span class="footer-version"><span class="tagver">Version 0.1.1</span>Free, with its source on GitHub</span>
       <span class="footer-end"><button class="motion-toggle" type="button" data-motion-toggle aria-pressed="false" hidden>Pause animations</button><span class="loads-nothing"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l6 2.5v4.5c0 4-2.7 6.6-6 8-3.3-1.4-6-4-6-8V5z"></path><path d="M7.5 10l1.8 1.8 3.4-3.6"></path></svg>This site loads nothing from anyone else.</span></span>
     </div>
   </div>
