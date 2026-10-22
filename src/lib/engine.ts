@@ -1,4 +1,4 @@
-// Index status, settings and Ollama model management.
+// Index status, settings and model management.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke, listen, stubCommands } from "./tauri";
 
@@ -25,6 +25,8 @@ export interface EngineConfig {
   roots: string[];
   /** Folders never read, on top of what's always skipped. */
   skip: string[];
+  /** Who runs the search model: WinFynd itself, or Ollama. */
+  embedBackend: "builtin" | "ollama";
   ollamaUrl: string;
   embedModel: string;
   dimensions: 768 | 512 | 256 | 128;
@@ -78,7 +80,8 @@ export const getStatus = () => invoke<EngineStatus>("engine_status");
 export const getConfig = () => invoke<EngineConfig>("get_engine_config");
 export const setConfig = (config: EngineConfig) => invoke<EngineConfig>("set_engine_config", { config });
 export const rescan = () => invoke<void>("rescan");
-export const listModels = () => invoke<{ installed: InstalledModel[] | null; error: string | null }>("list_models");
+/** `installed` is null only when the search model runs in Ollama and Ollama isn't running. `ollama` says whether Ollama answered (Ask needs it). */
+export const listModels = () => invoke<{ installed: InstalledModel[] | null; error: string | null; ollama: boolean }>("list_models");
 export const pullModel = (model: string) => invoke<void>("pull_model", { model });
 export const mediaSupport = (recheck = false) => invoke<MediaSupport>("media_support", { recheck });
 export const downloadSpeechModel = (id: string) => invoke<void>("download_speech_model", { id });
@@ -153,6 +156,7 @@ let previewConfig: EngineConfig = {
   wholePc: new URLSearchParams(location.search).get("scope") !== "folders",
   roots: ["C:\\Users\\gupta\\Documents", "C:\\Users\\gupta\\Pictures", "C:\\Users\\gupta\\OneDrive\\Desktop", "C:\\Users\\gupta\\Downloads"],
   skip: [],
+  embedBackend: "builtin",
   ollamaUrl: "http://127.0.0.1:11434",
   embedModel: "embeddinggemma-2",
   dimensions: 768,
@@ -174,11 +178,12 @@ stubCommands({
   rescan: () => undefined,
   list_models: () => ({
     installed: [
-      { name: "embeddinggemma-2:latest", size: 1_396_000_000 },
+      { name: "embeddinggemma-2", size: 865_000_000 },
       { name: "llama3.2:3b", size: 2_019_000_000 },
       { name: "gemma3:4b", size: 3_338_000_000 },
     ],
     error: null,
+    ollama: true,
   }),
   pull_model: () => undefined,
   media_support: () => ({

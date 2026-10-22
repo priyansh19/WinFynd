@@ -6,8 +6,14 @@ import { openOllamaDownload, setupDoneBefore } from "../../lib/onboarding";
 import { ollamaInfo } from "../../lib/stats";
 import { NavButtons, Page, type StepProps } from "../Onboarding";
 
-// The same three sizes as Settings > Models.
-const EMBED = [
+// The same sizes as Settings > Models. WinFynd runs one text model, with
+// the photo encoders as an extra download.
+const EMBED_BUILTIN = [
+  { tag: "embeddinggemma-2", title: "Text and photos", sub: "Finds photos by what's in them. Best on a PC with 8 GB of memory or more.", size: "865 MB", images: true, recommended: true },
+  { tag: "embeddinggemma-2:270m", title: "Text only", sub: "Smaller and lighter. Photos are found by name.", size: "310 MB", images: false },
+];
+// The three sizes Ollama offers, when Settings > Models is set to run it there.
+const EMBED_OLLAMA = [
   { tag: "embeddinggemma-2", title: "Most accurate", sub: "Text and photos. Best results on a PC with 16 GB of memory.", size: "740M · 1.3 GB", images: true, recommended: true },
   { tag: "embeddinggemma-2:440m", title: "Balanced", sub: "Text and photos. A little faster, slightly less precise.", size: "440M · 0.7 GB", images: true },
   { tag: "embeddinggemma-2:270m", title: "Smallest", sub: "Text only. Photos are found by name.", size: "270M · 0.3 GB", images: false },
@@ -17,6 +23,8 @@ const SPEECH = "small";
 const has = (installed: InstalledModel[], name: string) => installed.some((m) => m.name === name || m.name === `${name}:latest`);
 
 export function ModelStep({ config, save, next, back, pulls, startPull, speech, startSpeech }: StepProps) {
+  const builtin = config.embedBackend !== "ollama";
+  const EMBED = builtin ? EMBED_BUILTIN : EMBED_OLLAMA;
   /** undefined while looking, null when Ollama isn't running. */
   const [installed, setInstalled] = useState<InstalledModel[] | null | undefined>(undefined);
   const [version, setVersion] = useState<string | null>(null);
@@ -44,10 +52,10 @@ export function ModelStep({ config, save, next, back, pulls, startPull, speech, 
 
   // While Ollama is missing, keep looking so the page updates by itself once it runs.
   useEffect(() => {
-    if (installed !== null) return;
+    if (builtin || installed !== null) return;
     const t = window.setInterval(check, 3000);
     return () => window.clearInterval(t);
-  }, [installed, check]);
+  }, [builtin, installed, check]);
 
   const whisper = media?.speechModels.find((m) => m.id === SPEECH);
 
@@ -56,7 +64,7 @@ export function ModelStep({ config, save, next, back, pulls, startPull, speech, 
     setError(null);
     try {
       const m = EMBED.find((e) => e.tag === pick)!;
-      const before = EMBED.find((e) => e.tag === config.embedModel);
+      const before = [...EMBED_BUILTIN, ...EMBED_OLLAMA].find((e) => e.tag === config.embedModel);
       // Photos follow the model: off for the text-only one, back on when moving up from it.
       const indexImages = m.images && (config.indexImages || !before?.images);
       let speechModel = config.speechModel;
@@ -82,13 +90,21 @@ export function ModelStep({ config, save, next, back, pulls, startPull, speech, 
       <h1 className="setup-title">Download the search model</h1>
       <p className="setup-lede">EmbeddingGemma 2 reads your text and photos so you can search by what they mean. It downloads once and then runs offline.</p>
 
-      {installed === undefined && (
+      {builtin && (
+        <div className="infobar">
+          <Icon name="check" size={16} strokeWidth={2} />
+          <span>
+            <strong>Runs inside WinFynd</strong> <span className="muted">· nothing else to install</span>
+          </span>
+        </div>
+      )}
+      {!builtin && installed === undefined && (
         <div className="infobar info">
           <Spinner label="Looking for Ollama" />
           <span>Looking for Ollama on this PC…</span>
         </div>
       )}
-      {installed && (
+      {!builtin && installed && (
         <div className="infobar">
           <Icon name="check" size={16} strokeWidth={2} />
           <span>
@@ -96,7 +112,7 @@ export function ModelStep({ config, save, next, back, pulls, startPull, speech, 
           </span>
         </div>
       )}
-      {installed === null && (
+      {!builtin && installed === null && (
         <div className="infobar warning" aria-live="polite">
           <Icon name="warning" size={16} />
           <span className="grow">

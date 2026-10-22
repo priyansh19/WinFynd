@@ -1,5 +1,6 @@
-//! Client for the local Ollama server, which runs EmbeddingGemma 2 and the
-//! Ask-mode chat model on this PC. Only loopback addresses are allowed.
+//! Client for the local Ollama server, which runs the Ask-mode chat model
+//! (and EmbeddingGemma 2, for people who'd rather Ollama ran it than
+//! WinFynd) on this PC. Only loopback addresses are allowed.
 
 use std::io::{BufRead, BufReader};
 use std::time::Duration;
@@ -77,10 +78,6 @@ impl Ollama {
     }
 
     /// Unit-length vectors, one per input.
-    pub fn embed(&self, model: &str, inputs: &[EmbedInput], dimensions: usize) -> Result<Vec<Vec<f32>>, String> {
-        self.embed_refs(model, &inputs.iter().collect::<Vec<_>>(), dimensions)
-    }
-
     pub fn embed_refs(&self, model: &str, inputs: &[&EmbedInput], dimensions: usize) -> Result<Vec<Vec<f32>>, String> {
         #[derive(Deserialize)]
         struct Resp {

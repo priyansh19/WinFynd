@@ -67,6 +67,38 @@ fn fake_ollama_with(images: bool) -> String {
             let body: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
 
             let has_image = body["input"].as_array().is_some_and(|a| a.iter().any(Value::is_object));
+            // llama.cpp's server, as WinFynd runs it: OpenAI-style embeddings.
+            if request_line.contains("/v1/embeddings") {
+                let inputs = body["input"].as_array().unwrap();
+                let mut data: Vec<Value> = inputs
+                    .iter()
+                    .enumerate()
+                    .map(|(index, i)| {
+                        let v = match i {
+                            Value::String(s) => fake_embedding(&strip_prompt(s)),
+                            _ => {
+                                let url = i["content"][0]["image_url"]["url"].as_str().unwrap();
+                                assert!(url.starts_with("data:image/") && url.len() > 40);
+                                fake_embedding("sunny beach sand sea")
+                            }
+                        };
+                        // Full-size vectors; WinFynd cuts them to its size.
+                        let mut full = v;
+                        full.resize(DIMS * 2, 0.0);
+                        json!({ "index": index, "embedding": full })
+                    })
+                    .collect();
+                // Order isn't promised.
+                data.reverse();
+                let text = json!({ "data": data }).to_string();
+                let _ = write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    text.len(),
+                    text
+                );
+                continue;
+            }
             if !images && request_line.contains("/api/embed") && has_image {
                 let _ = write!(stream, "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
                 continue;
@@ -122,6 +154,7 @@ pub(super) fn temp_dir(name: &str) -> PathBuf {
 fn engine_for(root: &std::path::Path, ollama_url: String) -> Arc<Engine> {
     let config = EngineConfig {
         roots: vec![root.to_path_buf()],
+        embed_backend: super::config::OLLAMA.into(),
         ollama_url,
         dimensions: DIMS,
         chat_model: String::new(),
@@ -503,4 +536,42 @@ fn rescans_queue_only_changes_and_forget_deleted_files() {
     left.sort();
     assert_eq!(left, [main.join("b.txt"), usb.join("c.txt")].map(|p| p.to_string_lossy().to_string()));
     let _ = std::fs::remove_dir_all(&base);
+}
+
+#[test]
+fn builtin_model_indexes_and_searches_without_ollama() {
+    let root = temp_dir("builtin");
+    std::fs::write(root.join("product-sync-notes.txt"), "Rahul said the launch moves to June because QA needs another cycle.").unwrap();
+    image::RgbImage::from_pixel(32, 32, image::Rgb([200, 180, 90])).save(root.join("IMG_4410.png")).unwrap();
+
+    // Ollama's address answers nothing; the model runs in WinFynd's own server.
+    let engine = engine_for(&root, "http://127.0.0.1:9".into());
+    let cfg = EngineConfig { embed_backend: super::config::BUILTIN.into(), ..engine.config() };
+    engine.set_config(cfg).unwrap();
+    let models = root.join(".index/models");
+    *engine.local.write().unwrap() = Some(super::local_model::LocalModel::attached(models, fake_ollama()));
+    engine.refresh_ollama_state();
+    assert_eq!(engine.status().ollama, "ok", "{:?}", engine.status().message);
+
+    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+    let r = engine.search("when does the launch move", 10);
+    assert!(r.semantic);
+    assert_eq!(r.hits[0].name, "product-sync-notes.txt");
+    assert_eq!(engine.search("beach", 10).hits[0].name, "IMG_4410.png");
+
+    // Switching to Ollama re-embeds: the stored stamp names who embedded each file.
+    let stamp = |e: &Engine| db::file_stamp(&e.db.lock().unwrap(), &root.join("product-sync-notes.txt").to_string_lossy()).unwrap().unwrap().2;
+    assert!(stamp(&engine).starts_with("builtin:"));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn builtin_model_not_downloaded_yet() {
+    let root = temp_dir("builtin-missing");
+    let engine = engine_for(&root, "http://127.0.0.1:9".into());
+    engine.set_config(EngineConfig { embed_backend: super::config::BUILTIN.into(), ..engine.config() }).unwrap();
+    *engine.local.write().unwrap() = Some(super::local_model::LocalModel::new(None, root.join("models"), None));
+    engine.refresh_ollama_state();
+    assert_eq!(engine.status().ollama, "offline", "no model engine in this build");
+    let _ = std::fs::remove_dir_all(&root);
 }

@@ -34,6 +34,9 @@ export interface Drive {
 
 export const getIndexStats = () => invoke<IndexStats>("index_stats");
 export const listDrives = () => invoke<Drive[]>("list_drives");
+/** Whether WinFynd starts in the tray when you sign in to Windows. */
+export const startsWithWindows = () => invoke<boolean>("start_with_windows");
+export const setStartsWithWindows = (on: boolean) => invoke<boolean>("set_start_with_windows", { on });
 export const estimateFolders = (paths: string[]) => invoke<FolderStats[]>("estimate_folders", { paths });
 export const ollamaInfo = () => invoke<{ version: string | null }>("ollama_info");
 export const pauseIndexing = (minutes: number) => invoke<void>("pause_indexing", { minutes });
@@ -125,6 +128,8 @@ stubCommands({
   list_drives: () => DESIGN_DRIVES,
   estimate_folders: ({ paths }) => (paths as string[]).map(folderStats),
   ollama_info: () => ({ version: "0.12.3" }),
+  start_with_windows: () => true,
+  set_start_with_windows: ({ on }) => on,
   pause_indexing: () => undefined,
   delete_index: () => undefined,
 });

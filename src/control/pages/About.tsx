@@ -96,7 +96,7 @@ export function AboutPage() {
           Run setup
         </button>
       </div>
-      <p className="small faint about-foot">Built with Tauri, Ollama, EmbeddingGemma 2 and Whisper. Everything runs on this PC.</p>
+      <p className="small faint about-foot">Built with Tauri, llama.cpp, EmbeddingGemma 2 and Whisper. Everything runs on this PC.</p>
     </>
   );
 }

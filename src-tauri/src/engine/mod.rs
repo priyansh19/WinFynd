@@ -1,6 +1,7 @@
 //! The search engine: keeps an index of the user's files up to date and
-//! answers searches. Files are read, embedded with EmbeddingGemma 2 through
-//! the local Ollama server, and stored in SQLite under the app data folder.
+//! answers searches. Files are read, embedded with EmbeddingGemma 2 (run by
+//! WinFynd itself, or by Ollama if the user prefers), and stored in SQLite
+//! under the app data folder.
 //! Audio and video are transcribed with Whisper and their frames embedded
 //! alongside photos.
 
@@ -9,6 +10,7 @@ mod db;
 #[cfg(test)]
 pub mod eval;
 mod extract;
+pub mod local_model;
 mod media;
 pub mod ollama;
 mod queue;
@@ -36,6 +38,7 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 use config::EngineConfig;
 use extract::{Extracted, Kind};
+use local_model::LocalModel;
 use ollama::{EmbedInput, Ollama};
 use queue::Pending;
 use speech::Transcribe;
@@ -44,7 +47,7 @@ use vectors::VectorIndex;
 /// Inputs per embedding request.
 const EMBED_BATCH: usize = 16;
 /// How often the roots are rescanned to catch anything the watcher missed
-/// (and to embed files indexed while Ollama was unavailable).
+/// (and to embed files indexed while the model was unavailable).
 const RESCAN_EVERY: Duration = Duration::from_secs(20 * 60);
 /// Stored with each file; a file whose stamp doesn't match is re-embedded.
 const NOT_EMBEDDED: &str = "none";
@@ -69,7 +72,9 @@ pub struct Status {
     /// it is. Back to 0 once everything is read.
     pub done: u64,
     pub current: Option<String>,
-    /// ok, offline or modelMissing.
+    /// Whether the embedding model can be used: ok, offline (its engine
+    /// isn't running) or modelMissing (not downloaded yet). Named for Ollama,
+    /// which used to be the only way to run it.
     pub ollama: String,
     pub message: Option<String>,
     /// Files that couldn't be read (too slow, or the reader crashed) and
@@ -158,6 +163,24 @@ pub struct Engine {
     ffmpeg: RwLock<Option<PathBuf>>,
     /// Unix seconds until which reading new files waits; 0 when not paused.
     paused_until: std::sync::atomic::AtomicI64,
+    /// EmbeddingGemma 2 run by WinFynd itself; None in tests.
+    pub(crate) local: RwLock<Option<Arc<LocalModel>>>,
+}
+
+/// Whoever runs the embedding model under the current settings.
+pub(crate) enum Embedder {
+    Local(Arc<LocalModel>, String),
+    Ollama(Ollama, String),
+}
+
+impl Embedder {
+    /// Unit-length vectors, one per input.
+    pub fn embed(&self, inputs: &[&EmbedInput], dimensions: usize) -> Result<Vec<Vec<f32>>, String> {
+        match self {
+            Embedder::Local(m, tag) => m.embed(tag, inputs, dimensions),
+            Embedder::Ollama(o, model) => o.embed_refs(model, inputs, dimensions),
+        }
+    }
 }
 
 impl Engine {
@@ -175,6 +198,12 @@ impl Engine {
         let (engine, rx) = Self::open(conn, config, config_path, data.join("speech"), move |s| {
             let _ = handle.emit("engine://status", s);
         })?;
+        // llama.cpp's server ships next to WinFynd; the model is downloaded
+        // into the app data folder.
+        let runtime = app.path().resource_dir().ok().map(|d| d.join("llama"));
+        let log = app.path().app_log_dir().ok().map(|d| d.join("llama-server.log"));
+        *engine.local.write().unwrap() = Some(LocalModel::new(runtime, data.join("models"), log));
+
         let handle = app.clone();
         engine.on_activity(move |a| {
             let _ = handle.emit("engine://activity", a);
@@ -245,6 +274,7 @@ impl Engine {
             speech: Mutex::new(None),
             ffmpeg: RwLock::new(media::find_ffmpeg()),
             paused_until: std::sync::atomic::AtomicI64::new(0),
+            local: RwLock::new(None),
         });
         Ok((engine, rx))
     }
@@ -302,6 +332,31 @@ impl Engine {
 
     pub(crate) fn ollama(&self) -> Result<Ollama, String> {
         Ollama::new(&self.config.read().unwrap().ollama_url)
+    }
+
+    pub(crate) fn local_model(&self) -> Option<Arc<LocalModel>> {
+        self.local.read().unwrap().clone()
+    }
+
+    /// Show how far the search model's download is, until the next scan
+    /// finds it on disk.
+    pub(crate) fn note_model_download(&self, done: u64, total: u64) {
+        let mb = |b: u64| b / 1_000_000;
+        self.update_status(|s| {
+            if s.ollama != "ok" {
+                s.ollama = "modelMissing".into();
+                s.message = Some(format!("Downloading the search model · {} of {} MB", mb(done), mb(total)));
+            }
+        });
+    }
+
+    pub(crate) fn embedder(&self, cfg: &EngineConfig) -> Result<Embedder, String> {
+        if cfg.builtin() {
+            let m = self.local_model().ok_or("WinFynd's model engine isn't available")?;
+            Ok(Embedder::Local(m, cfg.embed_model.clone()))
+        } else {
+            Ok(Embedder::Ollama(self.ollama()?, cfg.embed_model.clone()))
+        }
     }
 
     pub(crate) fn on_activity(&self, f: impl Fn(&[Activity]) + Send + Sync + 'static) {
@@ -386,6 +441,9 @@ impl Engine {
         if old.embed_model != new.embed_model || old.dimensions != new.dimensions || old.index_images != new.index_images {
             self.enqueue(Job::Rebuild);
         } else if scope_changed
+            // Every file's stamp names who embedded it, so a scan re-embeds
+            // them all while search keeps working.
+            || old.embed_backend != new.embed_backend
             || old.speech_model != new.speech_model
             || old.index_video_frames != new.index_video_frames
             || old.read_online_files != new.read_online_files
@@ -601,17 +659,36 @@ impl Engine {
         let _ = std::panic::catch_unwind(AssertUnwindSafe(|| self.index_path(path, true)));
     }
 
-    fn refresh_ollama_state(&self) {
-        let model = self.config.read().unwrap().embed_model.clone();
-        let state = match self.ollama().and_then(|o| o.models()) {
-            Ok(models) if ollama::has_model(&models, &model) => ("ok", None),
-            Ok(_) => ("modelMissing", Some(format!("Download {model} on the Models page to search by meaning."))),
-            Err(e) => ("offline", Some(e)),
+    pub(crate) fn refresh_ollama_state(&self) {
+        let cfg = self.config();
+        let model = cfg.embed_model.clone();
+        let state = if cfg.builtin() {
+            match self.local_model() {
+                Some(m) if !m.has_runtime() => (
+                    "offline",
+                    Some("This copy of WinFynd doesn't include its model engine. Reinstall WinFynd, or switch to Ollama on the Models page.".into()),
+                ),
+                Some(m) if m.is_installed(&model) => ("ok", None),
+                Some(m) if m.is_downloading() => ("modelMissing", Some("Downloading the search model…".into())),
+                Some(_) => ("modelMissing", Some("Download EmbeddingGemma 2 on the Models page to search by meaning.".into())),
+                // Tests without a model engine.
+                None => ("offline", Some("WinFynd's model engine isn't available".into())),
+            }
+        } else {
+            self.ollama_state(&model)
         };
         self.update_status(|s| {
             s.ollama = state.0.into();
             s.message = state.1;
         });
+    }
+
+    fn ollama_state(&self, model: &str) -> (&'static str, Option<String>) {
+        match self.ollama().and_then(|o| o.models()) {
+            Ok(models) if ollama::has_model(&models, model) => ("ok", None),
+            Ok(_) => ("modelMissing", Some(format!("Download {model} on the Models page to search by meaning."))),
+            Err(e) => ("offline", Some(e)),
+        }
     }
 
     #[cfg(test)]
@@ -755,16 +832,24 @@ impl Engine {
         let Ok(Some((size, mtime, model))) = db::file_stamp(&self.db.lock().unwrap(), &path.to_string_lossy()) else {
             return false;
         };
-        // Files stored without vectors are only worth re-reading once
-        // Ollama is back; otherwise every rescan re-reads them all.
+        // Files stored without vectors are only worth re-reading once the
+        // model is back; otherwise every rescan re-reads them all.
         let waiting_for_ollama = model == NOT_EMBEDDED && self.status.lock().unwrap().ollama != "ok";
         size == now.size && mtime == now.mtime && (model == now.model_key || waiting_for_ollama)
     }
 
     fn model_key(&self, cfg: &EngineConfig, kind: Kind) -> String {
+        // WinFynd's own copy of the model is a different file from Ollama's,
+        // so switching between them embeds everything again. Its sizes all
+        // share one text model, so text never needs re-embedding between them.
+        let model = if cfg.builtin() {
+            format!("builtin:{}", if local_model::reads_images(&cfg.embed_model) { "embeddinggemma-2" } else { "embeddinggemma-2:270m" })
+        } else {
+            cfg.embed_model.clone()
+        };
         let mut key = format!(
             "{}@{}{}+{CHUNKING_VERSION}",
-            cfg.embed_model,
+            model,
             cfg.dimensions,
             if cfg.index_images { "+img" } else { "" }
         );
@@ -863,14 +948,14 @@ impl Engine {
     fn embed_all(&self, cfg: &EngineConfig, inputs: Vec<EmbedInput>) -> Result<Vec<Option<Vec<f32>>>, String> {
         let status = self.status.lock().unwrap().ollama.clone();
         if status != "ok" {
-            return Err(self.status.lock().unwrap().message.clone().unwrap_or_else(|| "Ollama unavailable".into()));
+            return Err(self.status.lock().unwrap().message.clone().unwrap_or_else(|| "The search model is unavailable".into()));
         }
-        let ollama = self.ollama()?;
+        let embedder = self.embedder(cfg)?;
         let mut out = Vec::with_capacity(inputs.len());
         for batch in inputs.chunks(EMBED_BATCH) {
-            match ollama.embed(&cfg.embed_model, batch, cfg.dimensions) {
+            match embedder.embed(&batch.iter().collect::<Vec<_>>(), cfg.dimensions) {
                 Ok(vs) => out.extend(vs.into_iter().map(Some)),
-                // A model tag or Ollama version without image support rejects
+                // A model size or Ollama version without image support rejects
                 // pictures, and one broken picture fails its whole batch.
                 // Neither may stop the rest (or text) from being embedded, nor
                 // mark Ollama as offline: retry text together, then each
@@ -880,13 +965,13 @@ impl Engine {
                     let mut vs = if text.is_empty() {
                         Vec::new()
                     } else {
-                        ollama.embed_refs(&cfg.embed_model, &text, cfg.dimensions)?
+                        embedder.embed(&text, cfg.dimensions)?
                     }
                     .into_iter();
                     let mut rejected = 0;
                     for input in batch {
                         if input.is_image() {
-                            let one = ollama.embed_refs(&cfg.embed_model, &[input], cfg.dimensions).ok().and_then(|mut v| v.pop());
+                            let one = embedder.embed(&[input], cfg.dimensions).ok().and_then(|mut v| v.pop());
                             rejected += usize::from(one.is_none());
                             out.push(one);
                         } else {
@@ -897,7 +982,7 @@ impl Engine {
                         self.update_status(|s| {
                             s.message = Some(format!(
                                 "{rejected} picture(s) couldn't be embedded by {} ({e}). If no photos show up in \
-                                 searches, update Ollama and use the 740m tag of EmbeddingGemma 2.",
+                                 searches, pick the text and photos size of EmbeddingGemma 2 on the Models page.",
                                 cfg.embed_model
                             ))
                         });

@@ -51,15 +51,18 @@ fn mark_complete<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
 }
 
 pub fn show<R: Runtime>(app: &AppHandle<R>) {
-    if let Some(w) = app.get_webview_window("onboarding") {
-        // A finished flow starts over at Welcome ("Run setup again").
-        let _ = app.emit_to("onboarding", "onboarding://shown", ());
+    windows::with_window(app, "onboarding", None, |w, new| {
+        // A finished flow starts over at Welcome ("Run setup again"); a new
+        // window starts there anyway.
+        if !new {
+            let _ = w.emit_to("onboarding", "onboarding://shown", ());
+        }
         let _ = w.unminimize();
         let _ = w.center();
         windows::fit_to_screen(&w);
         let _ = w.show();
         let _ = w.set_focus();
-    }
+    });
 }
 
 /// At launch: the welcome flow until it's finished, then Settings.
@@ -75,10 +78,18 @@ pub fn show_first_window<R: Runtime>(app: &AppHandle<R>) {
 /// try a search, "control" for Settings, anything else for the tray.
 #[tauri::command]
 pub fn finish_onboarding<R: Runtime>(app: AppHandle<R>, then: String) -> Result<(), String> {
+    // The first time through, WinFynd starts with Windows from now on so it
+    // keeps indexing, as setup's installer does. Settings can turn it off.
+    if !is_complete(&app) && !crate::startup::enabled() {
+        if let Err(e) = crate::startup::set(true) {
+            crate::diag::warn(&format!("couldn't start WinFynd with Windows: {e}"));
+        }
+    }
     mark_complete(&app)?;
     watch_warm_up(app.clone());
+    // Closed for good: it's built again if setup is run again.
     if let Some(w) = app.get_webview_window("onboarding") {
-        let _ = w.hide();
+        let _ = w.destroy();
     }
     match then.as_str() {
         "launcher" => windows::show_launcher(&app),
@@ -148,7 +159,7 @@ fn watch<R: Runtime>(app: &AppHandle<R>) {
             let body = if s.ollama == "ok" {
                 format!("All {files} files are searchable. Press {keys} to find anything.")
             } else {
-                format!("All {files} files are searchable by words and names. Install Ollama to search by meaning.")
+                format!("All {files} files are searchable by words and names. Download the search model on the Models page to search by meaning.")
             };
             let _ = app.notification().builder().title("WinFynd is ready").body(body).show();
         }

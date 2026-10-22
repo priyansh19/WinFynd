@@ -22,8 +22,15 @@ import { modelLabel } from "../../lib/search";
 import { ollamaInfo, useIndexStats } from "../../lib/stats";
 import { listen } from "../../lib/tauri";
 
+// EmbeddingGemma 2 as WinFynd runs it: one text model, plus the encoders
+// for photos. Downloaded once from Hugging Face.
+const EMBED_BUILTIN = [
+  { tag: "embeddinggemma-2", label: "Text and photos", size: "865 MB", images: true },
+  { tag: "embeddinggemma-2:270m", label: "Text only", size: "310 MB", images: false },
+];
+
 // EmbeddingGemma 2 sizes in Ollama. Only the larger two can read photos.
-const EMBED = [
+const EMBED_OLLAMA = [
   { tag: "embeddinggemma-2", label: "Most accurate (740M)", size: "1.3 GB", images: true },
   { tag: "embeddinggemma-2:440m", label: "Balanced (440M)", size: "0.7 GB", images: true },
   { tag: "embeddinggemma-2:270m", label: "Smallest, text only (270M)", size: "0.3 GB", images: false },
@@ -60,7 +67,7 @@ async function switchTo(change: (c: EngineConfig) => EngineConfig, rebuild = fal
 listen<PullProgress>("models://pull", (p) => {
   if (!p.done || wanted.embed !== p.model) return;
   wanted.embed = undefined;
-  const m = EMBED.find((e) => e.tag === p.model);
+  const m = [...EMBED_BUILTIN, ...EMBED_OLLAMA].find((e) => e.tag === p.model);
   if (!p.error) switchTo((c) => ({ ...c, embedModel: p.model, indexImages: !!m?.images && c.indexImages }), true);
 });
 
@@ -86,7 +93,12 @@ export function ModelsPage() {
   const [config, save] = useEngineConfig();
   const stats = useIndexStats(false);
   const [installed, setInstalled] = useState<InstalledModel[] | null>(null);
-  const [ollama, setOllama] = useState<{ checked: boolean; version: string | null; error: string | null }>({ checked: false, version: null, error: null });
+  const [ollama, setOllama] = useState<{ checked: boolean; version: string | null; error: string | null; up: boolean }>({
+    checked: false,
+    version: null,
+    error: null,
+    up: false,
+  });
   const [media, setMedia] = useState<MediaSupport | null>(null);
   const [pull, setPull] = useState<PullProgress | null>(null);
   const [speechPull, setSpeechPull] = useState<SpeechProgress | null>(null);
@@ -96,7 +108,7 @@ export function ModelsPage() {
     listModels()
       .then((m) => {
         setInstalled(m.installed);
-        setOllama((o) => ({ ...o, checked: true, error: m.error }));
+        setOllama((o) => ({ ...o, checked: true, error: m.error, up: m.ollama }));
       })
       .catch(() => {});
     ollamaInfo()
@@ -164,6 +176,8 @@ export function ModelsPage() {
     }
   };
 
+  const builtin = config.embedBackend !== "ollama";
+  const EMBED = builtin ? EMBED_BUILTIN : EMBED_OLLAMA;
   const embed = EMBED.find((e) => e.tag === config.embedModel) ?? EMBED[0];
   const embedHave = has(installed, config.embedModel);
   const pullingEmbed = pull && !pull.done && EMBED.some((e) => e.tag === pull.model) ? pull : null;
@@ -173,14 +187,25 @@ export function ModelsPage() {
   const speech = speechModels.find((m) => m.id === config.speechModel) ?? speechModels.find((m) => m.installed) ?? speechModels.find((m) => m.id === "small");
   const speechActive = !!config.speechModel && !!speech?.installed && speech.id === config.speechModel;
   const modelBytes = (embedHave?.size ?? 0) + (chat?.size ?? chatModels[0]?.size ?? 0) + (speech?.installed ? speech.sizeMb * 1024 * 1024 : 0);
-  const offline = ollama.checked && !!ollama.error;
+  // The search model can't run: it runs in Ollama and Ollama isn't there.
+  const offline = !builtin && ollama.checked && !!ollama.error;
+  // Ask always uses Ollama.
+  const askOffline = ollama.checked && !ollama.up;
 
   return (
     <>
       <h1 className="h1">Models</h1>
       <p className="lede">Every model runs on this PC. Nothing you search, say or index leaves it.</p>
 
-      {offline ? (
+      {builtin ? (
+        <div className="infobar">
+          <Icon name="check" size={16} strokeWidth={2} style={{ color: "var(--ok)" }} />
+          <span>
+            <strong>The search model runs inside WinFynd</strong>{" "}
+            <span className="muted">· no Ollama needed. It loads when there are files to read and unloads after 5 idle minutes.</span>
+          </span>
+        </div>
+      ) : offline ? (
         <div className="infobar error">
           <Icon name="error" size={16} />
           <span className="grow">
@@ -232,7 +257,7 @@ export function ModelsPage() {
         <ComboBox
           label="Search model size"
           width={220}
-          value={wanted.embed ?? config.embedModel}
+          value={wanted.embed ?? embed.tag}
           disabled={!!pullingEmbed}
           options={EMBED.map((e) => ({ value: e.tag, label: e.label }))}
           onChange={(tag) => {
@@ -248,13 +273,36 @@ export function ModelsPage() {
         />
       </div>
       {pull?.error && <p className="error-line">The download stopped: {pull.error}</p>}
+      <div className="card" data-setting="Run the search model with" style={{ marginTop: 8 }}>
+        <Icon name="gear" size={20} className="k-code kc" />
+        <span className="grow">
+          <span className="t">Run the search model with</span>
+          <span className="s">{builtin ? "WinFynd itself, in the background, with nothing else to install" : "Ollama, which has to be running on this PC"}</span>
+        </span>
+        <ComboBox
+          label="Run the search model with"
+          width={220}
+          value={config.embedBackend ?? "builtin"}
+          options={[
+            { value: "builtin", label: "WinFynd" },
+            { value: "ollama", label: "Ollama" },
+          ]}
+          onChange={(v) => apply({ ...config, embedBackend: v as EngineConfig["embedBackend"] }, true)}
+        />
+      </div>
 
       <h2 className="h2">Answers</h2>
       <div className="card" data-setting="Ask model">
         <Icon name="sparkle" size={20} className="k-doc kc" />
         <span className="grow">
           <span className="t">Ask model</span>
-          <span className="s">{chatModels.length || !installed ? "Writes answers from your files, with sources" : "No chat model on this PC yet. Llama 3.2 3B is a good start at 2.0 GB."}</span>
+          <span className="s">
+            {askOffline
+              ? "Writes answers from your files, with sources. Needs Ollama from ollama.com."
+              : chatModels.length || !installed
+                ? "Writes answers from your files, with sources"
+                : "No chat model on this PC yet. Llama 3.2 3B is a good start at 2.0 GB."}
+          </span>
         </span>
         {pull && !pull.done && pull.model === "llama3.2:3b" ? (
           <Downloading completed={pull.completed} total={pull.total} />
@@ -272,7 +320,7 @@ export function ModelsPage() {
           />
         ) : (
           installed && (
-            <button type="button" className="btn accent" disabled={offline} onClick={() => download("llama3.2:3b")}>
+            <button type="button" className="btn accent" disabled={askOffline} onClick={() => download("llama3.2:3b")}>
               <Icon name="download" />
               Download llama3.2 3B
             </button>

@@ -5,7 +5,7 @@ import { checksForUpdates } from "../../lib/app";
 import { formatBytes, useEngineConfig } from "../../lib/engine";
 import { confirmNative } from "../../lib/native";
 import { clearRecent, recentSearches, remembersSearches, setRemembersSearches } from "../../lib/recent";
-import { deleteIndex, useIndexStats } from "../../lib/stats";
+import { deleteIndex, setStartsWithWindows, startsWithWindows, useIndexStats } from "../../lib/stats";
 
 function Connection({
   icon,
@@ -51,10 +51,18 @@ export function PrivacyPage() {
   const [remember, setRemember] = useState(remembersSearches);
   const [hasHistory, setHasHistory] = useState(() => recentSearches().length > 0);
   const [deleted, setDeleted] = useState(false);
+  const [atSignIn, setAtSignIn] = useState<boolean | null>(null);
+  const [atSignInError, setAtSignInError] = useState<string | null>(null);
   const host = (config?.ollamaUrl ?? "http://127.0.0.1:11434").replace(/^https?:\/\//, "").replace(/\/$/, "");
   const size = formatBytes(stats?.indexBytes ?? 0);
 
-  // The launcher adds searches from its own window, and Settings stays open while hidden.
+  useEffect(() => {
+    startsWithWindows()
+      .then(setAtSignIn)
+      .catch(() => {});
+  }, []);
+
+  // The launcher adds searches from its own window.
   useEffect(() => {
     const check = () => setHasHistory(recentSearches().length > 0);
     window.addEventListener("storage", check);
@@ -80,8 +88,15 @@ export function PrivacyPage() {
         Connections
       </h2>
       <div className="stack">
-        <Connection icon="cube" k="k-audio" title="Ollama" sub={`${host} · embeddings and answers`} when="Every search" local />
-        <Connection icon="download" k="k-doc" title="Model downloads" sub="ollama.com and huggingface.co" when="Only when you click Download" />
+        {config?.embedBackend === "ollama" ? (
+          <Connection icon="cube" k="k-audio" title="Ollama" sub={`${host} · embeddings and answers`} when="Every search" local />
+        ) : (
+          <>
+            <Connection icon="cube" k="k-audio" title="Search model" sub="127.0.0.1 · run by WinFynd itself" when="While files are read and searched" local />
+            <Connection icon="cube" k="k-doc" title="Ollama" sub={`${host} · answers in Ask mode`} when="Only when you ask" local />
+          </>
+        )}
+        <Connection icon="download" k="k-doc" title="Model downloads" sub="huggingface.co, and ollama.com for Ask models" when="Once per model, when it's set up" />
         <Connection
           icon="refresh"
           k="k-code"
@@ -89,6 +104,33 @@ export function PrivacyPage() {
           sub="api.github.com · WinFynd releases"
           when={checksForUpdates() ? "Once a day, can be turned off" : "Off"}
         />
+      </div>
+
+      <h2 className="h2">In the background</h2>
+      <div className="stack">
+        <div className="card" data-setting="Start with Windows">
+          <Icon name="pc" size={20} className="k-code kc" />
+          <span className="grow">
+            <span className="t">Start with Windows</span>
+            <span className="s">
+              {atSignInError ?? "Waits in the tray from the moment you sign in, reading new and changed files as they appear"}
+            </span>
+          </span>
+          {atSignIn !== null && (
+            <Toggle
+              label="Start with Windows"
+              checked={atSignIn}
+              onChange={(v) =>
+                setStartsWithWindows(v)
+                  .then((on) => {
+                    setAtSignIn(on);
+                    setAtSignInError(null);
+                  })
+                  .catch((e) => setAtSignInError(String(e)))
+              }
+            />
+          )}
+        </div>
       </div>
 
       <h2 className="h2">Your data</h2>

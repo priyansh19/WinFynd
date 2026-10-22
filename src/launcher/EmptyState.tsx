@@ -25,8 +25,10 @@ export function Notes({ status }: { status: EngineStatus | null }) {
           <Icon name="warning" size={16} className="warn" />
           <span className="grow">
             {status.ollama === "offline"
-              ? "Search by meaning is off because Ollama isn't running. File names and exact words still work."
-              : "The search model isn't on this PC yet. File names and exact words work meanwhile."}
+              ? "Search by meaning is off because the search model isn't running. File names and exact words still work."
+              : status.message?.startsWith("Downloading")
+                ? `${status.message}. File names and exact words work meanwhile.`
+                : "The search model isn't on this PC yet. File names and exact words work meanwhile."}
           </span>
           <button type="button" className="link" onClick={() => openSettings("models")}>
             Set up models
