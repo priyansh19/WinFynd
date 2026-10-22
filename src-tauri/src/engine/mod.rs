@@ -203,6 +203,8 @@ impl Engine {
             }
         });
 
+        // Drops files a newer version's skip rules no longer cover.
+        engine.enqueue(Job::Prune);
         engine.enqueue(Job::Scan);
         Ok(engine)
     }
@@ -1113,6 +1115,9 @@ pub(crate) fn is_excluded(path: &Path) -> bool {
         "Program Files", "Program Files (x86)", "WindowsApps", "site-packages", "bin", "obj", "dist", "build", "vendor",
         "bower_components", "Pods", "DerivedData", "coverage", "$WinREAgent", "OneDriveTemp", "steamapps", "SteamLibrary",
         "Epic Games",
+        // Developer test data, package caches and Python distributions: machine-made files by the
+        // thousand (API recordings, snapshots, packages) that nobody searches for.
+        "testdata", "fixtures", "__snapshots__", "cassettes", "anaconda3", "miniconda3", "miniforge3", "scoop",
     ];
     // Right under a drive: C:\Windows, C:\ProgramData, D:\XboxGames, …
     const DRIVE_SKIP: &[&str] = &[
@@ -1132,14 +1137,17 @@ pub(crate) fn is_excluded(path: &Path) -> bool {
     let second = names.next();
     if path.has_root() {
         if let Some(f) = &first {
-            if is(f, DRIVE_SKIP) || (f.eq_ignore_ascii_case("Users") && second.as_deref().is_some_and(|s| is(s, PROFILE_SKIP))) {
+            // C:\Python312 and the like.
+            let python = f.len() > 6 && f[..6].eq_ignore_ascii_case("python") && f[6..].bytes().all(|b| b.is_ascii_digit());
+            if is(f, DRIVE_SKIP) || python || (f.eq_ignore_ascii_case("Users") && second.as_deref().is_some_and(|s| is(s, PROFILE_SKIP))) {
                 return true;
             }
         }
     }
-    first.into_iter().chain(second).chain(names).any(|s| {
-        (s.starts_with('.') && s.len() > 1 && s != "..") || s.starts_with("~$") || is(&s, SKIP)
-    })
+    let all: Vec<_> = first.into_iter().chain(second).chain(names).collect();
+    // Go's module cache: go\pkg\mod.
+    all.windows(2).any(|w| w[0].eq_ignore_ascii_case("pkg") && w[1].eq_ignore_ascii_case("mod"))
+        || all.iter().any(|s| (s.starts_with('.') && s.len() > 1 && s != "..") || s.starts_with("~$") || is(s, SKIP))
 }
 
 /// Hidden in File Explorer: AppData, ProgramData, desktop.ini, the page
@@ -1218,6 +1226,11 @@ mod tests {
             "pagefile.sys",
             "SteamLibrary/steamapps/common/Game/data.pak",
             "XboxGames/Halo/Content/x.bin",
+            "Users/gupta/source/repos/api/testdata/sqs.ReceiveMessage_20.json",
+            "Users/gupta/go/pkg/mod/github.com/aws/aws-sdk-go-v2/service/sqs/api.json",
+            "Users/gupta/anaconda3/pkgs/numpy/info/index.json",
+            "Python312/Lib/json/__init__.py",
+            "Users/gupta/scoop/apps/git/current/README.md",
         ] {
             assert!(is_excluded(&abs(skipped)), "{skipped} should be skipped");
         }
@@ -1229,6 +1242,8 @@ mod tests {
             "Photos/2024/IMG_2041.jpg",
             "Users/Public/Documents/family budget.xlsx",
             "Users/gupta/Documents/Drivers licence.pdf",
+            "Users/gupta/Documents/Python notes.docx",
+            "Python/course notes.pdf",
         ] {
             assert!(!is_excluded(&abs(kept)), "{kept} should be searched");
         }

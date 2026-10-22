@@ -265,7 +265,7 @@ export function FoldersPage({ status }: { status: EngineStatus | null }) {
           {editSkip && (
             <div className="skip-edit">
               <span className="small faint">Always skipped</span>
-              <ul className="skipped">
+              <ul className="skip-list">
                 {SKIPPED.map((s) => (
                   <li key={s}>{s}</li>
                 ))}
