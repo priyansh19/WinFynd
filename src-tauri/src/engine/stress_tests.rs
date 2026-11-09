@@ -33,9 +33,15 @@ fn start(root: &Path, ollama_url: String) -> Running {
     let emitted = Arc::new(AtomicUsize::new(0));
     let counter = emitted.clone();
     let conn = db::open(&root.join(".index/index.sqlite3")).unwrap();
-    let (engine, rx) = Engine::open(conn, config, root.join(".index/engine.json"), root.join(".index/speech"), move |_| {
-        counter.fetch_add(1, Ordering::Relaxed);
-    })
+    let (engine, rx) = Engine::open(
+        conn,
+        config,
+        root.join(".index/engine.json"),
+        root.join(".index/speech"),
+        move |_| {
+            counter.fetch_add(1, Ordering::Relaxed);
+        },
+    )
     .unwrap();
     let worker = engine.clone();
     std::thread::spawn(move || worker.run(rx));
@@ -57,10 +63,16 @@ fn wait_until_indexed(engine: &Engine, files: i64, limit: Duration) -> Duration 
         if s.state == "idle" && s.queued == 0 && s.files == files {
             break;
         }
-        assert!(started.elapsed() < limit, "not indexed after {limit:?}: {s:?}");
+        assert!(
+            started.elapsed() < limit,
+            "not indexed after {limit:?}: {s:?}"
+        );
         std::thread::sleep(Duration::from_millis(2));
     }
-    assert!(slowest < UI_CALL_BUDGET, "a status read took {slowest:?} while indexing");
+    assert!(
+        slowest < UI_CALL_BUDGET,
+        "a status read took {slowest:?} while indexing"
+    );
     started.elapsed()
 }
 
@@ -75,7 +87,11 @@ fn write_tree(root: &Path, folders: usize, per_folder: usize) {
         let dir = root.join(format!("project {d}"));
         std::fs::create_dir_all(&dir).unwrap();
         for f in 0..per_folder {
-            std::fs::write(dir.join(format!("note {f}.txt")), format!("meeting notes {d} {f} about budget")).unwrap();
+            std::fs::write(
+                dir.join(format!("note {f}.txt")),
+                format!("meeting notes {d} {f} about budget"),
+            )
+            .unwrap();
         }
     }
 }
@@ -94,9 +110,15 @@ fn stays_responsive_while_indexing_thousands_of_files() {
 
     let took = wait_until_indexed(&run.engine, 1200, Duration::from_secs(300));
     let sent = run.emitted.load(Ordering::Relaxed);
-    assert!(sent <= max_events(took), "{sent} status events in {took:?}; the windows can't keep up with that");
+    assert!(
+        sent <= max_events(took),
+        "{sent} status events in {took:?}; the windows can't keep up with that"
+    );
     let sent = batches.load(Ordering::Relaxed);
-    assert!(sent <= max_events(took), "{sent} file activity events in {took:?}; the windows can't keep up with that");
+    assert!(
+        sent <= max_events(took),
+        "{sent} file activity events in {took:?}; the windows can't keep up with that"
+    );
     assert!(run.engine.search("budget", 5).semantic);
 
     // A rescan with nothing changed is quick and just as quiet.
@@ -106,8 +128,14 @@ fn stays_responsive_while_indexing_thousands_of_files() {
     std::thread::sleep(STATUS_EVERY * 2);
     let took = wait_until_indexed(&run.engine, 1200, Duration::from_secs(30));
     let sent = run.emitted.load(Ordering::Relaxed) - before;
-    assert!(sent <= max_events(started.elapsed()), "{sent} status events for a rescan");
-    assert!(took < Duration::from_secs(15), "rescan of unchanged files took {took:?}");
+    assert!(
+        sent <= max_events(started.elapsed()),
+        "{sent} status events for a rescan"
+    );
+    assert!(
+        took < Duration::from_secs(15),
+        "rescan of unchanged files took {took:?}"
+    );
     let _ = std::fs::remove_dir_all(&root);
 }
 
@@ -122,7 +150,10 @@ fn a_crashing_file_does_not_stop_indexing() {
     wait_until_indexed(&run.engine, 2, Duration::from_secs(30));
     assert_eq!(run.engine.status().unreadable, 1);
     // Still found by name.
-    assert_eq!(run.engine.search("crash report", 5).hits[0].name, "crash-for-test report.pdf");
+    assert_eq!(
+        run.engine.search("crash report", 5).hits[0].name,
+        "crash-for-test report.pdf"
+    );
     let _ = std::fs::remove_dir_all(&root);
 }
 
@@ -155,23 +186,45 @@ fn startup_does_not_wait_for_a_big_index_to_load() {
         let v = vec![0.125f32; DIMS];
         for f in 0..2000 {
             let chunks = (0..10)
-                .map(|_| db::NewChunk { label: None, text: Some("words".into()), vector: Some(v.clone()), visual: false })
+                .map(|_| db::NewChunk {
+                    label: None,
+                    text: Some("words".into()),
+                    vector: Some(v.clone()),
+                    visual: false,
+                })
                 .collect();
             db::upsert_file(&mut conn, &format!("/f{f}"), "f", "text", 1, 1, "m", chunks).unwrap();
         }
     }
 
     let started = Instant::now();
-    let config = EngineConfig { roots: vec![], dimensions: DIMS, ..EngineConfig::default() };
+    let config = EngineConfig {
+        roots: vec![],
+        dimensions: DIMS,
+        ..EngineConfig::default()
+    };
     let conn = db::open(&path).unwrap();
-    let (engine, _rx) = Engine::open(conn, config, root.join("engine.json"), root.join("speech"), |_| {}).unwrap();
+    let (engine, _rx) = Engine::open(
+        conn,
+        config,
+        root.join("engine.json"),
+        root.join("speech"),
+        |_| {},
+    )
+    .unwrap();
     let took = started.elapsed();
-    assert!(took < Duration::from_millis(500), "opening the engine took {took:?}");
+    assert!(
+        took < Duration::from_millis(500),
+        "opening the engine took {took:?}"
+    );
     assert_eq!(engine.status().state, "loading");
 
     engine.load_index();
     assert_eq!(engine.vectors.read().unwrap().len(), 20_000);
-    assert_eq!((engine.status().files, engine.status().state.as_str()), (2000, "idle"));
+    assert_eq!(
+        (engine.status().files, engine.status().state.as_str()),
+        (2000, "idle")
+    );
     let _ = std::fs::remove_dir_all(&root);
 }
 
@@ -184,7 +237,10 @@ fn watcher_starts_quickly_on_a_big_tree() {
     let w = watch::Watcher::start(&[root.clone()], Vec::new(), tx);
     let took = started.elapsed();
     assert!(w.is_some());
-    assert!(took < Duration::from_secs(3), "watching 20,000 files took {took:?} to start");
+    assert!(
+        took < Duration::from_secs(3),
+        "watching 20,000 files took {took:?} to start"
+    );
     drop(w);
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -192,9 +248,14 @@ fn watcher_starts_quickly_on_a_big_tree() {
 #[test]
 fn slow_or_crashing_readers_are_abandoned() {
     assert_eq!(run_with_timeout(Duration::from_secs(5), || 7), Ok(7));
-    assert_eq!(run_with_timeout(Duration::from_secs(5), || -> i32 { panic!("bad file") }), Err("crashed"));
+    assert_eq!(
+        run_with_timeout(Duration::from_secs(5), || -> i32 { panic!("bad file") }),
+        Err("crashed")
+    );
     let started = Instant::now();
-    let r = run_with_timeout(Duration::from_millis(100), || std::thread::sleep(Duration::from_secs(5)));
+    let r = run_with_timeout(Duration::from_millis(100), || {
+        std::thread::sleep(Duration::from_secs(5))
+    });
     assert_eq!(r, Err("took too long"));
     assert!(started.elapsed() < Duration::from_secs(1));
 }

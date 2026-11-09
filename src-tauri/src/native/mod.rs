@@ -73,11 +73,18 @@ pub fn theme_changed<R: Runtime>(window: &Window<R>) {
 pub fn appearance<R: Runtime>(window: WebviewWindow<R>) -> Appearance {
     #[cfg(windows)]
     let accent = win::accent_palette()
-        .map(|p| p.iter().map(|[r, g, b]| format!("#{r:02x}{g:02x}{b:02x}")).collect())
+        .map(|p| {
+            p.iter()
+                .map(|[r, g, b]| format!("#{r:02x}{g:02x}{b:02x}"))
+                .collect()
+        })
         .unwrap_or_default();
     #[cfg(not(windows))]
     let accent = Vec::new();
-    Appearance { accent, backdrop: backdrop_for(window.label()) }
+    Appearance {
+        accent,
+        backdrop: backdrop_for(window.label()),
+    }
 }
 
 /// Longest selection used as a search; anything past it is cut.
@@ -94,7 +101,10 @@ pub fn selected_text() -> Option<String> {
         std::thread::spawn(move || {
             let _ = tx.send(win::selected_text(SELECTION_CHARS as i32 * 4));
         });
-        rx.recv_timeout(std::time::Duration::from_millis(400)).ok().flatten().and_then(|t| as_query(&t))
+        rx.recv_timeout(std::time::Duration::from_millis(400))
+            .ok()
+            .flatten()
+            .and_then(|t| as_query(&t))
     }
     #[cfg(not(windows))]
     {
@@ -106,7 +116,13 @@ pub fn selected_text() -> Option<String> {
 /// spaces, cut to `SELECTION_CHARS`; None when nothing is left.
 #[cfg_attr(not(windows), allow(dead_code))]
 fn as_query(raw: &str) -> Option<String> {
-    let text: String = raw.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(SELECTION_CHARS).collect();
+    let text: String = raw
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(SELECTION_CHARS)
+        .collect();
     let text = text.trim_end().to_string();
     (!text.is_empty()).then_some(text)
 }
@@ -122,7 +138,8 @@ pub async fn shell_image(path: String, size: u32, thumbnail: bool) -> Result<Str
             let (w, h, rgba) = win::shell_image(&path, size.clamp(16, 512), thumbnail)?;
             let img = image::RgbaImage::from_raw(w, h, rgba).ok_or("unreadable bitmap")?;
             let mut png = std::io::Cursor::new(Vec::new());
-            img.write_to(&mut png, image::ImageFormat::Png).map_err(|e| e.to_string())?;
+            img.write_to(&mut png, image::ImageFormat::Png)
+                .map_err(|e| e.to_string())?;
             Ok(format!(
                 "data:image/png;base64,{}",
                 base64::engine::general_purpose::STANDARD.encode(png.into_inner())
@@ -160,7 +177,11 @@ fn is_online_only(path: &str) -> bool {
     const FILE_ATTRIBUTE_RECALL_ON_OPEN: u32 = 0x40000;
     const FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS: u32 = 0x400000;
     std::fs::metadata(path).is_ok_and(|m| {
-        m.file_attributes() & (FILE_ATTRIBUTE_OFFLINE | FILE_ATTRIBUTE_RECALL_ON_OPEN | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0
+        m.file_attributes()
+            & (FILE_ATTRIBUTE_OFFLINE
+                | FILE_ATTRIBUTE_RECALL_ON_OPEN
+                | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS)
+            != 0
     })
 }
 
@@ -194,7 +215,10 @@ mod tests {
 
     #[test]
     fn selections_become_one_line_searches() {
-        assert_eq!(as_query("  lease\r\n renewal \t notice "), Some("lease renewal notice".into()));
+        assert_eq!(
+            as_query("  lease\r\n renewal \t notice "),
+            Some("lease renewal notice".into())
+        );
         assert_eq!(as_query(" \n\t "), None);
         let long = "word ".repeat(100);
         let q = as_query(&long).unwrap();

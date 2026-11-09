@@ -13,7 +13,11 @@ use super::is_excluded;
 /// The folders to walk and watch: the drives (when full OS context is on)
 /// plus each chosen folder that isn't on one of them, minus what's skipped.
 pub fn roots(cfg: &EngineConfig, drives: &[PathBuf]) -> Vec<PathBuf> {
-    let mut roots: Vec<PathBuf> = if cfg.whole_pc { drives.to_vec() } else { Vec::new() };
+    let mut roots: Vec<PathBuf> = if cfg.whole_pc {
+        drives.to_vec()
+    } else {
+        Vec::new()
+    };
     for r in &cfg.roots {
         if !roots.iter().any(|d| r.starts_with(d)) {
             roots.push(r.clone());
@@ -31,7 +35,8 @@ pub fn skipped(cfg: &EngineConfig, path: &Path) -> bool {
 /// Whether a stored file still belongs in the index. It only looks at the
 /// path, so files on a drive that's unplugged for now are kept.
 pub fn covers(cfg: &EngineConfig, path: &Path) -> bool {
-    let inside = (cfg.whole_pc && on_a_drive(path)) || cfg.roots.iter().any(|r| path.starts_with(r));
+    let inside =
+        (cfg.whole_pc && on_a_drive(path)) || cfg.roots.iter().any(|r| path.starts_with(r));
     inside && !is_excluded(path) && !skipped(cfg, path)
 }
 
@@ -85,14 +90,22 @@ pub fn fixed_drives() -> Vec<PathBuf> {
 
 /// Name and size of each fixed drive.
 pub fn drives() -> Vec<Drive> {
-    let system = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".into()).to_ascii_uppercase();
+    let system = std::env::var("SystemDrive")
+        .unwrap_or_else(|_| "C:".into())
+        .to_ascii_uppercase();
     fixed_drives()
         .into_iter()
         .map(|d| {
             let path = d.to_string_lossy().to_string();
             let (label, total_bytes, free_bytes) = details(&path);
             let system = path.trim_end_matches('\\').eq_ignore_ascii_case(&system);
-            Drive { path, label, total_bytes, free_bytes, system }
+            Drive {
+                path,
+                label,
+                total_bytes,
+                free_bytes,
+                system,
+            }
         })
         .collect()
 }
@@ -105,7 +118,11 @@ fn details(root: &str) -> (String, u64, u64) {
     let mut name = [0u16; 261];
     let label = unsafe { GetVolumeInformationW(&root, Some(&mut name), None, None, None, None) }
         .ok()
-        .map(|_| String::from_utf16_lossy(&name[..name.iter().position(|&c| c == 0).unwrap_or(name.len())]))
+        .map(|_| {
+            String::from_utf16_lossy(
+                &name[..name.iter().position(|&c| c == 0).unwrap_or(name.len())],
+            )
+        })
         .unwrap_or_default();
     let (mut free, mut total) = (0u64, 0u64);
     let _ = unsafe { GetDiskFreeSpaceExW(&root, Some(&mut free), Some(&mut total), None) };
@@ -124,7 +141,8 @@ mod tests {
     /// An absolute path on this platform: `C:\a\b` on Windows, `/a/b` elsewhere.
     fn abs(rel: &str) -> PathBuf {
         let base = if cfg!(windows) { "C:\\" } else { "/" };
-        rel.split('/').fold(PathBuf::from(base), |p, part| p.join(part))
+        rel.split('/')
+            .fold(PathBuf::from(base), |p, part| p.join(part))
     }
 
     fn drive(letter: &str) -> PathBuf {
@@ -138,16 +156,35 @@ mod tests {
     #[test]
     fn whole_pc_searches_every_drive_and_folders_off_them() {
         let (c, d) = (drive("C"), drive("D"));
-        let network = if cfg!(windows) { PathBuf::from("\\\\nas\\photos") } else { PathBuf::from("/mnt/nas") };
+        let network = if cfg!(windows) {
+            PathBuf::from("\\\\nas\\photos")
+        } else {
+            PathBuf::from("/mnt/nas")
+        };
         let docs = c.join("Users").join("gupta").join("Documents");
-        let cfg = EngineConfig { roots: vec![docs.clone(), network.clone()], ..EngineConfig::default() };
+        let cfg = EngineConfig {
+            roots: vec![docs.clone(), network.clone()],
+            ..EngineConfig::default()
+        };
         assert!(cfg.whole_pc, "full OS context is on by default");
-        assert_eq!(roots(&cfg, &[c.clone(), d.clone()]), vec![c.clone(), d.clone(), network.clone()]);
+        assert_eq!(
+            roots(&cfg, &[c.clone(), d.clone()]),
+            vec![c.clone(), d.clone(), network.clone()]
+        );
 
-        let off = EngineConfig { whole_pc: false, ..cfg.clone() };
-        assert_eq!(roots(&off, &[c.clone(), d.clone()]), vec![docs, network.clone()]);
+        let off = EngineConfig {
+            whole_pc: false,
+            ..cfg.clone()
+        };
+        assert_eq!(
+            roots(&off, &[c.clone(), d.clone()]),
+            vec![docs, network.clone()]
+        );
 
-        let skip_d = EngineConfig { skip: vec![d.clone()], ..cfg };
+        let skip_d = EngineConfig {
+            skip: vec![d.clone()],
+            ..cfg
+        };
         assert_eq!(roots(&skip_d, &[c.clone(), d]), vec![c, network]);
     }
 
@@ -155,15 +192,31 @@ mod tests {
     fn covers_follows_the_settings_not_the_disk() {
         let docs = abs("Users/gupta/Documents");
         let games = abs("Games");
-        let cfg = EngineConfig { roots: vec![docs.clone()], skip: vec![games.clone()], ..EngineConfig::default() };
+        let cfg = EngineConfig {
+            roots: vec![docs.clone()],
+            skip: vec![games.clone()],
+            ..EngineConfig::default()
+        };
         assert!(covers(&cfg, &abs("Users/gupta/Downloads/lease.pdf")));
         assert!(covers(&cfg, &docs.join("notes.txt")));
-        assert!(!covers(&cfg, &games.join("save.dat")), "skipped by the user");
-        assert!(!covers(&cfg, &abs("Users/gupta/project/node_modules/x.js")), "always skipped");
+        assert!(
+            !covers(&cfg, &games.join("save.dat")),
+            "skipped by the user"
+        );
+        assert!(
+            !covers(&cfg, &abs("Users/gupta/project/node_modules/x.js")),
+            "always skipped"
+        );
 
-        let off = EngineConfig { whole_pc: false, ..cfg };
+        let off = EngineConfig {
+            whole_pc: false,
+            ..cfg
+        };
         assert!(covers(&off, &docs.join("notes.txt")));
-        assert!(!covers(&off, &abs("Users/gupta/Downloads/lease.pdf")), "not in a chosen folder");
+        assert!(
+            !covers(&off, &abs("Users/gupta/Downloads/lease.pdf")),
+            "not in a chosen folder"
+        );
         assert!(!covers(&off, Path::new("relative/notes.txt")));
     }
 
@@ -171,7 +224,12 @@ mod tests {
     #[test]
     fn finds_the_system_drive() {
         let drives = drives();
-        assert!(drives.iter().any(|d| d.system && d.path.eq_ignore_ascii_case("C:\\")), "{drives:?}");
+        assert!(
+            drives
+                .iter()
+                .any(|d| d.system && d.path.eq_ignore_ascii_case("C:\\")),
+            "{drives:?}"
+        );
         assert!(drives.iter().all(|d| d.total_bytes >= d.free_bytes));
     }
 }

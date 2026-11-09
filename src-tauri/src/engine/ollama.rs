@@ -24,7 +24,10 @@ pub struct InstalledModel {
 /// One thing to embed. EmbeddingGemma 2 puts text and images in one space.
 pub enum EmbedInput {
     Query(String),
-    Document { title: String, text: String },
+    Document {
+        title: String,
+        text: String,
+    },
     /// Base64-encoded JPEG or PNG.
     Image(String),
 }
@@ -47,7 +50,10 @@ impl EmbedInput {
 impl Ollama {
     pub fn new(base: &str) -> Result<Self, String> {
         let url = reqwest::Url::parse(base).map_err(|e| format!("Bad Ollama address: {e}"))?;
-        let loopback = matches!(url.host_str(), Some("127.0.0.1") | Some("localhost") | Some("[::1]") | Some("::1"));
+        let loopback = matches!(
+            url.host_str(),
+            Some("127.0.0.1") | Some("localhost") | Some("[::1]") | Some("::1")
+        );
         if !loopback {
             return Err("WinFynd only talks to an Ollama server on this PC (127.0.0.1)".into());
         }
@@ -56,7 +62,10 @@ impl Ollama {
             .timeout(Duration::from_secs(600))
             .build()
             .map_err(|e| e.to_string())?;
-        Ok(Self { base: base.trim_end_matches('/').to_string(), http })
+        Ok(Self {
+            base: base.trim_end_matches('/').to_string(),
+            http,
+        })
     }
 
     pub fn models(&self) -> Result<Vec<InstalledModel>, String> {
@@ -69,7 +78,9 @@ impl Ollama {
             .get(format!("{}/api/tags", self.base))
             .timeout(Duration::from_secs(5))
             .send()
-            .map_err(|_| "Ollama isn't running. Install it from ollama.com and start it.".to_string())?
+            .map_err(|_| {
+                "Ollama isn't running. Install it from ollama.com and start it.".to_string()
+            })?
             .error_for_status()
             .map_err(|e| e.to_string())?
             .json()
@@ -78,7 +89,12 @@ impl Ollama {
     }
 
     /// Unit-length vectors, one per input.
-    pub fn embed_refs(&self, model: &str, inputs: &[&EmbedInput], dimensions: usize) -> Result<Vec<Vec<f32>>, String> {
+    pub fn embed_refs(
+        &self,
+        model: &str,
+        inputs: &[&EmbedInput],
+        dimensions: usize,
+    ) -> Result<Vec<Vec<f32>>, String> {
         #[derive(Deserialize)]
         struct Resp {
             embeddings: Vec<Vec<f32>>,
@@ -105,7 +121,11 @@ impl Ollama {
         if parsed.embeddings.len() != inputs.len() {
             return Err("Ollama returned the wrong number of embeddings".into());
         }
-        Ok(parsed.embeddings.into_iter().map(|v| normalize(truncate(v, dimensions))).collect())
+        Ok(parsed
+            .embeddings
+            .into_iter()
+            .map(|v| normalize(truncate(v, dimensions)))
+            .collect())
     }
 
     pub fn chat(&self, model: &str, system: &str, user: &str) -> Result<String, String> {
@@ -140,7 +160,11 @@ impl Ollama {
     }
 
     /// Download a model into Ollama, reporting (completed, total) bytes.
-    pub fn pull(&self, model: &str, mut progress: impl FnMut(String, u64, u64)) -> Result<(), String> {
+    pub fn pull(
+        &self,
+        model: &str,
+        mut progress: impl FnMut(String, u64, u64),
+    ) -> Result<(), String> {
         let resp = self
             .http
             .post(format!("{}/api/pull", self.base))
@@ -152,11 +176,17 @@ impl Ollama {
             .map_err(|e| format!("Ollama pull failed: {e}"))?;
         for line in BufReader::new(resp).lines() {
             let line = line.map_err(|e| e.to_string())?;
-            let Ok(v) = serde_json::from_str::<Value>(&line) else { continue };
+            let Ok(v) = serde_json::from_str::<Value>(&line) else {
+                continue;
+            };
             if let Some(err) = v.get("error").and_then(Value::as_str) {
                 return Err(err.to_string());
             }
-            let status = v.get("status").and_then(Value::as_str).unwrap_or("").to_string();
+            let status = v
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
             let total = v.get("total").and_then(Value::as_u64).unwrap_or(0);
             let done = v.get("completed").and_then(Value::as_u64).unwrap_or(0);
             progress(status, done, total);
@@ -184,7 +214,9 @@ pub fn normalize(mut v: Vec<f32>) -> Vec<f32> {
 pub fn has_model(installed: &[InstalledModel], wanted: &str) -> bool {
     let base = |n: &str| n.split(':').next().unwrap_or(n).to_string();
     installed.iter().any(|m| {
-        m.name == wanted || (!wanted.contains(':') && base(&m.name) == wanted) || m.name == format!("{wanted}:latest")
+        m.name == wanted
+            || (!wanted.contains(':') && base(&m.name) == wanted)
+            || m.name == format!("{wanted}:latest")
     })
 }
 
@@ -207,7 +239,10 @@ mod tests {
 
     #[test]
     fn model_matching() {
-        let m = vec![InstalledModel { name: "embeddinggemma-2:latest".into(), size: 0 }];
+        let m = vec![InstalledModel {
+            name: "embeddinggemma-2:latest".into(),
+            size: 0,
+        }];
         assert!(has_model(&m, "embeddinggemma-2"));
         assert!(!has_model(&m, "embeddinggemma-2:270m"));
     }
