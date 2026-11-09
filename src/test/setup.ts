@@ -34,3 +34,10 @@ Object.defineProperty(window, "__TAURI_INTERNALS__", {
   value: {},
   writable: true,
 });
+
+// Mock ResizeObserver
+global.ResizeObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}));
