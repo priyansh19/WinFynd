@@ -22,8 +22,18 @@ pub struct SpeechModel {
 
 /// Multilingual Whisper models from the whisper.cpp model repository.
 pub const CATALOG: [SpeechModel; 3] = [
-    SpeechModel { id: "base", label: "Whisper Base", size_mb: 148, note: "Fastest; fine for clear speech" },
-    SpeechModel { id: "small", label: "Whisper Small", size_mb: 488, note: "Balanced speed and accuracy" },
+    SpeechModel {
+        id: "base",
+        label: "Whisper Base",
+        size_mb: 148,
+        note: "Fastest; fine for clear speech",
+    },
+    SpeechModel {
+        id: "small",
+        label: "Whisper Small",
+        size_mb: 488,
+        note: "Balanced speed and accuracy",
+    },
     SpeechModel {
         id: "large-v3-turbo-q5_0",
         label: "Whisper Large v3 Turbo",
@@ -65,7 +75,9 @@ pub fn download(dir: &Path, id: &str, mut progress: impl FnMut(u64, u64)) -> Res
     let mut done = 0u64;
     let mut last = 0u64;
     loop {
-        let n = resp.read(&mut buf).map_err(|e| format!("Download interrupted: {e}"))?;
+        let n = resp
+            .read(&mut buf)
+            .map_err(|e| format!("Download interrupted: {e}"))?;
         if n == 0 {
             break;
         }
@@ -116,7 +128,11 @@ impl Transcribe for Whisper {
         let mut state = self.ctx.create_state().map_err(|e| e.to_string())?;
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
         // Leave a core free so the PC stays responsive while indexing.
-        let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).saturating_sub(1).clamp(1, 8);
+        let threads = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(4)
+            .saturating_sub(1)
+            .clamp(1, 8);
         params.set_n_threads(threads as i32);
         params.set_language(Some("auto"));
         params.set_translate(false);
@@ -133,13 +149,19 @@ impl Transcribe for Whisper {
             if seg.no_speech_probability() > 0.8 {
                 continue;
             }
-            let text = seg.to_str_lossy().map(|t| t.trim().to_string()).unwrap_or_default();
+            let text = seg
+                .to_str_lossy()
+                .map(|t| t.trim().to_string())
+                .unwrap_or_default();
             // Silence and music make Whisper repeat itself; keep one copy.
             if text.is_empty() || out.last().is_some_and(|p| p.text == text) {
                 continue;
             }
             // Timestamps come in hundredths of a second.
-            out.push(Segment { start: seg.start_timestamp() as f64 / 100.0, text });
+            out.push(Segment {
+                start: seg.start_timestamp() as f64 / 100.0,
+                text,
+            });
         }
         Ok(out)
     }

@@ -18,7 +18,13 @@ pub struct VectorIndex {
 
 impl VectorIndex {
     pub fn new(dims: usize) -> Self {
-        Self { dims, ids: Vec::new(), visual: Vec::new(), data: Vec::new(), pos: HashMap::new() }
+        Self {
+            dims,
+            ids: Vec::new(),
+            visual: Vec::new(),
+            data: Vec::new(),
+            pos: HashMap::new(),
+        }
     }
 
     #[cfg(test)]
@@ -38,7 +44,9 @@ impl VectorIndex {
     }
 
     pub fn remove(&mut self, id: i64) {
-        let Some(i) = self.pos.remove(&id) else { return };
+        let Some(i) = self.pos.remove(&id) else {
+            return;
+        };
         let last = self.ids.len() - 1;
         if i != last {
             let moved = self.ids[last];
@@ -59,7 +67,12 @@ impl VectorIndex {
         let mut text = Vec::new();
         let mut visual = Vec::new();
         if query.len() == self.dims {
-            for ((v, id), is_visual) in self.data.chunks_exact(self.dims).zip(&self.ids).zip(&self.visual) {
+            for ((v, id), is_visual) in self
+                .data
+                .chunks_exact(self.dims)
+                .zip(&self.ids)
+                .zip(&self.visual)
+            {
                 let s = dot(v, query);
                 if *is_visual {
                     visual.push((*id, s));
@@ -68,8 +81,15 @@ impl VectorIndex {
                 }
             }
         }
-        let mut top: Vec<(i64, f32, bool)> = best(text, k_text).into_iter().map(|(id, s)| (id, s, false)).collect();
-        top.extend(best(visual, k_visual).into_iter().map(|(id, s)| (id, s, true)));
+        let mut top: Vec<(i64, f32, bool)> = best(text, k_text)
+            .into_iter()
+            .map(|(id, s)| (id, s, false))
+            .collect();
+        top.extend(
+            best(visual, k_visual)
+                .into_iter()
+                .map(|(id, s)| (id, s, true)),
+        );
         top
     }
 }
@@ -99,7 +119,12 @@ mod tests {
         ix.insert(1, &[1.0, 0.0], false);
         ix.insert(2, &[0.0, 1.0], false);
         ix.insert(3, &[0.6, 0.8], false);
-        let top = |ix: &VectorIndex, k| ix.rank(&[1.0, 0.0], k, k).iter().map(|x| x.0).collect::<Vec<_>>();
+        let top = |ix: &VectorIndex, k| {
+            ix.rank(&[1.0, 0.0], k, k)
+                .iter()
+                .map(|x| x.0)
+                .collect::<Vec<_>>()
+        };
         assert_eq!(top(&ix, 2), vec![1, 3]);
         ix.remove(1);
         assert_eq!(ix.len(), 2);
@@ -120,6 +145,9 @@ mod tests {
         ix.remove(1);
         let r = ix.rank(&[1.0, 0.0], 5, 5);
         assert_eq!(r.iter().filter(|t| !t.2).count(), 1);
-        assert_eq!(r.iter().filter(|t| t.2).map(|t| t.0).collect::<Vec<_>>(), vec![10, 11]);
+        assert_eq!(
+            r.iter().filter(|t| t.2).map(|t| t.0).collect::<Vec<_>>(),
+            vec![10, 11]
+        );
     }
 }

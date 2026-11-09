@@ -166,7 +166,11 @@ pub fn handle<R: Runtime>(app: &AppHandle<R>, shortcut: &Shortcut, event: Shortc
                 let launcher_focused = app
                     .get_webview_window("launcher")
                     .is_some_and(|w| w.is_focused().unwrap_or(false));
-                let text = if launcher_focused { None } else { crate::native::selected_text() };
+                let text = if launcher_focused {
+                    None
+                } else {
+                    crate::native::selected_text()
+                };
                 windows::show_launcher(&app);
                 let _ = app.emit_to("launcher", "launcher://selection", text);
             });

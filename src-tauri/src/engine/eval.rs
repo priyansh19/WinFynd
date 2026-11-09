@@ -71,7 +71,13 @@ pub fn evaluate(engine: &Engine, cases: &[Case]) -> Report {
                 misses.push(Miss {
                     query: case.query.clone(),
                     rank: None,
-                    top: r.hits.iter().filter(|h| h.confident).take(3).map(|h| h.name.clone()).collect(),
+                    top: r
+                        .hits
+                        .iter()
+                        .filter(|h| h.confident)
+                        .take(3)
+                        .map(|h| h.name.clone())
+                        .collect(),
                 });
             }
             continue;
@@ -80,7 +86,9 @@ pub fn evaluate(engine: &Engine, cases: &[Case]) -> Report {
         let wanted: Vec<String> = case.expect.iter().map(|e| normalize(e)).collect();
         let at = r.hits.iter().position(|h| {
             let path = normalize(&h.path);
-            wanted.iter().any(|w| path.ends_with(&format!("/{w}")) || path == *w)
+            wanted
+                .iter()
+                .any(|w| path.ends_with(&format!("/{w}")) || path == *w)
         });
         if let Some(i) = at {
             rr += 1.0 / (i + 1) as f32;
@@ -119,16 +127,23 @@ mod tests {
     #[test]
     #[ignore]
     fn eval_real_index() {
-        let cases_path = std::env::var("WINFYND_EVAL").expect("set WINFYND_EVAL to a cases JSON file");
-        let cases: Vec<Case> = serde_json::from_str(&std::fs::read_to_string(&cases_path).unwrap()).unwrap();
-        let base = std::env::var("WINFYND_DATA").map(std::path::PathBuf::from).unwrap_or_else(|_| {
-            // Tauri's app data and config folder on Windows.
-            std::path::PathBuf::from(std::env::var("APPDATA").expect("APPDATA")).join("app.winfynd.desktop")
-        });
+        let cases_path =
+            std::env::var("WINFYND_EVAL").expect("set WINFYND_EVAL to a cases JSON file");
+        let cases: Vec<Case> =
+            serde_json::from_str(&std::fs::read_to_string(&cases_path).unwrap()).unwrap();
+        let base = std::env::var("WINFYND_DATA")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|_| {
+                // Tauri's app data and config folder on Windows.
+                std::path::PathBuf::from(std::env::var("APPDATA").expect("APPDATA"))
+                    .join("app.winfynd.desktop")
+            });
         let config_path = base.join("engine.json");
-        let config = EngineConfig::load(&config_path).expect("no engine.json; has WinFynd indexed anything?");
+        let config = EngineConfig::load(&config_path)
+            .expect("no engine.json; has WinFynd indexed anything?");
         let conn = db::open(&base.join("index.sqlite3")).unwrap();
-        let (engine, _rx) = Engine::open(conn, config, config_path, base.join("speech"), |_| {}).unwrap();
+        let (engine, _rx) =
+            Engine::open(conn, config, config_path, base.join("speech"), |_| {}).unwrap();
         engine.refresh_ollama_state();
         let report = evaluate(&engine, &cases);
         println!("{}", serde_json::to_string_pretty(&report).unwrap());

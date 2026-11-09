@@ -32,7 +32,10 @@ pub fn init(dir: &Path) {
         log("PANIC", &format!("thread '{name}': {info}"));
         previous(info);
     }));
-    log("INFO", &format!("WinFynd {} started", env!("CARGO_PKG_VERSION")));
+    log(
+        "INFO",
+        &format!("WinFynd {} started", env!("CARGO_PKG_VERSION")),
+    );
 }
 
 pub fn log(level: &str, message: &str) {
@@ -43,11 +46,17 @@ pub fn log(level: &str, message: &str) {
         return;
     };
     let path = path.lock().unwrap_or_else(|e| e.into_inner());
-    if fs::metadata(&*path).map(|m| m.len() > MAX_LOG_BYTES).unwrap_or(false) {
+    if fs::metadata(&*path)
+        .map(|m| m.len() > MAX_LOG_BYTES)
+        .unwrap_or(false)
+    {
         let _ = fs::rename(&*path, path.with_extension("old.log"));
     }
     if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&*path) {
-        let secs = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+        let secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
         let _ = writeln!(f, "{secs} {level} {message}");
     }
 }
@@ -67,10 +76,15 @@ pub struct Watchdog {
 impl Watchdog {
     /// Record how long one ping took to be answered.
     fn record(&self, waited: Duration, context: impl FnOnce() -> String) {
-        self.worst_ms.fetch_max(waited.as_millis() as u64, Ordering::Relaxed);
+        self.worst_ms
+            .fetch_max(waited.as_millis() as u64, Ordering::Relaxed);
         if waited >= STALL_AFTER {
             self.stalls.fetch_add(1, Ordering::Relaxed);
-            warn(&format!("window thread blocked for {:.1}s ({})", waited.as_secs_f32(), context()));
+            warn(&format!(
+                "window thread blocked for {:.1}s ({})",
+                waited.as_secs_f32(),
+                context()
+            ));
         }
     }
 }
@@ -83,25 +97,30 @@ pub fn watch_main_thread<R: Runtime>(
 ) -> Arc<Watchdog> {
     let dog = Arc::new(Watchdog::default());
     let d = dog.clone();
-    let _ = std::thread::Builder::new().name("winfynd-watchdog".into()).spawn(move || loop {
-        std::thread::sleep(PING_EVERY);
-        let (tx, rx) = std::sync::mpsc::channel();
-        let sent = Instant::now();
-        if app.run_on_main_thread(move || {
-            let _ = tx.send(());
-        }).is_err() {
-            return;
-        }
-        // Note a stall straight away, in case it never ends and the app is
-        // killed, then wait for the answer to log how long it lasted.
-        if rx.recv_timeout(STALL_AFTER).is_err() {
-            warn(&format!("window thread not answering ({})", context()));
-            if rx.recv().is_err() {
+    let _ = std::thread::Builder::new()
+        .name("winfynd-watchdog".into())
+        .spawn(move || loop {
+            std::thread::sleep(PING_EVERY);
+            let (tx, rx) = std::sync::mpsc::channel();
+            let sent = Instant::now();
+            if app
+                .run_on_main_thread(move || {
+                    let _ = tx.send(());
+                })
+                .is_err()
+            {
                 return;
             }
-        }
-        d.record(sent.elapsed(), &context);
-    });
+            // Note a stall straight away, in case it never ends and the app is
+            // killed, then wait for the answer to log how long it lasted.
+            if rx.recv_timeout(STALL_AFTER).is_err() {
+                warn(&format!("window thread not answering ({})", context()));
+                if rx.recv().is_err() {
+                    return;
+                }
+            }
+            d.record(sent.elapsed(), &context);
+        });
     dog
 }
 
