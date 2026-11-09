@@ -92,3 +92,7 @@ WINFYND_EVAL=eval/cases.json cargo test --release --lib eval_real_index -- --ign
 ```
 
 It reads the index the app built (`%APPDATA%\app.winfynd.desktop`, or `WINFYND_DATA`) and prints how often the right file is first, in the top 5, and which queries missed.
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.

@@ -3,6 +3,7 @@ name = "winfynd"
 version = "0.1.1"
 description = "Find anything on your PC by text or voice. Everything stays local."
 edition = "2021"
+license = "MIT"
 
 [lib]
 name = "winfynd_lib"
