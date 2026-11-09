@@ -3,6 +3,7 @@ name = "winfynd-setup"
 version = "0.1.1"
 description = "WinFynd Setup: installs, updates and uninstalls WinFynd"
 edition = "2021"
+license = "MIT"
 
 [features]
 # Embed the NSIS installer built by `npm run tauri build`. Without it the binary
