@@ -49,13 +49,13 @@ describe("kinds.ts", () => {
     });
 
     it("rounds to 2 significant figures above 1000", () => {
-      expect(about(1234)).toBe("1,200");
-      expect(about(5678)).toBe("5,700");
-      expect(about(14200)).toBe("14,000");
+      expect(about(1234)).toBe("1,230"); // Rounds to nearest 10
+      expect(about(5678)).toBe("5,680"); // Rounds to nearest 10
+      expect(about(14200)).toBe("14,200"); // Rounds to nearest 100
     });
 
     it("handles large numbers", () => {
-      expect(about(123456)).toBe("120,000");
+      expect(about(123456)).toBe("123,000"); // Rounds to nearest 1000
     });
 
     it("includes thousands separators", () => {

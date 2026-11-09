@@ -19,7 +19,9 @@ vi.mock("@tauri-apps/api/window", () => ({
     minimize: vi.fn(() => Promise.resolve()),
     toggleMaximize: vi.fn(() => Promise.resolve()),
     close: vi.fn(() => Promise.resolve()),
+    setSize: vi.fn(() => Promise.resolve()),
   })),
+  LogicalSize: vi.fn((width, height) => ({ width, height })),
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
