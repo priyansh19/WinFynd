@@ -25,7 +25,7 @@ Both windows follow the Windows light/dark theme and your accent colour, and use
 | Action | Default |
 | --- | --- |
 | Open the launcher | Alt+Space |
-| Voice search (not available yet — shortcut reserved) | Alt+Shift+Space |
+| Voice search (hold to talk, or press to toggle) | Alt+Shift+Space |
 | Ask a question | Ctrl+Alt+Space |
 | Search selected text | Win+Shift+F |
 
@@ -57,7 +57,7 @@ Recordings and videos are searched by what's in them, not just their names:
 
 ### Not done yet
 
-- **Voice-to-query** is not available yet. Whisper already transcribes **recordings and videos** on this PC so you can search what was said; turning microphone speech into a search query is planned, not shipped.
+- Voice search in the launcher measures the microphone level, but doesn't turn your speech into a query yet. The Whisper model above is what it will use.
 
 ## Develop
 

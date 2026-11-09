@@ -503,7 +503,3 @@ main { view-transition-name: main; }
   .link-arrow:hover svg { transform: none; }
 }
 
-/* ---------- Release switch ----------
-   0.1.0 was published on 18 October 2026, so the "coming soon" variants (.until-release)
-   are hidden and the released ones (.after-release) show. Works without JavaScript. */
-.until-release { display: none !important; }
