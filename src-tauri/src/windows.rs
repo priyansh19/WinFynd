@@ -1,7 +1,10 @@
 //! Showing and hiding the windows: the floating launcher and Settings, which
 //! lives in the tray.
 
-use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, Runtime, WebviewWindow, WebviewWindowBuilder};
+use tauri::{
+    AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, Runtime, WebviewWindow,
+    WebviewWindowBuilder,
+};
 
 /// Put the launcher where PowerToys Run puts its box: centred across the
 /// monitor the pointer is on, a fifth of the way down its work area, so it
@@ -56,13 +59,18 @@ pub fn fit_to_screen<R: Runtime>(w: &WebviewWindow<R>) {
     if w.is_maximized().unwrap_or(false) {
         return;
     }
-    let (Ok(Some(monitor)), Ok(size)) = (w.current_monitor(), w.outer_size()) else { return };
+    let (Ok(Some(monitor)), Ok(size)) = (w.current_monitor(), w.outer_size()) else {
+        return;
+    };
     let area = monitor.work_area().size;
     let (max_w, max_h) = (area.width * 19 / 20, area.height * 19 / 20);
     if size.width <= max_w && size.height <= max_h {
         return;
     }
-    let _ = w.set_size(PhysicalSize::new(size.width.min(max_w), size.height.min(max_h)));
+    let _ = w.set_size(PhysicalSize::new(
+        size.width.min(max_w),
+        size.height.min(max_h),
+    ));
     let _ = w.center();
 }
 
@@ -93,7 +101,16 @@ pub fn with_window<R: Runtime>(
             then(w, false);
             return;
         }
-        let Some(config) = app.config().app.windows.iter().find(|w| w.label == label).cloned() else { return };
+        let Some(config) = app
+            .config()
+            .app
+            .windows
+            .iter()
+            .find(|w| w.label == label)
+            .cloned()
+        else {
+            return;
+        };
         let mut builder = match WebviewWindowBuilder::from_config(&app, &config) {
             Ok(b) => b,
             Err(e) => return crate::diag::warn(&format!("couldn't open the {label} window: {e}")),

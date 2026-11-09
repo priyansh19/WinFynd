@@ -94,7 +94,9 @@ impl Drop for Server {
 
 impl LocalModel {
     pub fn new(runtime_dir: Option<PathBuf>, dir: PathBuf, log: Option<PathBuf>) -> Arc<Self> {
-        let server_exe = runtime_dir.map(|d| d.join(SERVER_EXE)).filter(|p| p.is_file());
+        let server_exe = runtime_dir
+            .map(|d| d.join(SERVER_EXE))
+            .filter(|p| p.is_file());
         let http = reqwest::blocking::Client::builder()
             .connect_timeout(Duration::from_secs(10))
             .build()
@@ -160,12 +162,21 @@ impl LocalModel {
         let size = |f: &str| fs::metadata(self.path(f)).map(|m| m.len()).unwrap_or(0);
         let mut out = Vec::new();
         if self.is_installed("embeddinggemma-2:270m") {
-            out.push(InstalledModel { name: "embeddinggemma-2:270m".into(), size: size(TEXT_FILE) });
+            out.push(InstalledModel {
+                name: "embeddinggemma-2:270m".into(),
+                size: size(TEXT_FILE),
+            });
         }
         if self.is_installed("embeddinggemma-2") {
             let both = size(TEXT_FILE) + size(MEDIA_FILE);
-            out.push(InstalledModel { name: "embeddinggemma-2".into(), size: both });
-            out.push(InstalledModel { name: "embeddinggemma-2:440m".into(), size: both });
+            out.push(InstalledModel {
+                name: "embeddinggemma-2".into(),
+                size: both,
+            });
+            out.push(InstalledModel {
+                name: "embeddinggemma-2:440m".into(),
+                size: both,
+            });
         }
         out
     }
@@ -184,7 +195,14 @@ impl LocalModel {
     fn download_files(&self, tag: &str, progress: &mut impl FnMut(u64, u64)) -> Result<(), String> {
         fs::create_dir_all(&self.dir).map_err(|e| e.to_string())?;
         let files = files_for(tag);
-        let mut sizes: Vec<u64> = files.iter().map(|(f, approx)| fs::metadata(self.path(f)).map(|m| m.len()).unwrap_or(*approx)).collect();
+        let mut sizes: Vec<u64> = files
+            .iter()
+            .map(|(f, approx)| {
+                fs::metadata(self.path(f))
+                    .map(|m| m.len())
+                    .unwrap_or(*approx)
+            })
+            .collect();
         let mut finished = 0u64;
         for (i, (file, _)) in files.iter().enumerate() {
             let target = self.path(file);
@@ -194,13 +212,21 @@ impl LocalModel {
             }
             let part = self.path(&format!("{file}.part"));
             let have = fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
-            let mut req = self.http.get(format!("{REPO}/{file}")).timeout(Duration::from_secs(6 * 3600));
+            let mut req = self
+                .http
+                .get(format!("{REPO}/{file}"))
+                .timeout(Duration::from_secs(6 * 3600));
             if have > 0 {
                 req = req.header(reqwest::header::RANGE, format!("bytes={have}-"));
             }
-            let mut resp = req.send().map_err(|e| format!("Couldn't reach Hugging Face: {e}"))?;
+            let mut resp = req
+                .send()
+                .map_err(|e| format!("Couldn't reach Hugging Face: {e}"))?;
             if !resp.status().is_success() {
-                return Err(format!("Hugging Face answered {} for {file}", resp.status()));
+                return Err(format!(
+                    "Hugging Face answered {} for {file}",
+                    resp.status()
+                ));
             }
             // 206 resumes the partial file; anything else starts it over.
             let resumed = resp.status() == reqwest::StatusCode::PARTIAL_CONTENT;
@@ -219,7 +245,9 @@ impl LocalModel {
             let mut buf = vec![0u8; 1 << 16];
             let mut reported = Instant::now();
             loop {
-                let n = resp.read(&mut buf).map_err(|e| format!("The download stopped: {e}"))?;
+                let n = resp
+                    .read(&mut buf)
+                    .map_err(|e| format!("The download stopped: {e}"))?;
                 if n == 0 {
                     break;
                 }
@@ -233,7 +261,9 @@ impl LocalModel {
             out.flush().map_err(|e| e.to_string())?;
             drop(out);
             if done < sizes[i] {
-                return Err(format!("The download of {file} ended early; try again to resume it"));
+                return Err(format!(
+                    "The download of {file} ended early; try again to resume it"
+                ));
             }
             fs::rename(&part, &target).map_err(|e| e.to_string())?;
             finished += done;
@@ -244,7 +274,12 @@ impl LocalModel {
 
     /// Unit-length vectors, one per input. Photos fail when `tag` is the
     /// text-only model; the caller retries them one at a time.
-    pub fn embed(&self, tag: &str, inputs: &[&EmbedInput], dimensions: usize) -> Result<Vec<Vec<f32>>, String> {
+    pub fn embed(
+        &self,
+        tag: &str,
+        inputs: &[&EmbedInput],
+        dimensions: usize,
+    ) -> Result<Vec<Vec<f32>>, String> {
         let (base, images) = self.running(tag)?;
         // Answered here, so the caller's retry of each photo costs nothing.
         if !images && inputs.iter().any(|i| i.is_image()) {
@@ -274,7 +309,10 @@ impl LocalModel {
         if !resp.status().is_success() {
             let status = resp.status();
             let text = resp.text().unwrap_or_default();
-            return Err(format!("The search model failed ({status}): {}", text.chars().take(300).collect::<String>()));
+            return Err(format!(
+                "The search model failed ({status}): {}",
+                text.chars().take(300).collect::<String>()
+            ));
         }
         let mut parsed: Resp = resp.json().map_err(|e| e.to_string())?;
         if parsed.data.len() != inputs.len() {
@@ -333,7 +371,9 @@ impl LocalModel {
             Ok(s) => s,
             // Text search matters most: without the photo encoders rather than not at all.
             Err(e) if images => {
-                crate::diag::warn(&format!("the search model wouldn't start with photos ({e}); starting it for text only"));
+                crate::diag::warn(&format!(
+                    "the search model wouldn't start with photos ({e}); starting it for text only"
+                ));
                 self.no_media.store(true, Ordering::SeqCst);
                 self.start(&exe, false)?
             }
@@ -349,7 +389,9 @@ impl LocalModel {
             .and_then(|l| l.local_addr())
             .map(|a| a.port())
             .map_err(|e| e.to_string())?;
-        let threads = std::thread::available_parallelism().map(|n| (n.get() / 2).max(1)).unwrap_or(2);
+        let threads = std::thread::available_parallelism()
+            .map(|n| (n.get() / 2).max(1))
+            .unwrap_or(2);
         let context = if images { CONTEXT * 2 } else { CONTEXT }.to_string();
         let mut cmd = Command::new(exe);
         cmd.arg("-m").arg(self.path(TEXT_FILE));
@@ -368,7 +410,8 @@ impl LocalModel {
         let log = self.log.as_ref().and_then(|p| fs::File::create(p).ok());
         match log.as_ref().and_then(|f| f.try_clone().ok()) {
             Some(err) => {
-                cmd.stdout(Stdio::from(log.unwrap())).stderr(Stdio::from(err));
+                cmd.stdout(Stdio::from(log.unwrap()))
+                    .stderr(Stdio::from(err));
             }
             None => {
                 cmd.stdout(Stdio::null()).stderr(Stdio::null());
@@ -381,7 +424,9 @@ impl LocalModel {
             const BELOW_NORMAL_PRIORITY_CLASS: u32 = 0x0000_4000;
             cmd.creation_flags(CREATE_NO_WINDOW | BELOW_NORMAL_PRIORITY_CLASS);
         }
-        let child = cmd.spawn().map_err(|e| format!("Couldn't start the search model: {e}"))?;
+        let child = cmd
+            .spawn()
+            .map_err(|e| format!("Couldn't start the search model: {e}"))?;
         #[cfg(windows)]
         let job = job::Job::kill_on_close(&child);
         let mut server = Server {
@@ -436,12 +481,24 @@ fn stop_when_idle(model: Weak<LocalModel>) {
 
 fn to_json(input: &EmbedInput) -> Value {
     // Prompt formats from the EmbeddingGemma 2 model card; media takes no prefix.
-    let cut = |s: String| if s.len() > MAX_CHARS { s.chars().take(MAX_CHARS).collect() } else { s };
+    let cut = |s: String| {
+        if s.len() > MAX_CHARS {
+            s.chars().take(MAX_CHARS).collect()
+        } else {
+            s
+        }
+    };
     match input {
         EmbedInput::Query(q) => json!(cut(format!("task: search result | query: {q}"))),
-        EmbedInput::Document { title, text } => json!(cut(format!("title: {title} | text: {text}"))),
+        EmbedInput::Document { title, text } => {
+            json!(cut(format!("title: {title} | text: {text}")))
+        }
         EmbedInput::Image(b64) => {
-            let mime = if b64.starts_with("iVBOR") { "image/png" } else { "image/jpeg" };
+            let mime = if b64.starts_with("iVBOR") {
+                "image/png"
+            } else {
+                "image/jpeg"
+            };
             json!({ "content": [{ "type": "image_url", "image_url": { "url": format!("data:{mime};base64,{b64}") } }] })
         }
     }
@@ -457,8 +514,9 @@ mod job {
     use windows::core::PCWSTR;
     use windows::Win32::Foundation::{CloseHandle, HANDLE};
     use windows::Win32::System::JobObjects::{
-        AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation, SetInformationJobObject,
-        JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+        AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+        SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
     };
 
     pub struct Job(HANDLE);
@@ -507,11 +565,20 @@ mod tests {
 
     #[test]
     fn prompts_and_pictures() {
-        assert_eq!(to_json(&EmbedInput::Query("tax".into())), json!("task: search result | query: tax"));
-        let long = to_json(&EmbedInput::Document { title: "a".into(), text: "x".repeat(MAX_CHARS * 2) });
+        assert_eq!(
+            to_json(&EmbedInput::Query("tax".into())),
+            json!("task: search result | query: tax")
+        );
+        let long = to_json(&EmbedInput::Document {
+            title: "a".into(),
+            text: "x".repeat(MAX_CHARS * 2),
+        });
         assert_eq!(long.as_str().unwrap().len(), MAX_CHARS);
         let png = to_json(&EmbedInput::Image("iVBORw0KGgo".into()));
-        assert!(png["content"][0]["image_url"]["url"].as_str().unwrap().starts_with("data:image/png;base64,"));
+        assert!(png["content"][0]["image_url"]["url"]
+            .as_str()
+            .unwrap()
+            .starts_with("data:image/png;base64,"));
     }
 
     #[test]
@@ -519,7 +586,9 @@ mod tests {
         let dir = crate::engine::e2e_tests::temp_dir("local-model");
         let m = LocalModel::new(None, dir, None);
         assert!(!m.has_runtime());
-        let err = m.embed("embeddinggemma-2", &[&EmbedInput::Query("x".into())], 768).unwrap_err();
+        let err = m
+            .embed("embeddinggemma-2", &[&EmbedInput::Query("x".into())], 768)
+            .unwrap_err();
         assert!(err.contains("model engine"), "{err}");
     }
 }

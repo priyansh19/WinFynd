@@ -21,7 +21,11 @@ use crate::engine::{Engine, Job, Status};
 type EngineState<'a> = State<'a, Arc<Engine>>;
 
 #[tauri::command]
-pub async fn search(engine: EngineState<'_>, query: String, limit: Option<usize>) -> Result<SearchResponse, String> {
+pub async fn search(
+    engine: EngineState<'_>,
+    query: String,
+    limit: Option<usize>,
+) -> Result<SearchResponse, String> {
     let engine = engine.inner().clone();
     tauri::async_runtime::spawn_blocking(move || engine.search(&query, limit.unwrap_or(30)))
         .await
@@ -39,7 +43,10 @@ pub async fn ask(engine: EngineState<'_>, question: String) -> Result<Answer, St
 /// Text for a spoken search: 16 kHz mono samples from the microphone,
 /// transcribed on this PC by the speech model.
 #[tauri::command]
-pub async fn transcribe_voice(engine: EngineState<'_>, samples: Vec<f32>) -> Result<String, String> {
+pub async fn transcribe_voice(
+    engine: EngineState<'_>,
+    samples: Vec<f32>,
+) -> Result<String, String> {
     let engine = engine.inner().clone();
     tauri::async_runtime::spawn_blocking(move || engine.transcribe_query(&samples))
         .await
@@ -48,7 +55,9 @@ pub async fn transcribe_voice(engine: EngineState<'_>, samples: Vec<f32>) -> Res
 
 /// Run blocking work off the window thread.
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> Result<T, String> {
-    tauri::async_runtime::spawn_blocking(f).await.map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -73,13 +82,20 @@ pub async fn set_engine_config<R: Runtime>(
         // folders just added are checked, so one that's gone since can't
         // block every other setting.
         let old = engine.config();
-        if config.roots.iter().filter(|r| !old.roots.contains(r)).any(|r| !r.is_dir()) {
+        if config
+            .roots
+            .iter()
+            .filter(|r| !old.roots.contains(r))
+            .any(|r| !r.is_dir())
+        {
             return Err("One of the folders doesn't exist".into());
         }
         if ![768, 512, 256, 128].contains(&config.dimensions) {
             return Err("Vector size must be 768, 512, 256 or 128".into());
         }
-        if !config.speech_model.is_empty() && !speech::is_installed(&engine.speech_dir, &config.speech_model) {
+        if !config.speech_model.is_empty()
+            && !speech::is_installed(&engine.speech_dir, &config.speech_model)
+        {
             return Err("Download that speech model first".into());
         }
         let saved = engine.set_config(config)?;
@@ -115,13 +131,33 @@ pub async fn list_models(engine: EngineState<'_>) -> Result<ModelsSnapshot, Stri
         let ollama = from_ollama.is_ok();
         if engine.config().builtin() {
             // WinFynd's own search model, plus Ollama's chat models for Ask.
-            let mut installed = engine.local_model().map(|m| m.installed()).unwrap_or_default();
-            installed.extend(from_ollama.unwrap_or_default().into_iter().filter(|m| !m.name.contains("embed")));
-            return ModelsSnapshot { installed: Some(installed), error: None, ollama };
+            let mut installed = engine
+                .local_model()
+                .map(|m| m.installed())
+                .unwrap_or_default();
+            installed.extend(
+                from_ollama
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter(|m| !m.name.contains("embed")),
+            );
+            return ModelsSnapshot {
+                installed: Some(installed),
+                error: None,
+                ollama,
+            };
         }
         match from_ollama {
-            Ok(m) => ModelsSnapshot { installed: Some(m), error: None, ollama },
-            Err(e) => ModelsSnapshot { installed: None, error: Some(e), ollama },
+            Ok(m) => ModelsSnapshot {
+                installed: Some(m),
+                error: None,
+                ollama,
+            },
+            Err(e) => ModelsSnapshot {
+                installed: None,
+                error: Some(e),
+                ollama,
+            },
         }
     })
     .await
@@ -144,7 +180,11 @@ struct PullProgress {
 /// Ollama; chat models always go to Ollama. Indexing resumes with the new
 /// model afterwards.
 #[tauri::command]
-pub async fn pull_model<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, model: String) -> Result<(), String> {
+pub async fn pull_model<R: Runtime>(
+    app: AppHandle<R>,
+    engine: EngineState<'_>,
+    model: String,
+) -> Result<(), String> {
     if engine.config().builtin() && model.starts_with("embeddinggemma") {
         return download_search_model(app, engine.inner().clone(), model);
     }
@@ -155,11 +195,22 @@ pub async fn pull_model<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, 
             let _ = app.emit("models://pull", p);
         };
         let result = client.pull(&model, |status, completed, total| {
-            emit(PullProgress { model: model.clone(), status, completed, total, done: false, error: None });
+            emit(PullProgress {
+                model: model.clone(),
+                status,
+                completed,
+                total,
+                done: false,
+                error: None,
+            });
         });
         emit(PullProgress {
             model: model.clone(),
-            status: if result.is_ok() { "success".into() } else { "failed".into() },
+            status: if result.is_ok() {
+                "success".into()
+            } else {
+                "failed".into()
+            },
             completed: 0,
             total: 0,
             done: true,
@@ -173,8 +224,14 @@ pub async fn pull_model<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, 
 /// Download EmbeddingGemma 2 for WinFynd to run itself, reporting progress
 /// like an Ollama pull. Also called at startup when the model setup picked
 /// isn't on this PC yet (an update from a version that used Ollama).
-pub fn download_search_model<R: Runtime>(app: AppHandle<R>, engine: Arc<Engine>, model: String) -> Result<(), String> {
-    let local = engine.local_model().ok_or("WinFynd's model engine isn't available")?;
+pub fn download_search_model<R: Runtime>(
+    app: AppHandle<R>,
+    engine: Arc<Engine>,
+    model: String,
+) -> Result<(), String> {
+    let local = engine
+        .local_model()
+        .ok_or("WinFynd's model engine isn't available")?;
     if local.is_downloading() {
         // Progress is already arriving.
         return Ok(());
@@ -183,7 +240,14 @@ pub fn download_search_model<R: Runtime>(app: AppHandle<R>, engine: Arc<Engine>,
         let emit = |status: &str, completed: u64, total: u64, done: bool, error: Option<String>| {
             let _ = app.emit(
                 "models://pull",
-                PullProgress { model: model.clone(), status: status.into(), completed, total, done, error },
+                PullProgress {
+                    model: model.clone(),
+                    status: status.into(),
+                    completed,
+                    total,
+                    done,
+                    error,
+                },
             );
         };
         emit("starting", 0, 0, false, None);
@@ -195,7 +259,13 @@ pub fn download_search_model<R: Runtime>(app: AppHandle<R>, engine: Arc<Engine>,
             crate::diag::warn(&format!("downloading the search model failed: {e}"));
         }
         let ok = result.is_ok();
-        emit(if ok { "success" } else { "failed" }, 0, 0, true, result.err());
+        emit(
+            if ok { "success" } else { "failed" },
+            0,
+            0,
+            true,
+            result.err(),
+        );
         engine.enqueue(Job::Scan);
     });
     Ok(())
@@ -224,7 +294,10 @@ fn media_snapshot(engine: &Engine) -> MediaSnapshot {
     MediaSnapshot {
         speech_models: speech::CATALOG
             .iter()
-            .map(|m| SpeechModelInfo { model: *m, installed: speech::is_installed(&engine.speech_dir, m.id) })
+            .map(|m| SpeechModelInfo {
+                model: *m,
+                installed: speech::is_installed(&engine.speech_dir, m.id),
+            })
             .collect(),
         ffmpeg: ffmpeg.as_ref().map(|p| p.display().to_string()),
         ffmpeg_version: ffmpeg.as_deref().and_then(ffmpeg_version),
@@ -249,7 +322,9 @@ fn ffmpeg_version(ffmpeg: &std::path::Path) -> Option<String> {
 
 fn read_ffmpeg_version(ffmpeg: &std::path::Path) -> Option<String> {
     let mut cmd = std::process::Command::new(ffmpeg);
-    cmd.arg("-version").stdin(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+    cmd.arg("-version")
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -258,17 +333,26 @@ fn read_ffmpeg_version(ffmpeg: &std::path::Path) -> Option<String> {
     }
     let out = cmd.output().ok()?;
     let text = String::from_utf8_lossy(&out.stdout);
-    let version = text.lines().next()?.strip_prefix("ffmpeg version ")?.split_whitespace().next()?;
+    let version = text
+        .lines()
+        .next()?
+        .strip_prefix("ffmpeg version ")?
+        .split_whitespace()
+        .next()?;
     // Builds like "7.1-full_build-www.gyan.dev" or "n7.1" keep just the number.
     let version = version.trim_start_matches('n').split(['-', '+']).next()?;
     // Git and nightly builds ("N-115123-g…", "2024-05-13-git-…") show as plain "Found".
-    (version.starts_with(|c: char| c.is_ascii_digit()) && version.contains('.')).then(|| version.to_string())
+    (version.starts_with(|c: char| c.is_ascii_digit()) && version.contains('.'))
+        .then(|| version.to_string())
 }
 
 /// Speech models on disk and whether FFmpeg is available. `recheck` looks
 /// for FFmpeg again and rescans if it has just been installed.
 #[tauri::command]
-pub async fn media_support(engine: EngineState<'_>, recheck: Option<bool>) -> Result<MediaSnapshot, String> {
+pub async fn media_support(
+    engine: EngineState<'_>,
+    recheck: Option<bool>,
+) -> Result<MediaSnapshot, String> {
     let engine = engine.inner().clone();
     blocking(move || {
         if recheck.unwrap_or(false) {
@@ -296,7 +380,11 @@ struct SpeechProgress {
 /// `models://speech` events. The first model downloaded is switched on, and
 /// audio and video are then transcribed by the next scan.
 #[tauri::command]
-pub async fn download_speech_model<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, id: String) -> Result<(), String> {
+pub async fn download_speech_model<R: Runtime>(
+    app: AppHandle<R>,
+    engine: EngineState<'_>,
+    id: String,
+) -> Result<(), String> {
     if !speech::CATALOG.iter().any(|m| m.id == id) {
         return Err(format!("Unknown speech model {id}"));
     }
@@ -306,7 +394,13 @@ pub async fn download_speech_model<R: Runtime>(app: AppHandle<R>, engine: Engine
             let _ = app.emit("models://speech", p);
         };
         let result = speech::download(&engine.speech_dir, &id, |completed, total| {
-            emit(SpeechProgress { id: id.clone(), completed, total, done: false, error: None });
+            emit(SpeechProgress {
+                id: id.clone(),
+                completed,
+                total,
+                done: false,
+                error: None,
+            });
         });
         if result.is_ok() {
             let mut cfg = engine.config();
@@ -318,7 +412,13 @@ pub async fn download_speech_model<R: Runtime>(app: AppHandle<R>, engine: Engine
                 }
             }
         }
-        emit(SpeechProgress { id: id.clone(), completed: 0, total: 0, done: true, error: result.err() });
+        emit(SpeechProgress {
+            id: id.clone(),
+            completed: 0,
+            total: 0,
+            done: true,
+            error: result.err(),
+        });
     });
     Ok(())
 }
@@ -334,23 +434,35 @@ fn indexed_path(engine: &Engine, path: &str) -> Result<PathBuf, String> {
 }
 
 #[tauri::command]
-pub async fn open_path<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, path: String) -> Result<(), String> {
+pub async fn open_path<R: Runtime>(
+    app: AppHandle<R>,
+    engine: EngineState<'_>,
+    path: String,
+) -> Result<(), String> {
     let engine = engine.inner().clone();
     blocking(move || {
         let p = indexed_path(&engine, &path)?;
         crate::windows::hide_launcher(&app);
-        app.opener().open_path(p.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
+        app.opener()
+            .open_path(p.to_string_lossy(), None::<&str>)
+            .map_err(|e| e.to_string())
     })
     .await?
 }
 
 #[tauri::command]
-pub async fn reveal_path<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>, path: String) -> Result<(), String> {
+pub async fn reveal_path<R: Runtime>(
+    app: AppHandle<R>,
+    engine: EngineState<'_>,
+    path: String,
+) -> Result<(), String> {
     let engine = engine.inner().clone();
     blocking(move || {
         let p = indexed_path(&engine, &path)?;
         crate::windows::hide_launcher(&app);
-        app.opener().reveal_item_in_dir(p).map_err(|e| e.to_string())
+        app.opener()
+            .reveal_item_in_dir(p)
+            .map_err(|e| e.to_string())
     })
     .await?
 }
@@ -364,7 +476,9 @@ pub async fn open_link<R: Runtime>(app: AppHandle<R>, url: String) -> Result<(),
     if url != REPO && !url.starts_with(&format!("{REPO}/")) {
         return Err("Only WinFynd's own pages open from here".into());
     }
-    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|e| e.to_string())
 }
 
 #[derive(Serialize)]
@@ -395,16 +509,28 @@ pub async fn latest_release<R: Runtime>(app: AppHandle<R>) -> Result<Release, St
             .map_err(|e| e.to_string())?
             .json()
             .map_err(|e| e.to_string())?;
-        let version = body["tag_name"].as_str().unwrap_or_default().trim_start_matches('v').to_string();
+        let version = body["tag_name"]
+            .as_str()
+            .unwrap_or_default()
+            .trim_start_matches('v')
+            .to_string();
         let url = body["html_url"].as_str().unwrap_or(REPO).to_string();
-        Ok(Release { newer: is_newer(&version, &running), version, url })
+        Ok(Release {
+            newer: is_newer(&version, &running),
+            version,
+            url,
+        })
     })
     .await?
 }
 
 /// "0.10.0" is newer than "0.9.2"; anything unparsable isn't newer.
 fn is_newer(candidate: &str, running: &str) -> bool {
-    let parse = |v: &str| v.split('.').map(|p| p.parse::<u64>().ok()).collect::<Option<Vec<_>>>();
+    let parse = |v: &str| {
+        v.split('.')
+            .map(|p| p.parse::<u64>().ok())
+            .collect::<Option<Vec<_>>>()
+    };
     match (parse(candidate), parse(running)) {
         (Some(a), Some(b)) => a > b,
         _ => false,

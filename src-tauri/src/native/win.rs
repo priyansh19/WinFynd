@@ -8,30 +8,51 @@ use std::mem::size_of;
 
 use windows::core::{w, HSTRING, PCWSTR};
 use windows::Win32::Foundation::{HWND, SIZE};
-use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND};
+use windows::Win32::Graphics::Dwm::{
+    DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
+};
 use windows::Win32::Graphics::Gdi::{
-    DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
-    DIB_RGB_COLORS, HGDIOBJ,
+    DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFO, BITMAPINFOHEADER,
+    BI_RGB, DIB_RGB_COLORS, HGDIOBJ,
 };
 use windows::Win32::System::Com::{
-    CoCreateInstance, CoInitializeEx, IBindCtx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, COINIT_MULTITHREADED,
+    CoCreateInstance, CoInitializeEx, IBindCtx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
+    COINIT_MULTITHREADED,
 };
 use windows::Win32::System::Registry::{
     RegGetValueW, HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, RRF_RT_REG_BINARY, RRF_RT_REG_SZ,
 };
-use windows::Win32::UI::Accessibility::{CUIAutomation, IUIAutomation, IUIAutomationTextPattern, UIA_TextPatternId};
+use windows::Win32::UI::Accessibility::{
+    CUIAutomation, IUIAutomation, IUIAutomationTextPattern, UIA_TextPatternId,
+};
 use windows::Win32::UI::Shell::{
-    IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF, SIIGBF_ICONONLY, SIIGBF_RESIZETOFIT,
+    IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF, SIIGBF_ICONONLY,
+    SIIGBF_RESIZETOFIT,
 };
 
-fn reg_bytes(root: HKEY, key: PCWSTR, value: PCWSTR, flags: windows::Win32::System::Registry::REG_ROUTINE_FLAGS) -> Option<Vec<u8>> {
+fn reg_bytes(
+    root: HKEY,
+    key: PCWSTR,
+    value: PCWSTR,
+    flags: windows::Win32::System::Registry::REG_ROUTINE_FLAGS,
+) -> Option<Vec<u8>> {
     let mut len = 0u32;
     unsafe {
         if RegGetValueW(root, key, value, flags, None, None, Some(&mut len)).is_err() || len == 0 {
             return None;
         }
         let mut buf = vec![0u8; len as usize];
-        if RegGetValueW(root, key, value, flags, None, Some(buf.as_mut_ptr() as *mut c_void), Some(&mut len)).is_err() {
+        if RegGetValueW(
+            root,
+            key,
+            value,
+            flags,
+            None,
+            Some(buf.as_mut_ptr() as *mut c_void),
+            Some(&mut len),
+        )
+        .is_err()
+        {
             return None;
         }
         buf.truncate(len as usize);
@@ -51,7 +72,13 @@ pub fn accent_palette() -> Option<Vec<[u8; 3]>> {
     if bytes.len() < 28 {
         return None;
     }
-    Some(bytes.chunks_exact(4).take(7).map(|c| [c[0], c[1], c[2]]).collect())
+    Some(
+        bytes
+            .chunks_exact(4)
+            .take(7)
+            .map(|c| [c[0], c[1], c[2]])
+            .collect(),
+    )
 }
 
 /// Windows build number, e.g. 22631. Windows 11 starts at 22000.
@@ -63,7 +90,11 @@ pub fn os_build() -> u32 {
         RRF_RT_REG_SZ,
     )
     .map(|b| {
-        let wide: Vec<u16> = b.chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).take_while(|&c| c != 0).collect();
+        let wide: Vec<u16> = b
+            .chunks_exact(2)
+            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .take_while(|&c| c != 0)
+            .collect();
         String::from_utf16_lossy(&wide).trim().parse().unwrap_or(0)
     })
     .unwrap_or(0)
@@ -90,14 +121,26 @@ pub fn shell_image(path: &str, size: u32, thumbnail: bool) -> Result<(u32, u32, 
         // The shell wants a single-threaded apartment; already initialised is fine.
         let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
         let factory: IShellItemImageFactory =
-            SHCreateItemFromParsingName(&HSTRING::from(path), None::<&IBindCtx>).map_err(|e| e.to_string())?;
-        let flags: SIIGBF = if thumbnail { SIIGBF_RESIZETOFIT } else { SIIGBF_ICONONLY };
+            SHCreateItemFromParsingName(&HSTRING::from(path), None::<&IBindCtx>)
+                .map_err(|e| e.to_string())?;
+        let flags: SIIGBF = if thumbnail {
+            SIIGBF_RESIZETOFIT
+        } else {
+            SIIGBF_ICONONLY
+        };
         let side = size as i32;
-        let bitmap = factory.GetImage(SIZE { cx: side, cy: side }, flags).map_err(|e| e.to_string())?;
+        let bitmap = factory
+            .GetImage(SIZE { cx: side, cy: side }, flags)
+            .map_err(|e| e.to_string())?;
         let object = HGDIOBJ(bitmap.0);
 
         let mut bm = BITMAP::default();
-        if GetObjectW(object, size_of::<BITMAP>() as i32, Some(&mut bm as *mut _ as *mut c_void)) == 0 {
+        if GetObjectW(
+            object,
+            size_of::<BITMAP>() as i32,
+            Some(&mut bm as *mut _ as *mut c_void),
+        ) == 0
+        {
             let _ = DeleteObject(object);
             return Err("unreadable bitmap".into());
         }
@@ -116,7 +159,15 @@ pub fn shell_image(path: &str, size: u32, thumbnail: bool) -> Result<(u32, u32, 
         };
         let mut pixels = vec![0u8; (w * h * 4) as usize];
         let dc = GetDC(None);
-        let rows = GetDIBits(dc, bitmap, 0, h, Some(pixels.as_mut_ptr() as *mut c_void), &mut info, DIB_RGB_COLORS);
+        let rows = GetDIBits(
+            dc,
+            bitmap,
+            0,
+            h,
+            Some(pixels.as_mut_ptr() as *mut c_void),
+            &mut info,
+            DIB_RGB_COLORS,
+        );
         ReleaseDC(None, dc);
         let _ = DeleteObject(object);
         if rows == 0 {
@@ -129,7 +180,13 @@ pub fn shell_image(path: &str, size: u32, thumbnail: bool) -> Result<(u32, u32, 
         for p in pixels.chunks_exact_mut(4) {
             let a = if opaque { 255 } else { p[3] };
             let (b, g, r) = (p[0], p[1], p[2]);
-            let un = |c: u8| if a == 0 || a == 255 { c } else { ((c as u32 * 255 + a as u32 / 2) / a as u32).min(255) as u8 };
+            let un = |c: u8| {
+                if a == 0 || a == 255 {
+                    c
+                } else {
+                    ((c as u32 * 255 + a as u32 / 2) / a as u32).min(255) as u8
+                }
+            };
             p[0] = un(r);
             p[1] = un(g);
             p[2] = un(b);
@@ -145,13 +202,22 @@ pub fn shell_image(path: &str, size: u32, thumbnail: bool) -> Result<(u32, u32, 
 pub fn selected_text(max_chars: i32) -> Option<String> {
     unsafe {
         let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
-        let uia: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).ok()?;
+        let uia: IUIAutomation =
+            CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).ok()?;
         let focused = uia.GetFocusedElement().ok()?;
-        let pattern: IUIAutomationTextPattern = focused.GetCurrentPatternAs(UIA_TextPatternId).ok()?;
+        let pattern: IUIAutomationTextPattern =
+            focused.GetCurrentPatternAs(UIA_TextPatternId).ok()?;
         let ranges = pattern.GetSelection().ok()?;
         let mut text = String::new();
         for i in 0..ranges.Length().ok()? {
-            text.push_str(&ranges.GetElement(i).ok()?.GetText(max_chars).ok()?.to_string());
+            text.push_str(
+                &ranges
+                    .GetElement(i)
+                    .ok()?
+                    .GetText(max_chars)
+                    .ok()?
+                    .to_string(),
+            );
             text.push(' ');
         }
         Some(text)

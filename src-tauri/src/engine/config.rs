@@ -67,7 +67,9 @@ impl EngineConfig {
     }
 
     pub fn load(path: &Path) -> Option<Self> {
-        fs::read_to_string(path).ok().and_then(|s| serde_json::from_str(&s).ok())
+        fs::read_to_string(path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
     }
 
     pub fn save(&self, path: &Path) -> Result<(), String> {

@@ -84,13 +84,19 @@ mod tests {
     /// still running) must stay fast.
     #[test]
     fn queues_two_hundred_thousand_files_quickly() {
-        let paths: Vec<PathBuf> = (0..200_000).map(|i| PathBuf::from(format!("C:/Users/u/Documents/f{i}.txt"))).collect();
+        let paths: Vec<PathBuf> = (0..200_000)
+            .map(|i| PathBuf::from(format!("C:/Users/u/Documents/f{i}.txt")))
+            .collect();
         let started = Instant::now();
         let mut q = Pending::default();
         for _ in 0..2 {
             paths.iter().cloned().for_each(|p| q.push_back(p));
         }
         assert_eq!(q.len(), paths.len());
-        assert!(started.elapsed() < Duration::from_secs(3), "took {:?}", started.elapsed());
+        assert!(
+            started.elapsed() < Duration::from_secs(3),
+            "took {:?}",
+            started.elapsed()
+        );
     }
 }

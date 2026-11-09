@@ -97,9 +97,15 @@ pub fn run() {
             let cfg = engine.config();
             if onboarding::is_complete(handle)
                 && cfg.builtin()
-                && engine.local_model().is_some_and(|m| m.has_runtime() && !m.is_installed(&cfg.embed_model))
+                && engine
+                    .local_model()
+                    .is_some_and(|m| m.has_runtime() && !m.is_installed(&cfg.embed_model))
             {
-                let _ = commands::download_search_model(handle.clone(), engine.clone(), cfg.embed_model);
+                let _ = commands::download_search_model(
+                    handle.clone(),
+                    engine.clone(),
+                    cfg.embed_model,
+                );
             }
             let watched = Arc::downgrade(&engine);
             app.manage(engine);
@@ -108,7 +114,12 @@ pub fn run() {
             diag::watch_main_thread(handle.clone(), move || match watched.upgrade() {
                 Some(e) => {
                     let s = e.status();
-                    format!("index {}, {} queued, at {}", s.state, s.queued, s.current.unwrap_or_default())
+                    format!(
+                        "index {}, {} queued, at {}",
+                        s.state,
+                        s.queued,
+                        s.current.unwrap_or_default()
+                    )
                 }
                 None => "shutting down".into(),
             });
