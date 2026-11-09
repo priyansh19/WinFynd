@@ -31,8 +31,8 @@ mod windows_ocr {
 
     use windows::core::{Result, HSTRING};
     use windows::Graphics::Imaging::{
-        BitmapAlphaMode, BitmapDecoder, BitmapInterpolationMode, BitmapPixelFormat, BitmapTransform,
-        ColorManagementMode, ExifOrientationMode,
+        BitmapAlphaMode, BitmapDecoder, BitmapInterpolationMode, BitmapPixelFormat,
+        BitmapTransform, ColorManagementMode, ExifOrientationMode,
     };
     use windows::Media::Ocr::OcrEngine;
     use windows::Storage::{FileAccessMode, StorageFile};
@@ -43,12 +43,17 @@ mod windows_ocr {
         unsafe {
             let _ = RoInitialize(RO_INIT_MULTITHREADED);
         }
-        let file = StorageFile::GetFileFromPathAsync(&HSTRING::from(path.to_string_lossy().as_ref()))?.join()?;
+        let file =
+            StorageFile::GetFileFromPathAsync(&HSTRING::from(path.to_string_lossy().as_ref()))?
+                .join()?;
         let stream = file.OpenAsync(FileAccessMode::Read)?.join()?;
         let decoder = BitmapDecoder::CreateAsync(&stream)?.join()?;
         // OCR refuses pictures past a size (a 4K screenshot is over), so
         // shrink those to fit.
-        let (w, h) = (decoder.OrientedPixelWidth()?, decoder.OrientedPixelHeight()?);
+        let (w, h) = (
+            decoder.OrientedPixelWidth()?,
+            decoder.OrientedPixelHeight()?,
+        );
         let shrink = (OcrEngine::MaxImageDimension()? as f64 / w.max(h).max(1) as f64).min(1.0);
         let transform = BitmapTransform::new()?;
         transform.SetScaledWidth(((w as f64 * shrink) as u32).max(1))?;
@@ -78,7 +83,8 @@ mod windows_ocr {
 mod tests {
     #[test]
     fn reads_text_in_a_screenshot() {
-        let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/ocr-invoice.png");
+        let fixture =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/ocr-invoice.png");
         // Windows without an OCR language (some server editions) reads nothing.
         let Some(text) = super::read(&fixture) else {
             eprintln!("no OCR on this Windows; skipped");

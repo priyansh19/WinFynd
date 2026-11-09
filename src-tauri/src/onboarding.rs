@@ -30,7 +30,10 @@ struct OnboardingFile {
 }
 
 fn path<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
-    app.path().app_config_dir().ok().map(|d| d.join("onboarding.json"))
+    app.path()
+        .app_config_dir()
+        .ok()
+        .map(|d| d.join("onboarding.json"))
 }
 
 pub fn is_complete<R: Runtime>(app: &AppHandle<R>) -> bool {
@@ -45,8 +48,10 @@ fn mark_complete<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
-    let json = serde_json::to_string_pretty(&OnboardingFile { completed_version: FLOW_VERSION })
-        .map_err(|e| e.to_string())?;
+    let json = serde_json::to_string_pretty(&OnboardingFile {
+        completed_version: FLOW_VERSION,
+    })
+    .map_err(|e| e.to_string())?;
     fs::write(path, json).map_err(|e| e.to_string())
 }
 
@@ -120,7 +125,9 @@ fn watch<R: Runtime>(app: &AppHandle<R>) {
     let mut was_busy = false;
     loop {
         std::thread::sleep(Duration::from_secs(2));
-        let Some(engine) = app.try_state::<Arc<Engine>>() else { return };
+        let Some(engine) = app.try_state::<Arc<Engine>>() else {
+            return;
+        };
         let s = engine.status();
         let tray = app.tray_by_id("main");
         // While the search model downloads, files are indexed by words and
@@ -130,7 +137,11 @@ fn watch<R: Runtime>(app: &AppHandle<R>) {
             was_busy = true;
             if let Some(t) = &tray {
                 let tip = if s.queued > 0 {
-                    format!("WinFynd · reading {} of {} files", thousands(s.done), thousands(s.done + s.queued as u64))
+                    format!(
+                        "WinFynd · reading {} of {} files",
+                        thousands(s.done),
+                        thousands(s.done + s.queued as u64)
+                    )
                 } else if s.ollama == "modelMissing" {
                     "WinFynd · waiting for the search model".into()
                 } else {
@@ -161,7 +172,12 @@ fn watch<R: Runtime>(app: &AppHandle<R>) {
             } else {
                 format!("All {files} files are searchable by words and names. Download the search model on the Models page to search by meaning.")
             };
-            let _ = app.notification().builder().title("WinFynd is ready").body(body).show();
+            let _ = app
+                .notification()
+                .builder()
+                .title("WinFynd is ready")
+                .body(body)
+                .show();
         }
         return;
     }
@@ -169,7 +185,11 @@ fn watch<R: Runtime>(app: &AppHandle<R>) {
 
 /// "Super+Shift+F" as people say it: "Win + Shift + F".
 fn spoken_keys(accelerator: &str) -> String {
-    accelerator.split('+').map(|k| if k == "Super" { "Win" } else { k }).collect::<Vec<_>>().join(" + ")
+    accelerator
+        .split('+')
+        .map(|k| if k == "Super" { "Win" } else { k })
+        .collect::<Vec<_>>()
+        .join(" + ")
 }
 
 /// 51204 → "51,204", like the rest of the app.
@@ -193,7 +213,9 @@ pub fn watch_first_index<R: Runtime>(app: AppHandle<R>) {
 
 #[tauri::command]
 pub fn open_ollama_download<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
-    app.opener().open_url(OLLAMA_DOWNLOAD, None::<&str>).map_err(|e| e.to_string())
+    app.opener()
+        .open_url(OLLAMA_DOWNLOAD, None::<&str>)
+        .map_err(|e| e.to_string())
 }
 
 #[derive(Clone, Serialize)]
@@ -208,7 +230,14 @@ struct Query {
 pub fn try_launcher<R: Runtime>(app: AppHandle<R>, query: Option<String>, ask: Option<bool>) {
     windows::show_launcher(&app);
     if let Some(text) = query {
-        let _ = app.emit_to("launcher", "launcher://query", Query { text, ask: ask.unwrap_or(false) });
+        let _ = app.emit_to(
+            "launcher",
+            "launcher://query",
+            Query {
+                text,
+                ask: ask.unwrap_or(false),
+            },
+        );
     }
 }
 

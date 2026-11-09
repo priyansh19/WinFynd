@@ -22,10 +22,13 @@ mod imp {
     }
 
     pub fn set(on: bool) -> Result<(), String> {
-        let (key, _) = RegKey::predef(HKEY_CURRENT_USER).create_subkey(RUN_KEY).map_err(|e| e.to_string())?;
+        let (key, _) = RegKey::predef(HKEY_CURRENT_USER)
+            .create_subkey(RUN_KEY)
+            .map_err(|e| e.to_string())?;
         if on {
             let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-            key.set_value(VALUE, &format!("\"{}\" --background", exe.display())).map_err(|e| e.to_string())
+            key.set_value(VALUE, &format!("\"{}\" --background", exe.display()))
+                .map_err(|e| e.to_string())
         } else {
             match key.delete_value(VALUE) {
                 Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.to_string()),

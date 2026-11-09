@@ -176,7 +176,11 @@ pub(crate) enum Embedder {
 
 impl Embedder {
     /// Unit-length vectors, one per input.
-    pub fn embed(&self, inputs: &[&EmbedInput], dimensions: usize) -> Result<Vec<Vec<f32>>, String> {
+    pub fn embed(
+        &self,
+        inputs: &[&EmbedInput],
+        dimensions: usize,
+    ) -> Result<Vec<Vec<f32>>, String> {
         match self {
             Embedder::Local(m, tag) => m.embed(tag, inputs, dimensions),
             Embedder::Ollama(o, model) => o.embed_refs(model, inputs, dimensions),
@@ -188,7 +192,11 @@ impl Engine {
     /// Open the index and start the background indexer and folder watcher.
     pub fn start<R: Runtime>(app: &AppHandle<R>) -> Result<Arc<Self>, String> {
         let data = app.path().app_data_dir().map_err(|e| e.to_string())?;
-        let config_path = app.path().app_config_dir().map_err(|e| e.to_string())?.join("engine.json");
+        let config_path = app
+            .path()
+            .app_config_dir()
+            .map_err(|e| e.to_string())?
+            .join("engine.json");
         let config = EngineConfig::load(&config_path).unwrap_or_else(|| EngineConfig {
             roots: default_roots(app),
             ..EngineConfig::default()
@@ -202,7 +210,11 @@ impl Engine {
         // llama.cpp's server ships next to WinFynd; the model is downloaded
         // into the app data folder.
         let runtime = app.path().resource_dir().ok().map(|d| d.join("llama"));
-        let log = app.path().app_log_dir().ok().map(|d| d.join("llama-server.log"));
+        let log = app
+            .path()
+            .app_log_dir()
+            .ok()
+            .map(|d| d.join("llama-server.log"));
         *engine.local.write().unwrap() = Some(LocalModel::new(runtime, data.join("models"), log));
 
         let handle = app.clone();
@@ -286,7 +298,11 @@ impl Engine {
 
     /// Stop reading files for `minutes` (0 resumes now). Searches keep working.
     pub fn pause(&self, minutes: u64) {
-        let until = if minutes == 0 { 0 } else { unix_now() + minutes as i64 * 60 };
+        let until = if minutes == 0 {
+            0
+        } else {
+            unix_now() + minutes as i64 * 60
+        };
         self.paused_until.store(until, Ordering::Release);
         self.update_status(|s| s.paused_until = (until > 0).then_some(until));
     }
@@ -346,14 +362,20 @@ impl Engine {
         self.update_status(|s| {
             if s.ollama != "ok" {
                 s.ollama = "modelMissing".into();
-                s.message = Some(format!("Downloading the search model · {} of {} MB", mb(done), mb(total)));
+                s.message = Some(format!(
+                    "Downloading the search model · {} of {} MB",
+                    mb(done),
+                    mb(total)
+                ));
             }
         });
     }
 
     pub(crate) fn embedder(&self, cfg: &EngineConfig) -> Result<Embedder, String> {
         if cfg.builtin() {
-            let m = self.local_model().ok_or("WinFynd's model engine isn't available")?;
+            let m = self
+                .local_model()
+                .ok_or("WinFynd's model engine isn't available")?;
             Ok(Embedder::Local(m, cfg.embed_model.clone()))
         } else {
             Ok(Embedder::Ollama(self.ollama()?, cfg.embed_model.clone()))
@@ -364,7 +386,14 @@ impl Engine {
         *self.activity.write().unwrap() = Some(Box::new(f));
     }
 
-    fn report(&self, path: &str, name: &str, kind: Kind, stage: &'static str, chunks: Option<usize>) {
+    fn report(
+        &self,
+        path: &str,
+        name: &str,
+        kind: Kind,
+        stage: &'static str,
+        chunks: Option<usize>,
+    ) {
         if self.activity.read().unwrap().is_none() {
             return;
         }
@@ -373,7 +402,13 @@ impl Engine {
         if let Some(a) = pending.iter_mut().rev().find(|a| a.path == path) {
             (a.stage, a.chunks) = (stage, chunks);
         } else if pending.len() < ACTIVITY_BATCH {
-            pending.push(Activity { path: path.into(), name: name.into(), kind: kind.as_str(), stage, chunks });
+            pending.push(Activity {
+                path: path.into(),
+                name: name.into(),
+                kind: kind.as_str(),
+                stage,
+                chunks,
+            });
         }
     }
 
@@ -414,7 +449,9 @@ impl Engine {
         match stored {
             Ok(stored) => {
                 let mut vectors = VectorIndex::new(dims);
-                stored.iter().for_each(|(id, v, visual)| vectors.insert(*id, v, *visual));
+                stored
+                    .iter()
+                    .for_each(|(id, v, visual)| vectors.insert(*id, v, *visual));
                 *self.vectors.write().unwrap() = vectors;
             }
             Err(e) => crate::diag::warn(&format!("couldn't load stored vectors: {e}")),
@@ -425,7 +462,13 @@ impl Engine {
             s.files = files;
             s.chunks = chunks;
         });
-        crate::diag::log("INFO", &format!("index loaded: {files} files, {chunks} chunks in {:?}", started.elapsed()));
+        crate::diag::log(
+            "INFO",
+            &format!(
+                "index loaded: {files} files, {chunks} chunks in {:?}",
+                started.elapsed()
+            ),
+        );
     }
 
     /// Apply a new configuration. Changing the model or vector size makes old
@@ -435,11 +478,15 @@ impl Engine {
         new.save(&self.config_path)?;
         *self.config.write().unwrap() = new.clone();
 
-        let scope_changed = old.whole_pc != new.whole_pc || old.roots != new.roots || old.skip != new.skip;
+        let scope_changed =
+            old.whole_pc != new.whole_pc || old.roots != new.roots || old.skip != new.skip;
         if scope_changed {
             self.enqueue(Job::Prune);
         }
-        if old.embed_model != new.embed_model || old.dimensions != new.dimensions || old.index_images != new.index_images {
+        if old.embed_model != new.embed_model
+            || old.dimensions != new.dimensions
+            || old.index_images != new.index_images
+        {
             self.enqueue(Job::Rebuild);
         } else if scope_changed
             // Every file's stamp names who embedded it, so a scan re-embeds
@@ -466,7 +513,12 @@ impl Engine {
             for root in roots {
                 let _ = scope.allow_directory(root, true);
             }
-            for d in home.iter().flat_map(|h| ["AppData", ".ssh", ".aws", ".azure", ".gnupg", ".kube", ".docker"].map(|d| h.join(d))) {
+            for d in home.iter().flat_map(|h| {
+                [
+                    "AppData", ".ssh", ".aws", ".azure", ".gnupg", ".kube", ".docker",
+                ]
+                .map(|d| h.join(d))
+            }) {
                 let _ = scope.forbid_directory(d, true);
             }
         }));
@@ -494,7 +546,10 @@ impl Engine {
             let started = Instant::now();
             let w = watch::Watcher::start(&roots, skip, jobs);
             if started.elapsed() > Duration::from_secs(2) {
-                crate::diag::warn(&format!("folder watcher took {:?} to start", started.elapsed()));
+                crate::diag::warn(&format!(
+                    "folder watcher took {:?} to start",
+                    started.elapsed()
+                ));
             }
             let Some(engine) = me.upgrade() else { return };
             let mut slot = engine.watcher.lock().unwrap();
@@ -516,7 +571,11 @@ impl Engine {
         let mut counted = Instant::now();
         loop {
             // Block for the next jobs only when there's nothing left to index.
-            let jobs = if pending.is_empty() { next_jobs(&rx, true) } else { next_jobs(&rx, false) };
+            let jobs = if pending.is_empty() {
+                next_jobs(&rx, true)
+            } else {
+                next_jobs(&rx, false)
+            };
             let Some(jobs) = jobs else { return };
 
             // Many jobs can pile up while a file is being read (a folder
@@ -623,9 +682,15 @@ impl Engine {
     /// Media is slow to transcribe, so it goes after everything else.
     fn queue_files(&self, pending: &mut Pending, files: Vec<(PathBuf, std::fs::Metadata)>) {
         let cfg = self.config();
-        let stale = files.into_iter().filter(|(p, m)| !self.is_current(&cfg, p, m)).map(|(p, _)| p);
+        let stale = files
+            .into_iter()
+            .filter(|(p, m)| !self.is_current(&cfg, p, m))
+            .map(|(p, _)| p);
         let (media, other): (Vec<_>, Vec<_>) = stale.partition(|p| is_media(extract::kind_of(p)));
-        other.into_iter().chain(media).for_each(|p| pending.push_back(p));
+        other
+            .into_iter()
+            .chain(media)
+            .for_each(|p| pending.push_back(p));
     }
 
     /// Forget files under the searched folders that a full scan no longer
@@ -633,13 +698,16 @@ impl Engine {
     /// aren't there right now (an unplugged drive) keep their files.
     fn forget_missing(&self, roots: &[PathBuf], found: &[(PathBuf, std::fs::Metadata)]) {
         let present: Vec<&PathBuf> = roots.iter().filter(|r| r.is_dir()).collect();
-        let found: std::collections::HashSet<&Path> = found.iter().map(|(p, _)| p.as_path()).collect();
+        let found: std::collections::HashSet<&Path> =
+            found.iter().map(|(p, _)| p.as_path()).collect();
         let paths = db::all_paths(&self.db.lock().unwrap()).unwrap_or_default();
         let gone: Vec<String> = paths
             .into_iter()
             .filter(|p| {
                 let p = Path::new(p);
-                present.iter().any(|r| p.starts_with(r)) && !found.contains(p) && std::fs::symlink_metadata(p).is_err()
+                present.iter().any(|r| p.starts_with(r))
+                    && !found.contains(p)
+                    && std::fs::symlink_metadata(p).is_err()
             })
             .collect();
         for batch in gone.chunks(500) {
@@ -655,7 +723,10 @@ impl Engine {
         if std::panic::catch_unwind(AssertUnwindSafe(|| self.index_file(path))).is_ok() {
             return;
         }
-        crate::diag::warn(&format!("indexing {} crashed; indexing it by name instead", path.display()));
+        crate::diag::warn(&format!(
+            "indexing {} crashed; indexing it by name instead",
+            path.display()
+        ));
         self.update_status(|s| s.unreadable += 1);
         let _ = std::panic::catch_unwind(AssertUnwindSafe(|| self.index_path(path, true)));
     }
@@ -687,7 +758,12 @@ impl Engine {
     fn ollama_state(&self, model: &str) -> (&'static str, Option<String>) {
         match self.ollama().and_then(|o| o.models()) {
             Ok(models) if ollama::has_model(&models, model) => ("ok", None),
-            Ok(_) => ("modelMissing", Some(format!("Download {model} on the Models page to search by meaning."))),
+            Ok(_) => (
+                "modelMissing",
+                Some(format!(
+                    "Download {model} on the Models page to search by meaning."
+                )),
+            ),
             Err(e) => ("offline", Some(e)),
         }
     }
@@ -695,26 +771,38 @@ impl Engine {
     #[cfg(test)]
     fn walk_roots(&self) -> Vec<PathBuf> {
         let skip = self.config.read().unwrap().skip.clone();
-        self.roots().iter().flat_map(|r| walk(r, &skip)).map(|(p, _)| p).collect()
+        self.roots()
+            .iter()
+            .flat_map(|r| walk(r, &skip))
+            .map(|(p, _)| p)
+            .collect()
     }
 
     /// Whether a path is never read: always skipped, hidden, or skipped by the user.
     fn skips(&self, path: &Path) -> bool {
-        is_excluded(path) || scope::skipped(&self.config.read().unwrap(), path) || std::fs::metadata(path).is_ok_and(|m| is_hidden(&m))
+        is_excluded(path)
+            || scope::skipped(&self.config.read().unwrap(), path)
+            || std::fs::metadata(path).is_ok_and(|m| is_hidden(&m))
     }
 
     /// Forget every stored file `cfg` doesn't cover. A few hundred at a time,
     /// so searches aren't held up when full OS context is turned off.
     fn prune(&self, cfg: &EngineConfig) {
         let paths = db::all_paths(&self.db.lock().unwrap()).unwrap_or_default();
-        let gone: Vec<String> = paths.into_iter().filter(|p| !scope::covers(cfg, Path::new(p))).collect();
+        let gone: Vec<String> = paths
+            .into_iter()
+            .filter(|p| !scope::covers(cfg, Path::new(p)))
+            .collect();
         for batch in gone.chunks(500) {
             let ids = db::remove_files(&self.db.lock().unwrap(), batch).unwrap_or_default();
             let mut v = self.vectors.write().unwrap();
             ids.into_iter().for_each(|id| v.remove(id));
         }
         if !gone.is_empty() {
-            crate::diag::log("INFO", &format!("forgot {} files the settings no longer cover", gone.len()));
+            crate::diag::log(
+                "INFO",
+                &format!("forgot {} files the settings no longer cover", gone.len()),
+            );
         }
     }
 
@@ -724,7 +812,11 @@ impl Engine {
             let db = self.db.lock().unwrap();
             let mut ids = db::remove_file(&db, &key).unwrap_or_default();
             // A deleted folder arrives as one event for the folder itself.
-            let prefix = format!("{}{}", key.trim_end_matches(std::path::MAIN_SEPARATOR), std::path::MAIN_SEPARATOR);
+            let prefix = format!(
+                "{}{}",
+                key.trim_end_matches(std::path::MAIN_SEPARATOR),
+                std::path::MAIN_SEPARATOR
+            );
             ids.extend(db::remove_prefix(&db, &prefix).unwrap_or_default());
             ids
         };
@@ -742,17 +834,30 @@ impl Engine {
             self.remove_path(path);
             return;
         };
-        if !meta.is_file() || is_excluded(path) || is_hidden(&meta) || scope::skipped(&self.config.read().unwrap(), path) {
+        if !meta.is_file()
+            || is_excluded(path)
+            || is_hidden(&meta)
+            || scope::skipped(&self.config.read().unwrap(), path)
+        {
             return;
         }
         let cfg = self.config();
         if !name_only && self.is_current(&cfg, path, &meta) {
             return;
         }
-        let Stamp { size, mtime, kind, cloud_only, model_key } = self.stamp(&cfg, path, &meta);
+        let Stamp {
+            size,
+            mtime,
+            kind,
+            cloud_only,
+            model_key,
+        } = self.stamp(&cfg, path, &meta);
         let key = path.to_string_lossy().to_string();
 
-        let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
         self.report(&key, &name, kind, "reading", None);
         #[cfg(test)]
         if name.starts_with("crash-for-test") && !name_only {
@@ -769,7 +874,10 @@ impl Engine {
             match run_with_timeout(EXTRACT_TIMEOUT, move || extract::extract(&p, kind, images)) {
                 Ok(x) => x,
                 Err(why) => {
-                    crate::diag::warn(&format!("reading {} {why}; indexing it by name instead", path.display()));
+                    crate::diag::warn(&format!(
+                        "reading {} {why}; indexing it by name instead",
+                        path.display()
+                    ));
                     self.update_status(|s| s.unreadable += 1);
                     Extracted::NameOnly
                 }
@@ -803,11 +911,22 @@ impl Engine {
 
         let stored = chunks.len();
         let stage = if embedded.is_ok() { "done" } else { "skipped" };
-        let result = db::upsert_file(&mut self.db.lock().unwrap(), &key, &name, kind.as_str(), size, mtime, &stamp, chunks);
+        let result = db::upsert_file(
+            &mut self.db.lock().unwrap(),
+            &key,
+            &name,
+            kind.as_str(),
+            size,
+            mtime,
+            &stamp,
+            chunks,
+        );
         if let Ok((removed, added)) = result {
             let mut v = self.vectors.write().unwrap();
             removed.into_iter().for_each(|id| v.remove(id));
-            added.iter().for_each(|(id, vec, visual)| v.insert(*id, vec, *visual));
+            added
+                .iter()
+                .for_each(|(id, vec, visual)| v.insert(*id, vec, *visual));
         }
         self.report(&key, &name, kind, stage, Some(stored));
     }
@@ -817,25 +936,39 @@ impl Engine {
     /// either re-reads audio and video on the next scan.
     /// What a file would be stored with if it were read now.
     fn stamp(&self, cfg: &EngineConfig, path: &Path, meta: &std::fs::Metadata) -> Stamp {
-        let mtime = meta.modified().ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_secs() as i64).unwrap_or(0);
+        let mtime = meta
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
         let kind = extract::kind_of(path);
         // A cloud-only OneDrive file is stamped as such, so it's read again
         // once it's downloaded (which keeps its size and modified time), or
         // once reading online files is turned on.
         let cloud_only = is_cloud_placeholder(meta) && !cfg.read_online_files;
         let model_key = self.model_key(cfg, kind) + if cloud_only { "+cloud" } else { "" };
-        Stamp { size: meta.len() as i64, mtime, kind, cloud_only, model_key }
+        Stamp {
+            size: meta.len() as i64,
+            mtime,
+            kind,
+            cloud_only,
+            model_key,
+        }
     }
 
     /// Whether the index already holds this file as it is now.
     fn is_current(&self, cfg: &EngineConfig, path: &Path, meta: &std::fs::Metadata) -> bool {
         let now = self.stamp(cfg, path, meta);
-        let Ok(Some((size, mtime, model))) = db::file_stamp(&self.db.lock().unwrap(), &path.to_string_lossy()) else {
+        let Ok(Some((size, mtime, model))) =
+            db::file_stamp(&self.db.lock().unwrap(), &path.to_string_lossy())
+        else {
             return false;
         };
         // Files stored without vectors are only worth re-reading once the
         // model is back; otherwise every rescan re-reads them all.
-        let waiting_for_ollama = model == NOT_EMBEDDED && self.status.lock().unwrap().ollama != "ok";
+        let waiting_for_ollama =
+            model == NOT_EMBEDDED && self.status.lock().unwrap().ollama != "ok";
         size == now.size && mtime == now.mtime && (model == now.model_key || waiting_for_ollama)
     }
 
@@ -844,7 +977,14 @@ impl Engine {
         // so switching between them embeds everything again. Its sizes all
         // share one text model, so text never needs re-embedding between them.
         let model = if cfg.builtin() {
-            format!("builtin:{}", if local_model::reads_images(&cfg.embed_model) { "embeddinggemma-2" } else { "embeddinggemma-2:270m" })
+            format!(
+                "builtin:{}",
+                if local_model::reads_images(&cfg.embed_model) {
+                    "embeddinggemma-2"
+                } else {
+                    "embeddinggemma-2:270m"
+                }
+            )
         } else {
             cfg.embed_model.clone()
         };
@@ -890,14 +1030,24 @@ impl Engine {
         if cfg.speech_model.is_empty() {
             return Err("Turn on speech on the Models page to talk to search.".into());
         }
-        let t = self.transcriber(&cfg).ok_or("The speech model isn't downloaded yet.")?;
+        let t = self
+            .transcriber(&cfg)
+            .ok_or("The speech model isn't downloaded yet.")?;
         // Whisper needs at least a second; pad a short phrase with silence.
         let mut audio = samples.to_vec();
         if audio.len() < media::SAMPLE_RATE * 11 / 10 {
             audio.resize(media::SAMPLE_RATE * 11 / 10, 0.0);
         }
-        let text = t.transcribe(&audio)?.iter().map(|s| s.text.trim()).collect::<Vec<_>>().join(" ");
-        Ok(text.trim().trim_end_matches(['.', '!', '?', '。']).to_string())
+        let text = t
+            .transcribe(&audio)?
+            .iter()
+            .map(|s| s.text.trim())
+            .collect::<Vec<_>>()
+            .join(" ");
+        Ok(text
+            .trim()
+            .trim_end_matches(['.', '!', '?', '。'])
+            .to_string())
     }
 
     /// The speech model named in the config, loaded once and reused.
@@ -933,7 +1083,10 @@ impl Engine {
             let mut segments = Vec::new();
             media::decode_audio(path, ffmpeg.as_deref(), |piece, offset| {
                 if let Ok(segs) = t.transcribe(piece) {
-                    segments.extend(segs.into_iter().map(|s| media::Segment { start: s.start + offset, ..s }));
+                    segments.extend(segs.into_iter().map(|s| media::Segment {
+                        start: s.start + offset,
+                        ..s
+                    }));
                 }
             });
             transcript = media::transcript_chunks(&segments);
@@ -949,10 +1102,20 @@ impl Engine {
     }
 
     /// One vector per input, or None for a picture the model couldn't take.
-    fn embed_all(&self, cfg: &EngineConfig, inputs: Vec<EmbedInput>) -> Result<Vec<Option<Vec<f32>>>, String> {
+    fn embed_all(
+        &self,
+        cfg: &EngineConfig,
+        inputs: Vec<EmbedInput>,
+    ) -> Result<Vec<Option<Vec<f32>>>, String> {
         let status = self.status.lock().unwrap().ollama.clone();
         if status != "ok" {
-            return Err(self.status.lock().unwrap().message.clone().unwrap_or_else(|| "The search model is unavailable".into()));
+            return Err(self
+                .status
+                .lock()
+                .unwrap()
+                .message
+                .clone()
+                .unwrap_or_else(|| "The search model is unavailable".into()));
         }
         let embedder = self.embedder(cfg)?;
         let mut out = Vec::with_capacity(inputs.len());
@@ -975,7 +1138,10 @@ impl Engine {
                     let mut rejected = 0;
                     for input in batch {
                         if input.is_image() {
-                            let one = embedder.embed(&[input], cfg.dimensions).ok().and_then(|mut v| v.pop());
+                            let one = embedder
+                                .embed(&[input], cfg.dimensions)
+                                .ok()
+                                .and_then(|mut v| v.pop());
                             rejected += usize::from(one.is_none());
                             out.push(one);
                         } else {
@@ -1021,7 +1187,10 @@ pub(crate) fn kind_name(path: &Path) -> &'static str {
 }
 
 fn unix_now() -> i64 {
-    std::time::SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+    std::time::SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 /// Every file under `root` that isn't excluded.
@@ -1046,7 +1215,9 @@ fn publish_status(engine: Weak<Engine>, every: Duration) {
     let mut seen = 0;
     loop {
         std::thread::sleep(every);
-        let Some(engine) = engine.upgrade() else { return };
+        let Some(engine) = engine.upgrade() else {
+            return;
+        };
         engine.publish_status_if_changed(&mut seen);
         engine.publish_activity();
     }
@@ -1080,14 +1251,36 @@ pub(crate) fn run_with_timeout<T: Send + 'static>(
 /// and not only through fragments. Each text chunk is embedded with where it
 /// sits (folder, page or slide) in front of it, so a bare "Q3 total 4,210"
 /// still says which file it belongs to.
-fn plan_chunks(path: &Path, name: &str, kind: Kind, mtime: i64, extracted: Extracted) -> (Vec<EmbedInput>, Vec<db::NewChunk>) {
-    let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| name.to_string());
+fn plan_chunks(
+    path: &Path,
+    name: &str,
+    kind: Kind,
+    mtime: i64,
+    extracted: Extracted,
+) -> (Vec<EmbedInput>, Vec<db::NewChunk>) {
+    let stem = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| name.to_string());
     let title = name_words(&stem);
     let folders = folder_words(path);
     let opening = match &extracted {
-        Extracted::Text(text) => text.iter().map(|c| c.text.as_str()).collect::<Vec<_>>().join(" ").chars().take(600).collect(),
-        Extracted::Media { transcript, .. } => transcript.first().map(|c| c.text.chars().take(600).collect()).unwrap_or_default(),
-        Extracted::Image { text, .. } => text.first().map(|c| c.text.chars().take(600).collect()).unwrap_or_default(),
+        Extracted::Text(text) => text
+            .iter()
+            .map(|c| c.text.as_str())
+            .collect::<Vec<_>>()
+            .join(" ")
+            .chars()
+            .take(600)
+            .collect(),
+        Extracted::Media { transcript, .. } => transcript
+            .first()
+            .map(|c| c.text.chars().take(600).collect())
+            .unwrap_or_default(),
+        Extracted::Image { text, .. } => text
+            .first()
+            .map(|c| c.text.chars().take(600).collect())
+            .unwrap_or_default(),
         _ => String::new(),
     };
     let (card_input, card) = file_card(&title, &folders, kind, mtime, &opening);
@@ -1104,31 +1297,65 @@ fn plan_chunks(path: &Path, name: &str, kind: Kind, mtime: i64, extracted: Extra
             let embed = !extract::keyword_only(path);
             for c in text {
                 if embed {
-                    inputs.push(EmbedInput::Document { title: title.clone(), text: format!("{}\n{}", context(&c.label), c.text) });
+                    inputs.push(EmbedInput::Document {
+                        title: title.clone(),
+                        text: format!("{}\n{}", context(&c.label), c.text),
+                    });
                 }
-                chunks.push(db::NewChunk { label: c.label, text: Some(c.text), vector: None, visual: false });
+                chunks.push(db::NewChunk {
+                    label: c.label,
+                    text: Some(c.text),
+                    vector: None,
+                    visual: false,
+                });
             }
         }
         Extracted::Image { b64, text } => {
             // Text read from the picture is searched like any document.
             for c in text {
-                inputs.push(EmbedInput::Document { title: title.clone(), text: format!("{}\n{}", context(&c.label), c.text) });
-                chunks.push(db::NewChunk { label: c.label, text: Some(c.text), vector: None, visual: false });
+                inputs.push(EmbedInput::Document {
+                    title: title.clone(),
+                    text: format!("{}\n{}", context(&c.label), c.text),
+                });
+                chunks.push(db::NewChunk {
+                    label: c.label,
+                    text: Some(c.text),
+                    vector: None,
+                    visual: false,
+                });
             }
             if let Some(b64) = b64 {
                 inputs.push(EmbedInput::Image(b64));
-                chunks.push(db::NewChunk { label: None, text: None, vector: None, visual: true });
+                chunks.push(db::NewChunk {
+                    label: None,
+                    text: None,
+                    vector: None,
+                    visual: true,
+                });
             }
         }
         Extracted::NameOnly => {}
         Extracted::Media { transcript, frames } => {
             for c in transcript {
-                inputs.push(EmbedInput::Document { title: title.clone(), text: format!("{}\n{}", context(&c.label), c.text) });
-                chunks.push(db::NewChunk { label: c.label, text: Some(c.text), vector: None, visual: false });
+                inputs.push(EmbedInput::Document {
+                    title: title.clone(),
+                    text: format!("{}\n{}", context(&c.label), c.text),
+                });
+                chunks.push(db::NewChunk {
+                    label: c.label,
+                    text: Some(c.text),
+                    vector: None,
+                    visual: false,
+                });
             }
             for (at, b64) in frames {
                 inputs.push(EmbedInput::Image(b64));
-                chunks.push(db::NewChunk { label: Some(at), text: None, vector: None, visual: true });
+                chunks.push(db::NewChunk {
+                    label: Some(at),
+                    text: None,
+                    vector: None,
+                    visual: true,
+                });
             }
         }
     }
@@ -1136,7 +1363,13 @@ fn plan_chunks(path: &Path, name: &str, kind: Kind, mtime: i64, extracted: Extra
 }
 
 /// The file card: found by what its name, folders, date and opening say.
-fn file_card(title: &str, folders: &str, kind: Kind, mtime: i64, opening: &str) -> (EmbedInput, db::NewChunk) {
+fn file_card(
+    title: &str,
+    folders: &str,
+    kind: Kind,
+    mtime: i64,
+    opening: &str,
+) -> (EmbedInput, db::NewChunk) {
     let year = 1970 + mtime.max(0) / 31_556_952;
     let mut text = format!("{} file in {folders}, from {year}", kind.as_str());
     if !opening.is_empty() {
@@ -1144,8 +1377,16 @@ fn file_card(title: &str, folders: &str, kind: Kind, mtime: i64, opening: &str) 
         text.push_str(opening);
     }
     (
-        EmbedInput::Document { title: title.to_string(), text },
-        db::NewChunk { label: None, text: None, vector: None, visual: false },
+        EmbedInput::Document {
+            title: title.to_string(),
+            text,
+        },
+        db::NewChunk {
+            label: None,
+            text: None,
+            vector: None,
+            visual: false,
+        },
     )
 }
 
@@ -1162,7 +1403,12 @@ fn folder_words(path: &Path) -> String {
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    folders.into_iter().rev().map(|f| name_words(&f)).collect::<Vec<_>>().join(" / ")
+    folders
+        .into_iter()
+        .rev()
+        .map(|f| name_words(&f))
+        .collect::<Vec<_>>()
+        .join(" / ")
 }
 
 /// "taxReturn_2025-final" → "tax Return 2025 final".
@@ -1176,7 +1422,10 @@ pub(crate) fn name_words(name: &str) -> String {
             }
         } else {
             let boundary = match prev {
-                Some(p) => (p.is_lowercase() && c.is_uppercase()) || (p.is_alphabetic() != c.is_alphabetic() && p.is_alphanumeric()),
+                Some(p) => {
+                    (p.is_lowercase() && c.is_uppercase())
+                        || (p.is_alphabetic() != c.is_alphabetic() && p.is_alphanumeric())
+                }
                 None => false,
             };
             if boundary && !out.ends_with(' ') {
@@ -1195,11 +1444,16 @@ fn is_media(kind: Kind) -> bool {
 
 fn default_roots<R: Runtime>(app: &AppHandle<R>) -> Vec<PathBuf> {
     let p = app.path();
-    [p.document_dir(), p.desktop_dir(), p.download_dir(), p.picture_dir()]
-        .into_iter()
-        .filter_map(Result::ok)
-        .filter(|d| d.is_dir())
-        .collect()
+    [
+        p.document_dir(),
+        p.desktop_dir(),
+        p.download_dir(),
+        p.picture_dir(),
+    ]
+    .into_iter()
+    .filter_map(Result::ok)
+    .filter(|d| d.is_dir())
+    .collect()
 }
 
 /// Folders and files that are never indexed, by name: Windows and apps,
@@ -1208,19 +1462,69 @@ fn default_roots<R: Runtime>(app: &AppHandle<R>) -> Vec<PathBuf> {
 pub(crate) fn is_excluded(path: &Path) -> bool {
     // Anywhere in a path.
     const SKIP: &[&str] = &[
-        "node_modules", "target", "__pycache__", "venv", "AppData", "$RECYCLE.BIN", "System Volume Information",
-        "Program Files", "Program Files (x86)", "WindowsApps", "site-packages", "bin", "obj", "dist", "build", "vendor",
-        "bower_components", "Pods", "DerivedData", "coverage", "$WinREAgent", "OneDriveTemp", "steamapps", "SteamLibrary",
+        "node_modules",
+        "target",
+        "__pycache__",
+        "venv",
+        "AppData",
+        "$RECYCLE.BIN",
+        "System Volume Information",
+        "Program Files",
+        "Program Files (x86)",
+        "WindowsApps",
+        "site-packages",
+        "bin",
+        "obj",
+        "dist",
+        "build",
+        "vendor",
+        "bower_components",
+        "Pods",
+        "DerivedData",
+        "coverage",
+        "$WinREAgent",
+        "OneDriveTemp",
+        "steamapps",
+        "SteamLibrary",
         "Epic Games",
         // Developer test data, package caches and Python distributions: machine-made files by the
         // thousand (API recordings, snapshots, packages) that nobody searches for.
-        "testdata", "fixtures", "__snapshots__", "cassettes", "anaconda3", "miniconda3", "miniforge3", "scoop",
+        "testdata",
+        "fixtures",
+        "__snapshots__",
+        "cassettes",
+        "anaconda3",
+        "miniconda3",
+        "miniforge3",
+        "scoop",
     ];
     // Right under a drive: C:\Windows, C:\ProgramData, D:\XboxGames, …
     const DRIVE_SKIP: &[&str] = &[
-        "Windows", "Windows.old", "ProgramData", "Recovery", "PerfLogs", "$WINDOWS.~BT", "$Windows.~WS", "$SysReset",
-        "$GetCurrent", "Config.Msi", "MSOCache", "Intel", "AMD", "NVIDIA", "inetpub", "ESD", "Drivers", "SWSetup",
-        "XboxGames", "WpSystem", "WUDownloadCache", "pagefile.sys", "hiberfil.sys", "swapfile.sys", "DumpStack.log",
+        "Windows",
+        "Windows.old",
+        "ProgramData",
+        "Recovery",
+        "PerfLogs",
+        "$WINDOWS.~BT",
+        "$Windows.~WS",
+        "$SysReset",
+        "$GetCurrent",
+        "Config.Msi",
+        "MSOCache",
+        "Intel",
+        "AMD",
+        "NVIDIA",
+        "inetpub",
+        "ESD",
+        "Drivers",
+        "SWSetup",
+        "XboxGames",
+        "WpSystem",
+        "WUDownloadCache",
+        "pagefile.sys",
+        "hiberfil.sys",
+        "swapfile.sys",
+        "DumpStack.log",
         "DumpStack.log.tmp",
     ];
     // Right under C:\Users: the profiles nobody signs in to.
@@ -1235,16 +1539,25 @@ pub(crate) fn is_excluded(path: &Path) -> bool {
     if path.has_root() {
         if let Some(f) = &first {
             // C:\Python312 and the like.
-            let python = f.len() > 6 && f[..6].eq_ignore_ascii_case("python") && f[6..].bytes().all(|b| b.is_ascii_digit());
-            if is(f, DRIVE_SKIP) || python || (f.eq_ignore_ascii_case("Users") && second.as_deref().is_some_and(|s| is(s, PROFILE_SKIP))) {
+            let python = f.len() > 6
+                && f[..6].eq_ignore_ascii_case("python")
+                && f[6..].bytes().all(|b| b.is_ascii_digit());
+            if is(f, DRIVE_SKIP)
+                || python
+                || (f.eq_ignore_ascii_case("Users")
+                    && second.as_deref().is_some_and(|s| is(s, PROFILE_SKIP)))
+            {
                 return true;
             }
         }
     }
     let all: Vec<_> = first.into_iter().chain(second).chain(names).collect();
     // Go's module cache: go\pkg\mod.
-    all.windows(2).any(|w| w[0].eq_ignore_ascii_case("pkg") && w[1].eq_ignore_ascii_case("mod"))
-        || all.iter().any(|s| (s.starts_with('.') && s.len() > 1 && s != "..") || s.starts_with("~$") || is(s, SKIP))
+    all.windows(2)
+        .any(|w| w[0].eq_ignore_ascii_case("pkg") && w[1].eq_ignore_ascii_case("mod"))
+        || all.iter().any(|s| {
+            (s.starts_with('.') && s.len() > 1 && s != "..") || s.starts_with("~$") || is(s, SKIP)
+        })
 }
 
 /// Hidden in File Explorer: AppData, ProgramData, desktop.ini, the page
@@ -1277,7 +1590,11 @@ fn is_cloud_placeholder(meta: &std::fs::Metadata) -> bool {
     const FILE_ATTRIBUTE_OFFLINE: u32 = 0x1000;
     const FILE_ATTRIBUTE_RECALL_ON_OPEN: u32 = 0x40000;
     const FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS: u32 = 0x400000;
-    meta.file_attributes() & (FILE_ATTRIBUTE_OFFLINE | FILE_ATTRIBUTE_RECALL_ON_OPEN | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0
+    meta.file_attributes()
+        & (FILE_ATTRIBUTE_OFFLINE
+            | FILE_ATTRIBUTE_RECALL_ON_OPEN
+            | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS)
+        != 0
 }
 
 #[cfg(not(windows))]
@@ -1293,13 +1610,17 @@ mod tests {
     fn names_become_words() {
         assert_eq!(name_words("taxReturn_2025-final"), "tax Return 2025 final");
         assert_eq!(name_words("IMG_2041"), "IMG 2041");
-        assert_eq!(name_words("Screenshot 2026-10-12 101500"), "Screenshot 2026 10 12 101500");
+        assert_eq!(
+            name_words("Screenshot 2026-10-12 101500"),
+            "Screenshot 2026 10 12 101500"
+        );
     }
 
     /// An absolute path on this platform: `C:\a\b` on Windows, `/a/b` elsewhere.
     fn abs(rel: &str) -> PathBuf {
         let base = if cfg!(windows) { "C:\\" } else { "/" };
-        rel.split('/').fold(PathBuf::from(base), |p, part| p.join(part))
+        rel.split('/')
+            .fold(PathBuf::from(base), |p, part| p.join(part))
     }
 
     #[test]

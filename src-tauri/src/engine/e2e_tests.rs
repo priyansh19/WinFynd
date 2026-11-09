@@ -15,8 +15,14 @@ pub(super) const DIMS: usize = 512;
 /// Bag-of-words vector, so texts sharing words land close together.
 fn fake_embedding(text: &str) -> Vec<f32> {
     let mut v = vec![0.0f32; DIMS];
-    for w in text.split(|c: char| !c.is_alphanumeric()).filter(|w| w.len() > 2) {
-        let h = w.to_lowercase().bytes().fold(7u64, |h, b| h.wrapping_mul(31).wrapping_add(b as u64));
+    for w in text
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| w.len() > 2)
+    {
+        let h = w
+            .to_lowercase()
+            .bytes()
+            .fold(7u64, |h, b| h.wrapping_mul(31).wrapping_add(b as u64));
         v[(h % DIMS as u64) as usize] += 1.0;
     }
     v
@@ -66,7 +72,9 @@ fn fake_ollama_with(images: bool) -> String {
             reader.read_exact(&mut body).unwrap();
             let body: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
 
-            let has_image = body["input"].as_array().is_some_and(|a| a.iter().any(Value::is_object));
+            let has_image = body["input"]
+                .as_array()
+                .is_some_and(|a| a.iter().any(Value::is_object));
             // llama.cpp's server, as WinFynd runs it: OpenAI-style embeddings.
             if request_line.contains("/v1/embeddings") {
                 let inputs = body["input"].as_array().unwrap();
@@ -100,7 +108,10 @@ fn fake_ollama_with(images: bool) -> String {
                 continue;
             }
             if !images && request_line.contains("/api/embed") && has_image {
-                let _ = write!(stream, "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                let _ = write!(
+                    stream,
+                    "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                );
                 continue;
             }
             let resp = if request_line.contains("/api/tags") {
@@ -161,18 +172,34 @@ fn engine_for(root: &std::path::Path, ollama_url: String) -> Arc<Engine> {
         ..EngineConfig::default()
     };
     let conn = db::open(&root.join(".index/index.sqlite3")).unwrap();
-    let (engine, _rx) =
-        Engine::open(conn, config, root.join(".index/engine.json"), root.join(".index/speech"), |_| {}).unwrap();
+    let (engine, _rx) = Engine::open(
+        conn,
+        config,
+        root.join(".index/engine.json"),
+        root.join(".index/speech"),
+        |_| {},
+    )
+    .unwrap();
     engine
 }
 
 #[test]
 fn indexes_searches_and_answers() {
     let root = temp_dir("e2e");
-    std::fs::write(root.join("product-sync-notes.txt"), "Rahul said the launch moves to June because QA needs another cycle.").unwrap();
-    std::fs::write(root.join("groceries.md"), "Shopping list: apples, bananas, oat milk, coffee beans.").unwrap();
+    std::fs::write(
+        root.join("product-sync-notes.txt"),
+        "Rahul said the launch moves to June because QA needs another cycle.",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("groceries.md"),
+        "Shopping list: apples, bananas, oat milk, coffee beans.",
+    )
+    .unwrap();
     std::fs::write(root.join("holiday clip.mp4"), b"not really a video").unwrap();
-    image::RgbImage::from_pixel(32, 32, image::Rgb([200, 180, 90])).save(root.join("IMG_4410.png")).unwrap();
+    image::RgbImage::from_pixel(32, 32, image::Rgb([200, 180, 90]))
+        .save(root.join("IMG_4410.png"))
+        .unwrap();
     std::fs::create_dir_all(root.join("node_modules")).unwrap();
     std::fs::write(root.join("node_modules/ignored.txt"), "launch june").unwrap();
 
@@ -180,7 +207,11 @@ fn indexes_searches_and_answers() {
     engine.refresh_ollama_state();
     assert_eq!(engine.status().ollama, "ok");
     let files = engine.walk_roots();
-    assert_eq!(files.len(), 4, "node_modules and the index folder are skipped: {files:?}");
+    assert_eq!(
+        files.len(),
+        4,
+        "node_modules and the index folder are skipped: {files:?}"
+    );
     files.iter().for_each(|p| engine.index_file(p));
 
     // Meaning (shared words in the fake model) and exact words both find the notes.
@@ -204,7 +235,11 @@ fn indexes_searches_and_answers() {
     assert_eq!(before, db::counts(&engine.db.lock().unwrap()));
     std::fs::remove_file(root.join("groceries.md")).unwrap();
     engine.index_file(&root.join("groceries.md"));
-    assert!(engine.search("bananas", 10).hits.iter().all(|h| h.name != "groceries.md"));
+    assert!(engine
+        .search("bananas", 10)
+        .hits
+        .iter()
+        .all(|h| h.name != "groceries.md"));
 
     let answer = engine.ask("When is the launch?").unwrap();
     assert_eq!(answer.model, "testchat:latest");
@@ -217,7 +252,11 @@ fn indexes_searches_and_answers() {
 #[test]
 fn falls_back_to_exact_words_when_ollama_is_down() {
     let root = temp_dir("offline");
-    std::fs::write(root.join("budget.txt"), "Quarterly budget review with finance").unwrap();
+    std::fs::write(
+        root.join("budget.txt"),
+        "Quarterly budget review with finance",
+    )
+    .unwrap();
     // Nothing listens on port 9 of loopback.
     let engine = engine_for(&root, "http://127.0.0.1:9".into());
     engine.refresh_ollama_state();
@@ -229,7 +268,11 @@ fn falls_back_to_exact_words_when_ollama_is_down() {
     assert_eq!(r.hits[0].name, "budget.txt");
 
     // Stored as not embedded, so it's picked up again once Ollama is back.
-    let stamp = db::file_stamp(&engine.db.lock().unwrap(), &root.join("budget.txt").to_string_lossy()).unwrap();
+    let stamp = db::file_stamp(
+        &engine.db.lock().unwrap(),
+        &root.join("budget.txt").to_string_lossy(),
+    )
+    .unwrap();
     assert_eq!(stamp.unwrap().2, NOT_EMBEDDED);
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -239,10 +282,19 @@ struct FakeWhisper;
 
 impl speech::Transcribe for FakeWhisper {
     fn transcribe(&self, samples: &[f32]) -> Result<Vec<media::Segment>, String> {
-        assert!(samples.len() >= media::SAMPLE_RATE, "expected at least a second of 16 kHz audio");
+        assert!(
+            samples.len() >= media::SAMPLE_RATE,
+            "expected at least a second of 16 kHz audio"
+        );
         Ok(vec![
-            media::Segment { start: 0.0, text: "Welcome back everyone.".into() },
-            media::Segment { start: 2.0, text: "We booked the zebra safari for March.".into() },
+            media::Segment {
+                start: 0.0,
+                text: "Welcome back everyone.".into(),
+            },
+            media::Segment {
+                start: 2.0,
+                text: "We booked the zebra safari for March.".into(),
+            },
         ])
     }
 }
@@ -291,8 +343,16 @@ fn indexes_what_is_said_in_audio() {
     let r = engine.search("zebra safari", 10);
     assert_eq!(r.hits[0].name, "voice memo 12.wav");
     assert_eq!(r.hits[0].location.as_deref(), Some("0:00"));
-    assert!(r.hits[0].reason.starts_with("Said at 0:00"), "{}", r.hits[0].reason);
-    assert!(r.hits[0].snippet.as_deref().unwrap().contains("zebra safari"));
+    assert!(
+        r.hits[0].reason.starts_with("Said at 0:00"),
+        "{}",
+        r.hits[0].reason
+    );
+    assert!(r.hits[0]
+        .snippet
+        .as_deref()
+        .unwrap()
+        .contains("zebra safari"));
 
     let answer = engine.ask("When is the zebra safari?").unwrap();
     assert_eq!(answer.sources[0].name, "voice memo 12.wav");
@@ -309,8 +369,22 @@ fn indexes_what_is_shown_in_video() {
     let video = root.join("trip.mp4");
     // Twenty seconds of a moving test pattern with a tone.
     let ok = std::process::Command::new(&ffmpeg)
-        .args(["-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=duration=20:size=320x240:rate=10"])
-        .args(["-f", "lavfi", "-i", "sine=frequency=300:duration=20", "-shortest"])
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=20:size=320x240:rate=10",
+        ])
+        .args([
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=300:duration=20",
+            "-shortest",
+        ])
         .args(["-pix_fmt", "yuv420p", "-c:v", "mpeg4", "-c:a", "aac"])
         .arg(&video)
         .status()
@@ -325,9 +399,16 @@ fn indexes_what_is_shown_in_video() {
     // Every frame "shows" a beach in the fake model.
     let r = engine.search("beach", 10);
     assert_eq!(r.hits[0].name, "trip.mp4");
-    assert!(r.hits[0].reason.starts_with("Shown at "), "{}", r.hits[0].reason);
+    assert!(
+        r.hits[0].reason.starts_with("Shown at "),
+        "{}",
+        r.hits[0].reason
+    );
     let frames = db::counts(&engine.db.lock().unwrap()).1 - 1;
-    assert!(frames >= 2, "expected several distinct frames, got {frames}");
+    assert!(
+        frames >= 2,
+        "expected several distinct frames, got {frames}"
+    );
 
     // FFmpeg's decoder feeds the speech model too.
     let mut got = 0;
@@ -349,7 +430,11 @@ fn returns_only_relevant_files_among_many() {
         "Recipe for paneer butter masala with cream and kasuri methi",
     ];
     for i in 0..120 {
-        std::fs::write(root.join(format!("note-{i}.txt")), format!("{} number {i}.", topics[i % topics.len()])).unwrap();
+        std::fs::write(
+            root.join(format!("note-{i}.txt")),
+            format!("{} number {i}.", topics[i % topics.len()]),
+        )
+        .unwrap();
     }
     std::fs::write(
         root.join("car-insurance.txt"),
@@ -357,17 +442,33 @@ fn returns_only_relevant_files_among_many() {
          Unrelated paragraph about the garden: tomatoes and basil need watering every evening.",
     )
     .unwrap();
-    image::RgbImage::from_pixel(32, 32, image::Rgb([200, 180, 90])).save(root.join("IMG_0001.jpg")).unwrap();
+    image::RgbImage::from_pixel(32, 32, image::Rgb([200, 180, 90]))
+        .save(root.join("IMG_0001.jpg"))
+        .unwrap();
 
     let engine = engine_for(&root, fake_ollama());
     engine.refresh_ollama_state();
-    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+    engine
+        .walk_roots()
+        .iter()
+        .for_each(|p| engine.index_file(p));
 
     let confident = |q: &str| -> Vec<String> {
-        engine.search(q, 30).hits.into_iter().filter(|h| h.confident).map(|h| h.name).collect()
+        engine
+            .search(q, 30)
+            .hits
+            .into_iter()
+            .filter(|h| h.confident)
+            .map(|h| h.name)
+            .collect()
     };
     let r = engine.search("car insurance premium", 30);
-    assert_eq!(confident("car insurance premium"), vec!["car-insurance.txt"], "{:?}", r.hits);
+    assert_eq!(
+        confident("car insurance premium"),
+        vec!["car-insurance.txt"],
+        "{:?}",
+        r.hits
+    );
     assert_eq!(r.hits[0].name, "car-insurance.txt");
     assert!(r.hits[0].snippet.as_deref().unwrap().contains("insurance"));
     // Weaker matches are capped and come after.
@@ -375,7 +476,10 @@ fn returns_only_relevant_files_among_many() {
 
     // A photo surfaces among a hundred text files, and "photo" filters to photos.
     let r = engine.search("photo of the beach", 30);
-    assert_eq!(r.hits.iter().map(|h| h.name.as_str()).collect::<Vec<_>>(), vec!["IMG_0001.jpg"]);
+    assert_eq!(
+        r.hits.iter().map(|h| h.name.as_str()).collect::<Vec<_>>(),
+        vec!["IMG_0001.jpg"]
+    );
     assert_eq!(r.hits[0].reason, "Image matches your search");
     assert_eq!(r.filters[0].label, "Photos");
 
@@ -394,16 +498,34 @@ fn copies_of_a_file_show_once() {
     let root = temp_dir("copies");
     for dir in ["Desktop", "Downloads", "Backup"] {
         std::fs::create_dir_all(root.join(dir)).unwrap();
-        std::fs::write(root.join(dir).join("lease agreement.txt"), "The lease renews in January.").unwrap();
+        std::fs::write(
+            root.join(dir).join("lease agreement.txt"),
+            "The lease renews in January.",
+        )
+        .unwrap();
     }
-    std::fs::write(root.join("Backup").join("lease notes.txt"), "Ask about the lease deposit and renewal terms.").unwrap();
+    std::fs::write(
+        root.join("Backup").join("lease notes.txt"),
+        "Ask about the lease deposit and renewal terms.",
+    )
+    .unwrap();
     let engine = engine_for(&root, fake_ollama());
     engine.refresh_ollama_state();
-    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+    engine
+        .walk_roots()
+        .iter()
+        .for_each(|p| engine.index_file(p));
     let hits = engine.search("lease", 10).hits;
-    let agreements: Vec<_> = hits.iter().filter(|h| h.name == "lease agreement.txt").collect();
+    let agreements: Vec<_> = hits
+        .iter()
+        .filter(|h| h.name == "lease agreement.txt")
+        .collect();
     assert_eq!(agreements.len(), 1);
-    assert!(agreements[0].reason.ends_with(" · 2 more copies"), "{}", agreements[0].reason);
+    assert!(
+        agreements[0].reason.ends_with(" · 2 more copies"),
+        "{}",
+        agreements[0].reason
+    );
     assert!(hits.iter().any(|h| h.name == "lease notes.txt"));
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -415,26 +537,43 @@ fn file_names_are_found_through_typos() {
     std::fs::write(root.join("holiday plans.txt"), "Beach week in August.").unwrap();
     let engine = engine_for(&root, fake_ollama());
     engine.refresh_ollama_state();
-    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+    engine
+        .walk_roots()
+        .iter()
+        .for_each(|p| engine.index_file(p));
     let hits = engine.search("invioce recipt", 10).hits;
     assert_eq!(hits[0].name, "Invoice_Receipt_March.pdf.txt");
     assert!(hits[0].confident);
     assert_eq!(hits[0].reason, "Name is a close match");
-    assert!(hits.iter().all(|h| h.name == "Invoice_Receipt_March.pdf.txt" || !h.confident));
+    assert!(hits
+        .iter()
+        .all(|h| h.name == "Invoice_Receipt_March.pdf.txt" || !h.confident));
     let _ = std::fs::remove_dir_all(&root);
 }
 
 #[test]
 fn text_still_indexes_when_the_model_rejects_images() {
     let root = temp_dir("noimg");
-    image::RgbImage::from_pixel(32, 32, image::Rgb([10, 10, 10])).save(root.join("receipt scan.png")).unwrap();
+    image::RgbImage::from_pixel(32, 32, image::Rgb([10, 10, 10]))
+        .save(root.join("receipt scan.png"))
+        .unwrap();
     std::fs::write(root.join("plan.txt"), "Quarterly roadmap planning").unwrap();
     let engine = engine_for(&root, fake_ollama_without_images());
     engine.refresh_ollama_state();
-    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
-    assert_eq!(engine.status().ollama, "ok", "an image error must not mark Ollama offline");
+    engine
+        .walk_roots()
+        .iter()
+        .for_each(|p| engine.index_file(p));
+    assert_eq!(
+        engine.status().ollama,
+        "ok",
+        "an image error must not mark Ollama offline"
+    );
     assert_eq!(engine.search("roadmap", 10).hits[0].name, "plan.txt");
-    assert_eq!(engine.search("receipt", 10).hits[0].name, "receipt scan.png");
+    assert_eq!(
+        engine.search("receipt", 10).hits[0].name,
+        "receipt scan.png"
+    );
     let _ = std::fs::remove_dir_all(&root);
 }
 
@@ -447,7 +586,12 @@ fn reports_each_file_as_it_is_indexed() {
     let seen = Arc::new(Mutex::new(Vec::new()));
     let sink = seen.clone();
     engine.on_activity(move |batch| {
-        sink.lock().unwrap().push(batch.iter().map(|a| (a.name.clone(), a.kind, a.stage, a.chunks)).collect::<Vec<_>>())
+        sink.lock().unwrap().push(
+            batch
+                .iter()
+                .map(|a| (a.name.clone(), a.kind, a.stage, a.chunks))
+                .collect::<Vec<_>>(),
+        )
     });
     let mut files = engine.walk_roots();
     files.sort();
@@ -474,14 +618,31 @@ fn reports_each_file_as_it_is_indexed() {
 #[test]
 fn eval_reports_rank_and_empty_answers() {
     let root = temp_dir("eval");
-    std::fs::write(root.join("lease-renewal.txt"), "The apartment lease renewal is due in January.").unwrap();
-    std::fs::write(root.join("groceries.md"), "Shopping list: apples, bananas, oat milk.").unwrap();
+    std::fs::write(
+        root.join("lease-renewal.txt"),
+        "The apartment lease renewal is due in January.",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("groceries.md"),
+        "Shopping list: apples, bananas, oat milk.",
+    )
+    .unwrap();
     let engine = engine_for(&root, fake_ollama());
     engine.refresh_ollama_state();
-    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+    engine
+        .walk_roots()
+        .iter()
+        .for_each(|p| engine.index_file(p));
     let cases = vec![
-        eval::Case { query: "lease renewal".into(), expect: vec!["lease-renewal.txt".into()] },
-        eval::Case { query: "zebra quantum toaster".into(), expect: vec![] },
+        eval::Case {
+            query: "lease renewal".into(),
+            expect: vec!["lease-renewal.txt".into()],
+        },
+        eval::Case {
+            query: "zebra quantum toaster".into(),
+            expect: vec![],
+        },
     ];
     let r = eval::evaluate(&engine, &cases);
     assert_eq!((r.cases, r.empty_cases), (1, 1));
@@ -502,7 +663,11 @@ fn whole_pc_reads_every_drive_and_forgets_on_opt_out() {
     for d in [&docs, &games, &nas, &drive.join("project/node_modules")] {
         std::fs::create_dir_all(d).unwrap();
     }
-    std::fs::write(docs.join("lease.txt"), "Flat lease renewal, signed in March.").unwrap();
+    std::fs::write(
+        docs.join("lease.txt"),
+        "Flat lease renewal, signed in March.",
+    )
+    .unwrap();
     std::fs::write(drive.join("notes.txt"), "Ideas for the garden shed.").unwrap();
     std::fs::write(games.join("save.txt"), "level 12 checkpoint").unwrap();
     std::fs::write(nas.join("photo-list.txt"), "Holiday photos to print.").unwrap();
@@ -510,30 +675,68 @@ fn whole_pc_reads_every_drive_and_forgets_on_opt_out() {
 
     let engine = engine_for(&base, fake_ollama());
     *engine.test_drives.lock().unwrap() = vec![drive.clone()];
-    let on = EngineConfig { whole_pc: true, roots: vec![docs.clone(), nas.clone()], skip: vec![games.clone()], ..engine.config() };
+    let on = EngineConfig {
+        whole_pc: true,
+        roots: vec![docs.clone(), nas.clone()],
+        skip: vec![games.clone()],
+        ..engine.config()
+    };
     engine.set_config(on.clone()).unwrap();
-    assert_eq!(engine.roots(), vec![drive.clone(), nas.clone()], "Documents is on the drive already");
+    assert_eq!(
+        engine.roots(),
+        vec![drive.clone(), nas.clone()],
+        "Documents is on the drive already"
+    );
 
     let names = |paths: Vec<PathBuf>| {
-        let mut n: Vec<String> = paths.iter().map(|p| p.file_name().unwrap().to_string_lossy().to_string()).collect();
+        let mut n: Vec<String> = paths
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
+            .collect();
         n.sort();
         n
     };
     let files = engine.walk_roots();
-    assert_eq!(names(files.clone()), ["lease.txt", "notes.txt", "photo-list.txt"], "skipped and node_modules are left out");
+    assert_eq!(
+        names(files.clone()),
+        ["lease.txt", "notes.txt", "photo-list.txt"],
+        "skipped and node_modules are left out"
+    );
     files.iter().for_each(|p| engine.index_file(p));
     engine.index_file(&games.join("save.txt"));
-    assert_eq!(db::counts(&engine.db.lock().unwrap()).0, 3, "a skipped file isn't stored even when asked for");
+    assert_eq!(
+        db::counts(&engine.db.lock().unwrap()).0,
+        3,
+        "a skipped file isn't stored even when asked for"
+    );
     assert!(engine.covers(&drive.join("notes.txt")));
     assert!(!engine.covers(&games.join("save.txt")));
-    assert!(engine.search("garden shed", 10).hits.iter().any(|h| h.name == "notes.txt"));
+    assert!(engine
+        .search("garden shed", 10)
+        .hits
+        .iter()
+        .any(|h| h.name == "notes.txt"));
 
-    let off = EngineConfig { whole_pc: false, ..on };
+    let off = EngineConfig {
+        whole_pc: false,
+        ..on
+    };
     engine.set_config(off.clone()).unwrap();
     engine.prune(&off);
-    let left = db::all_paths(&engine.db.lock().unwrap()).unwrap().into_iter().map(PathBuf::from).collect();
+    let left = db::all_paths(&engine.db.lock().unwrap())
+        .unwrap()
+        .into_iter()
+        .map(PathBuf::from)
+        .collect();
     assert_eq!(names(left), ["lease.txt", "photo-list.txt"]);
-    assert!(!engine.search("garden shed", 10).hits.iter().any(|h| h.name == "notes.txt"), "its vectors are gone too");
+    assert!(
+        !engine
+            .search("garden shed", 10)
+            .hits
+            .iter()
+            .any(|h| h.name == "notes.txt"),
+        "its vectors are gone too"
+    );
     assert!(!engine.covers(&drive.join("notes.txt")));
     let _ = std::fs::remove_dir_all(&base);
 }
@@ -551,14 +754,21 @@ fn rescans_queue_only_changes_and_forget_deleted_files() {
     std::fs::write(usb.join("c.txt"), "photo backup list").unwrap();
     let engine = engine_for(&main, fake_ollama());
     engine.refresh_ollama_state();
-    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+    engine
+        .walk_roots()
+        .iter()
+        .for_each(|p| engine.index_file(p));
     engine.index_file(&usb.join("c.txt"));
 
     let mut pending = queue::Pending::default();
     engine.queue_files(&mut pending, walk(&main, &[]));
     assert!(pending.is_empty(), "nothing changed, so nothing is queued");
 
-    std::fs::write(main.join("b.txt"), "second note about the car insurance renewal in May").unwrap();
+    std::fs::write(
+        main.join("b.txt"),
+        "second note about the car insurance renewal in May",
+    )
+    .unwrap();
     engine.queue_files(&mut pending, walk(&main, &[]));
     assert_eq!(pending.pop_front(), Some(main.join("b.txt")));
     assert!(pending.is_empty());
@@ -569,33 +779,64 @@ fn rescans_queue_only_changes_and_forget_deleted_files() {
     engine.forget_missing(&[main.clone(), usb.clone()], &walk(&main, &[]));
     let mut left: Vec<String> = db::all_paths(&engine.db.lock().unwrap()).unwrap();
     left.sort();
-    assert_eq!(left, [main.join("b.txt"), usb.join("c.txt")].map(|p| p.to_string_lossy().to_string()));
+    assert_eq!(
+        left,
+        [main.join("b.txt"), usb.join("c.txt")].map(|p| p.to_string_lossy().to_string())
+    );
     let _ = std::fs::remove_dir_all(&base);
 }
 
 #[test]
 fn builtin_model_indexes_and_searches_without_ollama() {
     let root = temp_dir("builtin");
-    std::fs::write(root.join("product-sync-notes.txt"), "Rahul said the launch moves to June because QA needs another cycle.").unwrap();
-    image::RgbImage::from_pixel(32, 32, image::Rgb([200, 180, 90])).save(root.join("IMG_4410.png")).unwrap();
+    std::fs::write(
+        root.join("product-sync-notes.txt"),
+        "Rahul said the launch moves to June because QA needs another cycle.",
+    )
+    .unwrap();
+    image::RgbImage::from_pixel(32, 32, image::Rgb([200, 180, 90]))
+        .save(root.join("IMG_4410.png"))
+        .unwrap();
 
     // Ollama's address answers nothing; the model runs in WinFynd's own server.
     let engine = engine_for(&root, "http://127.0.0.1:9".into());
-    let cfg = EngineConfig { embed_backend: super::config::BUILTIN.into(), ..engine.config() };
+    let cfg = EngineConfig {
+        embed_backend: super::config::BUILTIN.into(),
+        ..engine.config()
+    };
     engine.set_config(cfg).unwrap();
     let models = root.join(".index/models");
-    *engine.local.write().unwrap() = Some(super::local_model::LocalModel::attached(models, fake_ollama()));
+    *engine.local.write().unwrap() = Some(super::local_model::LocalModel::attached(
+        models,
+        fake_ollama(),
+    ));
     engine.refresh_ollama_state();
-    assert_eq!(engine.status().ollama, "ok", "{:?}", engine.status().message);
+    assert_eq!(
+        engine.status().ollama,
+        "ok",
+        "{:?}",
+        engine.status().message
+    );
 
-    engine.walk_roots().iter().for_each(|p| engine.index_file(p));
+    engine
+        .walk_roots()
+        .iter()
+        .for_each(|p| engine.index_file(p));
     let r = engine.search("when does the launch move", 10);
     assert!(r.semantic);
     assert_eq!(r.hits[0].name, "product-sync-notes.txt");
     assert_eq!(engine.search("beach", 10).hits[0].name, "IMG_4410.png");
 
     // Switching to Ollama re-embeds: the stored stamp names who embedded each file.
-    let stamp = |e: &Engine| db::file_stamp(&e.db.lock().unwrap(), &root.join("product-sync-notes.txt").to_string_lossy()).unwrap().unwrap().2;
+    let stamp = |e: &Engine| {
+        db::file_stamp(
+            &e.db.lock().unwrap(),
+            &root.join("product-sync-notes.txt").to_string_lossy(),
+        )
+        .unwrap()
+        .unwrap()
+        .2
+    };
     assert!(stamp(&engine).starts_with("builtin:"));
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -604,9 +845,22 @@ fn builtin_model_indexes_and_searches_without_ollama() {
 fn builtin_model_not_downloaded_yet() {
     let root = temp_dir("builtin-missing");
     let engine = engine_for(&root, "http://127.0.0.1:9".into());
-    engine.set_config(EngineConfig { embed_backend: super::config::BUILTIN.into(), ..engine.config() }).unwrap();
-    *engine.local.write().unwrap() = Some(super::local_model::LocalModel::new(None, root.join("models"), None));
+    engine
+        .set_config(EngineConfig {
+            embed_backend: super::config::BUILTIN.into(),
+            ..engine.config()
+        })
+        .unwrap();
+    *engine.local.write().unwrap() = Some(super::local_model::LocalModel::new(
+        None,
+        root.join("models"),
+        None,
+    ));
     engine.refresh_ollama_state();
-    assert_eq!(engine.status().ollama, "offline", "no model engine in this build");
+    assert_eq!(
+        engine.status().ollama,
+        "offline",
+        "no model engine in this build"
+    );
     let _ = std::fs::remove_dir_all(&root);
 }

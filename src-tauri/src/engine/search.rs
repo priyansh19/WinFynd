@@ -126,52 +126,111 @@ pub struct Answer {
 
 /// Words that say nothing about which file is meant.
 const STOPWORDS: &[&str] = &[
-    "a", "an", "the", "of", "to", "in", "on", "for", "with", "and", "or", "is", "are", "was", "were", "be", "been", "it",
-    "its", "my", "me", "i", "we", "our", "you", "your", "this", "that", "these", "those", "there", "here", "at", "by",
-    "from", "as", "about", "into", "find", "search", "show", "open", "get", "look", "looking", "where", "what", "which",
-    "when", "who", "how", "does", "do", "did", "can", "could", "please", "some", "any", "all", "file", "files", "thing",
+    "a", "an", "the", "of", "to", "in", "on", "for", "with", "and", "or", "is", "are", "was",
+    "were", "be", "been", "it", "its", "my", "me", "i", "we", "our", "you", "your", "this", "that",
+    "these", "those", "there", "here", "at", "by", "from", "as", "about", "into", "find", "search",
+    "show", "open", "get", "look", "looking", "where", "what", "which", "when", "who", "how",
+    "does", "do", "did", "can", "could", "please", "some", "any", "all", "file", "files", "thing",
     "things", "stuff", "one", "has", "have", "had", "that's", "without", "like", "since",
 ];
 
 /// Words that name a kind of file outright: they filter to that kind.
 const KIND_FILTERS: &[(&str, &str, &str)] = &[
-    ("photo", "image", "Photos"), ("photos", "image", "Photos"), ("picture", "image", "Photos"),
-    ("pictures", "image", "Photos"), ("pic", "image", "Photos"), ("pics", "image", "Photos"),
-    ("image", "image", "Photos"), ("images", "image", "Photos"), ("screenshot", "image", "Photos"),
-    ("screenshots", "image", "Photos"), ("selfie", "image", "Photos"), ("selfies", "image", "Photos"),
-    ("video", "video", "Videos"), ("videos", "video", "Videos"), ("movie", "video", "Videos"),
-    ("song", "audio", "Audio"), ("songs", "audio", "Audio"), ("music", "audio", "Audio"), ("podcast", "audio", "Audio"),
-    ("spreadsheet", "spreadsheet", "Spreadsheets"), ("spreadsheets", "spreadsheet", "Spreadsheets"),
-    ("excel", "spreadsheet", "Spreadsheets"), ("presentation", "slides", "Presentations"),
-    ("presentations", "slides", "Presentations"), ("powerpoint", "slides", "Presentations"),
+    ("photo", "image", "Photos"),
+    ("photos", "image", "Photos"),
+    ("picture", "image", "Photos"),
+    ("pictures", "image", "Photos"),
+    ("pic", "image", "Photos"),
+    ("pics", "image", "Photos"),
+    ("image", "image", "Photos"),
+    ("images", "image", "Photos"),
+    ("screenshot", "image", "Photos"),
+    ("screenshots", "image", "Photos"),
+    ("selfie", "image", "Photos"),
+    ("selfies", "image", "Photos"),
+    ("video", "video", "Videos"),
+    ("videos", "video", "Videos"),
+    ("movie", "video", "Videos"),
+    ("song", "audio", "Audio"),
+    ("songs", "audio", "Audio"),
+    ("music", "audio", "Audio"),
+    ("podcast", "audio", "Audio"),
+    ("spreadsheet", "spreadsheet", "Spreadsheets"),
+    ("spreadsheets", "spreadsheet", "Spreadsheets"),
+    ("excel", "spreadsheet", "Spreadsheets"),
+    ("presentation", "slides", "Presentations"),
+    ("presentations", "slides", "Presentations"),
+    ("powerpoint", "slides", "Presentations"),
     ("slides", "slides", "Presentations"),
 ];
 /// Extensions named outright ("the pdf from…").
-const EXT_FILTERS: &[(&str, &str)] =
-    &[("pdf", "pdf"), ("pdfs", "pdf"), ("docx", "docx"), ("xlsx", "xlsx"), ("pptx", "pptx"), ("csv", "csv")];
+const EXT_FILTERS: &[(&str, &str)] = &[
+    ("pdf", "pdf"),
+    ("pdfs", "pdf"),
+    ("docx", "docx"),
+    ("xlsx", "xlsx"),
+    ("pptx", "pptx"),
+    ("csv", "csv"),
+];
 /// Words that only hint at a kind ("balance sheet" isn't asking for Excel).
 const KIND_HINTS: &[(&str, &str)] = &[
-    ("sheet", "spreadsheet"), ("deck", "slides"), ("doc", "document"), ("document", "document"),
-    ("documents", "document"), ("recording", "audio"), ("clip", "video"), ("clips", "video"), ("audio", "audio"),
+    ("sheet", "spreadsheet"),
+    ("deck", "slides"),
+    ("doc", "document"),
+    ("document", "document"),
+    ("documents", "document"),
+    ("recording", "audio"),
+    ("clip", "video"),
+    ("clips", "video"),
+    ("audio", "audio"),
 ];
 /// Relative dates: (phrase, days back, chip label).
 const DATE_PHRASES: &[(&str, i64, &str)] = &[
-    ("today", 1, "Today"), ("yesterday", 2, "Since yesterday"), ("this week", 7, "This week"),
-    ("past week", 7, "This week"), ("last week", 14, "Last 2 weeks"), ("this month", 31, "This month"),
-    ("past month", 31, "This month"), ("last month", 62, "Last 2 months"), ("this year", 366, "This year"),
-    ("past year", 366, "This year"), ("last year", 731, "Last 2 years"), ("recently", 30, "Last 30 days"),
+    ("today", 1, "Today"),
+    ("yesterday", 2, "Since yesterday"),
+    ("this week", 7, "This week"),
+    ("past week", 7, "This week"),
+    ("last week", 14, "Last 2 weeks"),
+    ("this month", 31, "This month"),
+    ("past month", 31, "This month"),
+    ("last month", 62, "Last 2 months"),
+    ("this year", 366, "This year"),
+    ("past year", 366, "This year"),
+    ("last year", 731, "Last 2 years"),
+    ("recently", 30, "Last 30 days"),
     ("recent", 30, "Last 30 days"),
 ];
 /// Folders the user can name: "in Downloads", "on my desktop".
 const FOLDERS: &[(&str, &str)] = &[
-    ("downloads", "Downloads"), ("download", "Downloads"), ("desktop", "Desktop"), ("documents", "Documents"),
-    ("pictures", "Pictures"), ("videos", "Videos"), ("music", "Music"), ("onedrive", "OneDrive"),
+    ("downloads", "Downloads"),
+    ("download", "Downloads"),
+    ("desktop", "Desktop"),
+    ("documents", "Documents"),
+    ("pictures", "Pictures"),
+    ("videos", "Videos"),
+    ("music", "Music"),
+    ("onedrive", "OneDrive"),
 ];
 
 /// Leading phrases that only say "search for", dropped before embedding.
 const FILLER_PREFIXES: &[&str] = &[
-    "find me ", "find my ", "find the ", "find ", "show me ", "show my ", "show ", "search for ", "search ",
-    "look for ", "where is ", "where's ", "open ", "get me ", "i need ", "i'm looking for ", "looking for ",
+    "find me ",
+    "find my ",
+    "find the ",
+    "find ",
+    "show me ",
+    "show my ",
+    "show ",
+    "search for ",
+    "search ",
+    "look for ",
+    "where is ",
+    "where's ",
+    "open ",
+    "get me ",
+    "i need ",
+    "i'm looking for ",
+    "looking for ",
 ];
 
 /// What a query is after.
@@ -190,7 +249,10 @@ pub(crate) struct Query {
 }
 
 fn now_secs() -> i64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 /// Words with their byte ranges in `text`.
@@ -221,7 +283,11 @@ pub(crate) fn analyze_at(query: &str, now: i64) -> Query {
     let raw = query.trim();
     let lower = raw.to_lowercase();
     // Chips quote the user's own words when lowercasing kept byte offsets.
-    let original = if lower.len() == raw.len() { raw } else { lower.as_str() };
+    let original = if lower.len() == raw.len() {
+        raw
+    } else {
+        lower.as_str()
+    };
     let spans = word_spans(&lower);
     let word = |i: usize| &lower[spans[i].0..spans[i].1];
     let mut used = vec![false; spans.len()];
@@ -229,7 +295,10 @@ pub(crate) fn analyze_at(query: &str, now: i64) -> Query {
     let mut chips = Vec::new();
     let mut chip = |from: usize, to: usize, label: &str, used: &mut Vec<bool>| {
         used[from..=to].iter_mut().for_each(|u| *u = true);
-        chips.push(FilterChip { label: label.to_string(), phrase: original[spans[from].0..spans[to].1].to_string() });
+        chips.push(FilterChip {
+            label: label.to_string(),
+            phrase: original[spans[from].0..spans[to].1].to_string(),
+        });
     };
 
     let mut i = 0;
@@ -287,7 +356,12 @@ pub(crate) fn analyze_at(query: &str, now: i64) -> Query {
     }
 
     let rest: Vec<&str> = (0..spans.len()).filter(|i| !used[*i]).map(word).collect();
-    let hint = rest.iter().find_map(|w| KIND_HINTS.iter().find(|(k, _)| k == w).map(|(_, kind)| *kind));
+    let hint = rest.iter().find_map(|w| {
+        KIND_HINTS
+            .iter()
+            .find(|(k, _)| k == w)
+            .map(|(_, kind)| *kind)
+    });
     let mut terms: Vec<String> = rest
         .iter()
         .filter(|w| !STOPWORDS.contains(w) && !KIND_HINTS.iter().any(|(k, _)| k == *w))
@@ -295,7 +369,11 @@ pub(crate) fn analyze_at(query: &str, now: i64) -> Query {
         .collect();
     if terms.is_empty() && filter.is_empty() {
         // "the" or "sheet" alone: match on whatever was typed.
-        terms = rest.iter().filter(|w| w.chars().count() > 1 || w.chars().all(|c| c.is_numeric())).map(|w| w.to_string()).collect();
+        terms = rest
+            .iter()
+            .filter(|w| w.chars().count() > 1 || w.chars().all(|c| c.is_numeric()))
+            .map(|w| w.to_string())
+            .collect();
     }
     terms.dedup();
 
@@ -319,14 +397,24 @@ pub(crate) fn analyze_at(query: &str, now: i64) -> Query {
         semantic.clear();
     }
     let wants_pictures = filter.kind.as_deref() == Some("image");
-    Query { terms, semantic: semantic.trim().to_string(), filter, chips, hint, wants_pictures }
+    Query {
+        terms,
+        semantic: semantic.trim().to_string(),
+        filter,
+        chips,
+        hint,
+        wants_pictures,
+    }
 }
 
 /// A word and the same word without a plural or verb ending, so
 /// "invoices" and "invoice", "planned" and "plan" meet.
 fn forms(w: &str) -> impl Iterator<Item = &str> {
     std::iter::once(w).chain(
-        ["s", "es", "ing", "ed", "d"].into_iter().filter_map(move |sfx| w.strip_suffix(sfx)).filter(|b| b.chars().count() >= 3),
+        ["s", "es", "ing", "ed", "d"]
+            .into_iter()
+            .filter_map(move |sfx| w.strip_suffix(sfx))
+            .filter(|b| b.chars().count() >= 3),
     )
 }
 
@@ -337,13 +425,18 @@ fn coverage(terms: &[String], text: &str) -> f32 {
         return 0.0;
     }
     let lower = text.to_lowercase();
-    let words: Vec<&str> = lower.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect();
+    let words: Vec<&str> = lower
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .collect();
     let found = terms
         .iter()
         .enumerate()
         .filter(|(i, t)| {
             let last = *i == terms.len() - 1;
-            words.iter().any(|w| forms(w).any(|a| forms(t).any(|b| a == b)) || (last && w.starts_with(t.as_str())))
+            words.iter().any(|w| {
+                forms(w).any(|a| forms(t).any(|b| a == b)) || (last && w.starts_with(t.as_str()))
+            })
         })
         .count();
     found as f32 / terms.len() as f32
@@ -382,7 +475,11 @@ fn close_names(db: &rusqlite::Connection, terms: &[String]) -> Vec<i64> {
         .enumerate()
         .filter_map(|(order, (id, name))| {
             let stem = name.rsplit_once('.').map_or(name.as_str(), |(s, _)| s);
-            let words: Vec<String> = name_words(stem).to_lowercase().split(' ').map(str::to_string).collect();
+            let words: Vec<String> = name_words(stem)
+                .to_lowercase()
+                .split(' ')
+                .map(str::to_string)
+                .collect();
             let mut total = 0;
             for t in terms {
                 total += words.iter().filter_map(|w| typo_distance(t, w)).min()?;
@@ -407,7 +504,11 @@ fn typo_distance(term: &str, word: &str) -> Option<usize> {
         _ => 2,
     };
     let whole = edits(&t, &w);
-    let start = if w.len() > t.len() { edits(&t, &w[..t.len()]) } else { whole };
+    let start = if w.len() > t.len() {
+        edits(&t, &w[..t.len()])
+    } else {
+        whole
+    };
     let d = whole.min(start);
     (d <= allowed).then_some(d)
 }
@@ -424,7 +525,9 @@ fn edits(a: &[char], b: &[char]) -> usize {
     for i in 1..=a.len() {
         for j in 1..=b.len() {
             let cost = usize::from(a[i - 1] != b[j - 1]);
-            let mut v = (d[i - 1][j] + 1).min(d[i][j - 1] + 1).min(d[i - 1][j - 1] + cost);
+            let mut v = (d[i - 1][j] + 1)
+                .min(d[i][j - 1] + 1)
+                .min(d[i - 1][j - 1] + cost);
             if i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1] {
                 v = v.min(d[i - 2][j - 2] + 1);
             }
@@ -452,21 +555,45 @@ type Ranked = Vec<(i64, Option<f32>)>;
 impl Engine {
     pub fn search(&self, query: &str, limit: usize) -> SearchResponse {
         let q = analyze(query);
-        let empty = |semantic| SearchResponse { hits: Vec::new(), semantic, filters: q.chips.clone() };
+        let empty = |semantic| SearchResponse {
+            hits: Vec::new(),
+            semantic,
+            filters: q.chips.clone(),
+        };
         if q.terms.is_empty() && q.semantic.is_empty() && q.filter.is_empty() {
             return empty(true);
         }
 
         // Ranked lists of (chunk id, cosine if from meaning).
         let mut lists: Vec<(List, f32, Ranked)> = Vec::new();
-        let qvec = if q.semantic.is_empty() { None } else { self.query_vector(&q.semantic).ok() };
+        let qvec = if q.semantic.is_empty() {
+            None
+        } else {
+            self.query_vector(&q.semantic).ok()
+        };
         let semantic = qvec.is_some() || q.semantic.is_empty();
         if let Some(qv) = &qvec {
-            let ranked = self.vectors.read().unwrap().rank(qv, TEXT_CANDIDATES, VISUAL_CANDIDATES);
+            let ranked = self
+                .vectors
+                .read()
+                .unwrap()
+                .rank(qv, TEXT_CANDIDATES, VISUAL_CANDIDATES);
             let (visual, text): (Vec<_>, Vec<_>) = ranked.into_iter().partition(|r| r.2);
-            lists.push((List::Text, W_TEXT, text.into_iter().map(|(id, c, _)| (id, Some(c))).collect()));
-            let w = if q.wants_pictures { W_VISUAL_WANTED } else { W_VISUAL };
-            lists.push((List::Visual, w, visual.into_iter().map(|(id, c, _)| (id, Some(c))).collect()));
+            lists.push((
+                List::Text,
+                W_TEXT,
+                text.into_iter().map(|(id, c, _)| (id, Some(c))).collect(),
+            ));
+            let w = if q.wants_pictures {
+                W_VISUAL_WANTED
+            } else {
+                W_VISUAL
+            };
+            lists.push((
+                List::Visual,
+                w,
+                visual.into_iter().map(|(id, c, _)| (id, Some(c))).collect(),
+            ));
         }
         {
             let db = self.db.lock().unwrap();
@@ -485,12 +612,25 @@ impl Engine {
             let names = db::name_search(&db, &q.terms, WORD_CANDIDATES).unwrap_or_default();
             if names.is_empty() && q.terms.iter().any(|t| t.chars().count() >= 4) {
                 let close = close_names(&db, &q.terms);
-                lists.push((List::CloseName, W_CLOSE_NAME, close.into_iter().map(|id| (id, None)).collect()));
+                lists.push((
+                    List::CloseName,
+                    W_CLOSE_NAME,
+                    close.into_iter().map(|id| (id, None)).collect(),
+                ));
             }
-            lists.push((List::Name, W_NAME, names.into_iter().map(|id| (id, None)).collect()));
+            lists.push((
+                List::Name,
+                W_NAME,
+                names.into_iter().map(|id| (id, None)).collect(),
+            ));
             if q.terms.is_empty() && !q.filter.is_empty() {
-                let newest = db::newest_matching(&db, &q.filter, WORD_CANDIDATES).unwrap_or_default();
-                lists.push((List::FilterOnly, W_FILTER_ONLY, newest.into_iter().map(|id| (id, None)).collect()));
+                let newest =
+                    db::newest_matching(&db, &q.filter, WORD_CANDIDATES).unwrap_or_default();
+                lists.push((
+                    List::FilterOnly,
+                    W_FILTER_ONLY,
+                    newest.into_iter().map(|id| (id, None)).collect(),
+                ));
             }
         }
 
@@ -510,12 +650,17 @@ impl Engine {
                     files.entry(id).or_insert(file);
                     Some((id, chunk.text.is_none() && !chunk.visual))
                 });
-                let Some((file_id, is_card)) = found else { continue };
+                let Some((file_id, is_card)) = found else {
+                    continue;
+                };
                 if !q.filter.allows(&files[&file_id]) {
                     continue;
                 }
                 let first_vote = voted.insert(file_id, ()).is_none();
-                let v = votes.entry(file_id).or_insert_with(|| Votes { best_rank: usize::MAX, ..Votes::default() });
+                let v = votes.entry(file_id).or_insert_with(|| Votes {
+                    best_rank: usize::MAX,
+                    ..Votes::default()
+                });
                 match list {
                     List::Text => v.cosine = max_opt(v.cosine, *cosine),
                     List::Visual => v.visual_cosine = max_opt(v.visual_cosine, *cosine),
@@ -561,7 +706,8 @@ impl Engine {
                 || v.name
                 || v.close_name
                 || v.cosine.is_some_and(|c| c >= CONFIDENT_TEXT_COSINE)
-                || v.visual_cosine.is_some_and(|c| c >= CONFIDENT_VISUAL_COSINE)
+                || v.visual_cosine
+                    .is_some_and(|c| c >= CONFIDENT_VISUAL_COSINE)
                 || (q.terms.is_empty() && q.semantic.is_empty())
         };
         // Fixed order: confident first, then score, best rank, newest, id.
@@ -592,7 +738,9 @@ impl Engine {
                 }
                 weak += 1;
             }
-            let Ok(Some((_, chunk))) = db::chunk_with_file(&db, v.chunk) else { continue };
+            let Ok(Some((_, chunk))) = db::chunk_with_file(&db, v.chunk) else {
+                continue;
+            };
             let file = files.remove(&file_id).unwrap();
             let text_words = chunk.text.as_deref().map_or(0.0, |t| coverage(&q.terms, t));
             let timed = chunk.label.as_deref().is_some_and(media::is_timestamp);
@@ -602,7 +750,9 @@ impl Engine {
                 (_, Some(at)) if timed && chunk.visual => format!("Shown at {at}"),
                 (_, Some(at)) if timed && text_words >= 1.0 => format!("Said at {at}, exact words"),
                 (_, Some(at)) if timed => format!("Talked about at {at}"),
-                (_, Some(label)) if text_words >= 1.0 => format!("Exact words on {}", label.to_lowercase()),
+                (_, Some(label)) if text_words >= 1.0 => {
+                    format!("Exact words on {}", label.to_lowercase())
+                }
                 (_, Some(label)) => format!("Matches the meaning on {}", label.to_lowercase()),
                 _ if text_words >= 1.0 => "Exact words match".to_string(),
                 _ if v.name => "Name matches".to_string(),
@@ -613,7 +763,10 @@ impl Engine {
             };
             // Spoken moments show the lines around them; video frames don't.
             let (before, after) = if timed && !chunk.visual && chunk.text.is_some() {
-                (neighbour(&db, v.chunk, false), neighbour(&db, v.chunk, true))
+                (
+                    neighbour(&db, v.chunk, false),
+                    neighbour(&db, v.chunk, true),
+                )
             } else {
                 (None, None)
             };
@@ -645,7 +798,11 @@ impl Engine {
                 _ => {}
             }
         }
-        SearchResponse { hits, semantic, filters: q.chips }
+        SearchResponse {
+            hits,
+            semantic,
+            filters: q.chips,
+        }
     }
 
     fn query_vector(&self, query: &str) -> Result<Vec<f32>, String> {
@@ -661,7 +818,8 @@ impl Engine {
         let cfg = self.config();
         let client = self.ollama()?;
         let installed = client.models()?;
-        let model = if !cfg.chat_model.is_empty() && ollama::has_model(&installed, &cfg.chat_model) {
+        let model = if !cfg.chat_model.is_empty() && ollama::has_model(&installed, &cfg.chat_model)
+        {
             cfg.chat_model.clone()
         } else {
             installed
@@ -671,7 +829,13 @@ impl Engine {
                 .ok_or("No chat model is installed in Ollama. Pull one (for example gemma4) to use Ask mode.")?
         };
 
-        let hits: Vec<Hit> = self.search(question, 12).hits.into_iter().filter(|h| h.snippet.is_some()).take(6).collect();
+        let hits: Vec<Hit> = self
+            .search(question, 12)
+            .hits
+            .into_iter()
+            .filter(|h| h.snippet.is_some())
+            .take(6)
+            .collect();
         if hits.is_empty() {
             return Ok(Answer {
                 text: "I couldn't find anything in your indexed files about that.".into(),
@@ -685,9 +849,18 @@ impl Engine {
         let mut sources = Vec::new();
         for (i, h) in hits.iter().enumerate() {
             let full = passage_for(&db, h).unwrap_or_else(|| h.snippet.clone().unwrap_or_default());
-            let loc = h.location.as_deref().map(|l| format!(", {l}")).unwrap_or_default();
+            let loc = h
+                .location
+                .as_deref()
+                .map(|l| format!(", {l}"))
+                .unwrap_or_default();
             context.push_str(&format!("[{}] {}{}\n{}\n\n", i + 1, h.name, loc, full));
-            sources.push(Source { n: i + 1, name: h.name.clone(), path: h.path.clone(), location: h.location.clone() });
+            sources.push(Source {
+                n: i + 1,
+                name: h.name.clone(),
+                path: h.path.clone(),
+                location: h.location.clone(),
+            });
         }
         drop(db);
 
@@ -696,13 +869,20 @@ impl Engine {
                       Be brief: lead with the answer in one or two sentences.";
         let user = format!("Passages:\n\n{context}Question: {question}");
         let text = client.chat(&model, system, &user)?;
-        Ok(Answer { text, sources, model })
+        Ok(Answer {
+            text,
+            sources,
+            model,
+        })
     }
 }
 
 /// The full chunk text behind a hit (the hit only carries a snippet).
 fn passage_for(db: &rusqlite::Connection, hit: &Hit) -> Option<String> {
-    db::chunk_with_file(db, hit.chunk_id).ok().flatten().and_then(|(_, c)| c.text)
+    db::chunk_with_file(db, hit.chunk_id)
+        .ok()
+        .flatten()
+        .and_then(|(_, c)| c.text)
 }
 
 /// The transcript chunk said just before (or after) a timed chunk in the same
@@ -716,18 +896,27 @@ fn neighbour(conn: &rusqlite::Connection, chunk_id: i64, after: bool) -> Option<
         "SELECT n.label, n.text FROM chunks c JOIN chunks n ON n.file_id = c.file_id AND n.ord < c.ord
          WHERE c.id = ?1 AND n.visual = 0 AND n.text IS NOT NULL ORDER BY n.ord DESC LIMIT 1"
     };
-    let (at, text): (Option<String>, String) =
-        conn.prepare_cached(sql).ok()?.query_row([chunk_id], |r| Ok((r.get(0)?, r.get(1)?))).ok()?;
+    let (at, text): (Option<String>, String) = conn
+        .prepare_cached(sql)
+        .ok()?
+        .query_row([chunk_id], |r| Ok((r.get(0)?, r.get(1)?)))
+        .ok()?;
     let at = at.filter(|l| media::is_timestamp(l))?;
     let chars: Vec<char> = text.trim().chars().collect();
     let text = if chars.len() <= LEN {
         chars.iter().collect()
     } else if after {
         let s: String = chars[..LEN].iter().collect();
-        format!("{}…", s.rsplit_once(' ').map_or(&s[..], |(a, _)| a).trim_end())
+        format!(
+            "{}…",
+            s.rsplit_once(' ').map_or(&s[..], |(a, _)| a).trim_end()
+        )
     } else {
         let s: String = chars[chars.len() - LEN..].iter().collect();
-        format!("…{}", s.split_once(' ').map_or(&s[..], |(_, b)| b).trim_start())
+        format!(
+            "…{}",
+            s.split_once(' ').map_or(&s[..], |(_, b)| b).trim_start()
+        )
     };
     Some(Moment { at, text })
 }
@@ -768,14 +957,26 @@ mod tests {
         let q = analyze_at("Find me the photo of my passport", NOW);
         assert_eq!(q.terms, vec!["passport"]);
         assert_eq!(q.filter.kind.as_deref(), Some("image"));
-        assert_eq!(q.chips, vec![FilterChip { label: "Photos".into(), phrase: "photo".into() }]);
+        assert_eq!(
+            q.chips,
+            vec![FilterChip {
+                label: "Photos".into(),
+                phrase: "photo".into()
+            }]
+        );
         assert_eq!(q.semantic, "the photo of my passport");
 
         let q = analyze_at("that PDF from last week", NOW);
         assert!(q.terms.is_empty());
         assert_eq!(q.filter.ext.as_deref(), Some("pdf"));
         assert_eq!(q.filter.since, Some(NOW - 14 * 86_400));
-        assert_eq!(q.chips.iter().map(|c| c.phrase.as_str()).collect::<Vec<_>>(), vec!["from last week", "PDF"]);
+        assert_eq!(
+            q.chips
+                .iter()
+                .map(|c| c.phrase.as_str())
+                .collect::<Vec<_>>(),
+            vec!["from last week", "PDF"]
+        );
         assert!(q.semantic.is_empty());
 
         let q = analyze_at("invoice in my Downloads", NOW);
@@ -796,7 +997,11 @@ mod tests {
         assert_eq!(typo_distance("recipt", "receipt"), Some(1));
         assert_eq!(typo_distance("passprot", "passport"), Some(1));
         assert_eq!(typo_distance("insurence", "insurance"), Some(1));
-        assert_eq!(typo_distance("invo", "invoice"), Some(0), "a word being typed");
+        assert_eq!(
+            typo_distance("invo", "invoice"),
+            Some(0),
+            "a word being typed"
+        );
         assert_eq!(typo_distance("cat", "car"), None, "short words must match");
         assert_eq!(typo_distance("budget", "bridge"), None);
     }
@@ -808,11 +1013,18 @@ mod tests {
         assert_eq!(coverage(&terms, "Acme lunch menu"), 0.5);
         let terms = vec!["q3".to_string(), "pla".to_string()];
         assert_eq!(coverage(&terms, "q3 planning"), 1.0);
-        assert_eq!(coverage(&["pla".to_string(), "q3".to_string()], "planning q3"), 0.5);
+        assert_eq!(
+            coverage(&["pla".to_string(), "q3".to_string()], "planning q3"),
+            0.5
+        );
     }
     #[test]
     fn snippet_centers_on_query() {
-        let text = format!("{} the launch moves to June {}", "x ".repeat(200), "y ".repeat(200));
+        let text = format!(
+            "{} the launch moves to June {}",
+            "x ".repeat(200),
+            "y ".repeat(200)
+        );
         let s = snippet(&text, "launch june");
         assert!(s.contains("launch moves to June"));
         assert!(s.starts_with('…') && s.ends_with('…'));

@@ -44,11 +44,19 @@ impl Watcher {
                 }
             }
         };
-        let mut debouncer =
-            new_debouncer_opt(Duration::from_secs(2), None, handler, NoCache, notify::Config::default()).ok()?;
+        let mut debouncer = new_debouncer_opt(
+            Duration::from_secs(2),
+            None,
+            handler,
+            NoCache,
+            notify::Config::default(),
+        )
+        .ok()?;
         for root in roots {
             let _ = debouncer.watch(root, RecursiveMode::Recursive);
         }
-        Some(Self { _debouncer: debouncer })
+        Some(Self {
+            _debouncer: debouncer,
+        })
     }
 }

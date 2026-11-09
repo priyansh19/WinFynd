@@ -25,7 +25,14 @@ pub struct VectorIndex {
 
 impl VectorIndex {
     pub fn new(dims: usize) -> Self {
-        Self { dims, ids: Vec::new(), visual: Vec::new(), data: Vec::new(), scales: Vec::new(), pos: HashMap::new() }
+        Self {
+            dims,
+            ids: Vec::new(),
+            visual: Vec::new(),
+            data: Vec::new(),
+            scales: Vec::new(),
+            pos: HashMap::new(),
+        }
     }
 
     #[cfg(test)]
@@ -43,12 +50,15 @@ impl VectorIndex {
         self.visual.push(visual);
         let max = v.iter().fold(0f32, |m, x| m.max(x.abs()));
         let scale = if max > 0.0 { max / 127.0 } else { 1.0 };
-        self.data.extend(v.iter().map(|x| (x / scale).round() as i8));
+        self.data
+            .extend(v.iter().map(|x| (x / scale).round() as i8));
         self.scales.push(scale);
     }
 
     pub fn remove(&mut self, id: i64) {
-        let Some(i) = self.pos.remove(&id) else { return };
+        let Some(i) = self.pos.remove(&id) else {
+            return;
+        };
         let last = self.ids.len() - 1;
         if i != last {
             let moved = self.ids[last];
@@ -81,8 +91,15 @@ impl VectorIndex {
                 }
             }
         }
-        let mut top: Vec<(i64, f32, bool)> = best(text, k_text).into_iter().map(|(id, s)| (id, s, false)).collect();
-        top.extend(best(visual, k_visual).into_iter().map(|(id, s)| (id, s, true)));
+        let mut top: Vec<(i64, f32, bool)> = best(text, k_text)
+            .into_iter()
+            .map(|(id, s)| (id, s, false))
+            .collect();
+        top.extend(
+            best(visual, k_visual)
+                .into_iter()
+                .map(|(id, s)| (id, s, true)),
+        );
         top
     }
 }
@@ -112,7 +129,12 @@ mod tests {
         ix.insert(1, &[1.0, 0.0], false);
         ix.insert(2, &[0.0, 1.0], false);
         ix.insert(3, &[0.6, 0.8], false);
-        let top = |ix: &VectorIndex, k| ix.rank(&[1.0, 0.0], k, k).iter().map(|x| x.0).collect::<Vec<_>>();
+        let top = |ix: &VectorIndex, k| {
+            ix.rank(&[1.0, 0.0], k, k)
+                .iter()
+                .map(|x| x.0)
+                .collect::<Vec<_>>()
+        };
         assert_eq!(top(&ix, 2), vec![1, 3]);
         ix.remove(1);
         assert_eq!(ix.len(), 2);
@@ -126,7 +148,9 @@ mod tests {
     fn eight_bit_scores_stay_close_to_full_precision() {
         let dims = 768;
         let unit = |seed: u32| {
-            let v: Vec<f32> = (0..dims).map(|i| (((i as u32).wrapping_mul(2654435761) ^ seed) % 1000) as f32 / 500.0 - 1.0).collect();
+            let v: Vec<f32> = (0..dims)
+                .map(|i| (((i as u32).wrapping_mul(2654435761) ^ seed) % 1000) as f32 / 500.0 - 1.0)
+                .collect();
             let n = v.iter().map(|x| x * x).sum::<f32>().sqrt();
             v.into_iter().map(|x| x / n).collect::<Vec<f32>>()
         };
@@ -136,7 +160,11 @@ mod tests {
             ix.insert(id, &unit(id as u32 * 31 + 1), false);
         }
         for (id, score, _) in ix.rank(&q, 50, 0) {
-            let exact: f32 = unit(id as u32 * 31 + 1).iter().zip(&q).map(|(a, b)| a * b).sum();
+            let exact: f32 = unit(id as u32 * 31 + 1)
+                .iter()
+                .zip(&q)
+                .map(|(a, b)| a * b)
+                .sum();
             assert!((score - exact).abs() < 0.005, "{score} vs {exact}");
         }
     }
@@ -152,6 +180,9 @@ mod tests {
         ix.remove(1);
         let r = ix.rank(&[1.0, 0.0], 5, 5);
         assert_eq!(r.iter().filter(|t| !t.2).count(), 1);
-        assert_eq!(r.iter().filter(|t| t.2).map(|t| t.0).collect::<Vec<_>>(), vec![10, 11]);
+        assert_eq!(
+            r.iter().filter(|t| t.2).map(|t| t.0).collect::<Vec<_>>(),
+            vec![10, 11]
+        );
     }
 }

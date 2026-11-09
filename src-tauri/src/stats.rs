@@ -41,16 +41,24 @@ pub struct IndexStats {
 }
 
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> Result<T, String> {
-    tauri::async_runtime::spawn_blocking(f).await.map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 fn index_path<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
-    app.path().app_data_dir().ok().map(|d| d.join("index.sqlite3"))
+    app.path()
+        .app_data_dir()
+        .ok()
+        .map(|d| d.join("index.sqlite3"))
 }
 
 /// Files in the index per kind, overall and for each searched folder or drive.
 #[tauri::command]
-pub async fn index_stats<R: Runtime>(app: AppHandle<R>, engine: EngineState<'_>) -> Result<IndexStats, String> {
+pub async fn index_stats<R: Runtime>(
+    app: AppHandle<R>,
+    engine: EngineState<'_>,
+) -> Result<IndexStats, String> {
     let engine = engine.inner().clone();
     let db_path = index_path(&app);
     blocking(move || {
@@ -108,7 +116,14 @@ pub async fn estimate_folders(paths: Vec<String>) -> Result<Vec<FolderStats>, St
         counting
             .into_iter()
             .zip(paths)
-            .map(|(t, path)| t.join().unwrap_or(FolderStats { path, files: 0, kinds: BTreeMap::new(), partial: true }))
+            .map(|(t, path)| {
+                t.join().unwrap_or(FolderStats {
+                    path,
+                    files: 0,
+                    kinds: BTreeMap::new(),
+                    partial: true,
+                })
+            })
             .collect()
     })
     .await
@@ -125,17 +140,27 @@ fn estimate(root: &Path, limit: Duration) -> FolderStats {
     let mut kinds = BTreeMap::new();
     let mut partial = false;
     let walker = walkdir::WalkDir::new(root).follow_links(false).into_iter();
-    for entry in walker.filter_entry(|e| e.depth() == 0 || !crate::engine::walk_skips(e, &[])).filter_map(Result::ok) {
+    for entry in walker
+        .filter_entry(|e| e.depth() == 0 || !crate::engine::walk_skips(e, &[]))
+        .filter_map(Result::ok)
+    {
         if started.elapsed() > limit {
             partial = true;
             break;
         }
         if entry.file_type().is_file() {
-            *kinds.entry(crate::engine::kind_name(entry.path()).to_string()).or_insert(0) += 1;
+            *kinds
+                .entry(crate::engine::kind_name(entry.path()).to_string())
+                .or_insert(0) += 1;
         }
     }
     // A count that stopped early stands as a lower bound ("at least").
-    FolderStats { path: root.display().to_string(), files: kinds.values().sum(), kinds, partial }
+    FolderStats {
+        path: root.display().to_string(),
+        files: kinds.values().sum(),
+        kinds,
+        partial,
+    }
 }
 
 #[derive(Serialize)]
@@ -148,11 +173,19 @@ pub struct OllamaInfo {
 /// Ask the local Ollama for its version. Loopback only.
 #[tauri::command]
 pub async fn ollama_info(engine: EngineState<'_>) -> Result<OllamaInfo, String> {
-    let url = format!("{}/api/version", engine.config().ollama_url.trim_end_matches('/'));
+    let url = format!(
+        "{}/api/version",
+        engine.config().ollama_url.trim_end_matches('/')
+    );
     blocking(move || {
-        let client = reqwest::blocking::Client::builder().timeout(Duration::from_secs(2)).build().ok()?;
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(2))
+            .build()
+            .ok()?;
         let body: serde_json::Value = client.get(url).send().ok()?.json().ok()?;
-        body.get("version").and_then(|v| v.as_str()).map(str::to_string)
+        body.get("version")
+            .and_then(|v| v.as_str())
+            .map(str::to_string)
     })
     .await
     .map(|version| OllamaInfo { version })
