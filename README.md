@@ -25,6 +25,7 @@ Both windows follow the Windows light/dark theme and your accent colour, and use
 | Action | Default |
 | --- | --- |
 | Open the launcher | Alt+Space |
+| Voice search (hold to talk, or press to toggle) | Alt+Shift+Space |
 | Ask a question | Ctrl+Alt+Space |
 | Search selected text | Win+Shift+F |
 
@@ -54,9 +55,9 @@ Recordings and videos are searched by what's in them, not just their names:
 - **What's shown**: up to 48 evenly spaced frames per video (near-duplicates skipped) are embedded with EmbeddingGemma 2 like photos, so "dog on a beach" finds the moment in a video. This needs FFmpeg (`winget install Gyan.FFmpeg`), which also lets every other audio format be transcribed.
 - Media is indexed after everything else in a scan, because transcription is the slow part. Up to the first 4 hours of a file is transcribed.
 
-### Not done yet
+### Voice search
 
-- Additional features are in development.
+Hold Alt+Shift+Space, say what you're looking for, and let go. Settings can switch that to press once to start and again to stop. Whisper transcribes what you said on this PC. It needs the Speech model downloaded once (Whisper Small, about 488 MB), the same model that reads recordings and videos.
 
 ## Develop
 
