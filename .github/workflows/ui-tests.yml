@@ -1,0 +1,47 @@
+name: UI tests
+
+on:
+  pull_request:
+
+jobs:
+  playwright:
+    name: Playwright (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Chromium only. WebView2 on Windows is Chromium-based, but this job
+      # does not launch the Tauri shell or a real WebView2 window.
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+        if: runner.os == 'Linux'
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium
+        if: runner.os == 'Windows'
+
+      - name: Playwright
+        run: npm run test:e2e
+
+      - name: Upload HTML report and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ runner.os }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+          if-no-files-found: ignore

@@ -8,5 +8,8 @@ src-tauri/gen
 setup/target
 setup/gen
 dist-installer
+/playwright-report
+/test-results
+/blob-report
 /src-tauri/llama/*
 !/src-tauri/llama/README.md
